@@ -1,8 +1,9 @@
 // Usuários do sistema com seus perfis de acesso
 // Roles:
-//   admin       -> acesso total a tudo
-//   editor      -> edita Orçamentos, visualização no restante
-//   budget_only -> somente tela de Orçamentos (edição completa)
+//   admin          -> acesso total a tudo
+//   editor         -> edita Orçamentos, visualização no restante
+//   budget_only    -> somente tela de Orçamentos (edição completa)
+//   producao_only  -> somente tela de Produção (leitura e edição)
 
 export const USERS = [
     {
@@ -39,6 +40,13 @@ export const USERS = [
         password: 'user5',
         name: 'Usuário 5',
         role: 'budget_only'
+    },
+    {
+        id: 6,
+        login: 'producao',
+        password: 'producao',
+        name: 'Produção',
+        role: 'producao_only'
     }
 ];
 
@@ -57,6 +65,11 @@ export const ROLE_PERMISSIONS = {
     budget_only: {
         visibleTabs: ['orcamentos'],
         editableTabs: ['orcamentos'],
+        canExportImport: false
+    },
+    producao_only: {
+        visibleTabs: ['contas'],
+        editableTabs: ['contas'],
         canExportImport: false
     }
 };

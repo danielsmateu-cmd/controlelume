@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, User, Package, Calendar, DollarSign } from 'lucide-react';
+import { Factory, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, User, Package, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
 const ETAPAS = [
-    { id: 'arte', label: 'Arte / Aprovação' },
+    { id: 'arte_final', label: 'Arte Final' },
+    { id: 'projeto_final', label: 'Projeto Final' },
     { id: 'corte', label: 'Corte' },
-    { id: 'usinagem', label: 'Usinagem' },
-    { id: 'acabamento', label: 'Acabamento' },
     { id: 'montagem', label: 'Montagem' },
-    { id: 'entrega', label: 'Pronto p/ Entrega' },
+    { id: 'entrega', label: 'Pronto para Entrega' },
 ];
 
 const STATUS_ETAPA = {
@@ -34,7 +33,6 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Header */}
             <div
                 className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setExpanded(!expanded)}
@@ -54,10 +52,6 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                                 <Package size={12} />
                                 {budget.items?.length} {budget.items?.length === 1 ? 'item' : 'itens'}
                             </span>
-                            <span className="flex items-center gap-1 font-semibold text-indigo-600">
-                                <DollarSign size={12} />
-                                {(budget.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -69,7 +63,6 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                     </div>
                 </div>
 
-                {/* Barra de progresso */}
                 <div className="mt-3">
                     <div className="w-full bg-gray-100 rounded-full h-2">
                         <div
@@ -80,25 +73,26 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                 </div>
             </div>
 
-            {/* Itens do orçamento expandido */}
             {expanded && (
                 <div className="border-t border-gray-100 p-5 space-y-4">
-                    {/* Itens */}
+                    {/* Itens do pedido - sem valores */}
                     {budget.items?.length > 0 && (
                         <div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Itens do Pedido</p>
                             <div className="space-y-1">
                                 {budget.items.map((item, i) => (
-                                    <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                        <span className="text-gray-700 font-medium">{item.quantity}x {item.name}</span>
-                                        <span className="text-gray-500">{(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <div key={i} className="flex items-center gap-2 text-sm py-1 border-b border-gray-50">
+                                        <span className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                            {item.quantity}x
+                                        </span>
+                                        <span className="text-gray-700 font-medium">{item.name}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Etapas de produção */}
+                    {/* Etapas */}
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Etapas de Produção</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -131,7 +125,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
 
                     {/* Observações */}
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações de Produção</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações</p>
                         <textarea
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                             rows={2}
@@ -156,9 +150,7 @@ const Producao = () => {
 
     useEffect(() => {
         api.getBudgets().then(data => {
-            if (data) {
-                setBudgetsAprovados(data.filter(b => b.status === 'Aprovado'));
-            }
+            if (data) setBudgetsAprovados(data.filter(b => b.status === 'Aprovado'));
             setLoading(false);
         });
     }, []);
@@ -187,7 +179,6 @@ const Producao = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -208,7 +199,6 @@ const Producao = () => {
                 </div>
             </div>
 
-            {/* Lista */}
             {loading ? (
                 <div className="text-center py-16 text-gray-400">
                     <Factory size={40} className="mx-auto mb-3 opacity-20 animate-pulse" />
