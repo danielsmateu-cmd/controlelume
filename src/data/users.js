@@ -1,30 +1,30 @@
 // Usuários do sistema com seus perfis de acesso
 // Roles:
 //   admin          -> acesso total a tudo
-//   editor         -> edita Orçamentos, visualização no restante
-//   budget_only    -> somente tela de Orçamentos (edição completa)
-//   producao_only  -> somente tela de Produção (leitura e edição)
+//   editor         -> edita Orçamentos, Produção e Tarefas; restante só visualização
+//   budget_only    -> somente Orçamentos e Produção (edição completa)
+//   producao_only  -> somente tela de Produção
 
 export const USERS = [
     {
         id: 1,
-        login: 'admmaster',
+        login: 'dsmateu',
         password: 'master64',
-        name: 'Administrador',
+        name: 'D. Mateu',
         role: 'admin'
     },
     {
         id: 2,
-        login: 'adm1',
+        login: 'jsmateu',
         password: 'adm164',
-        name: 'ADM 1',
+        name: 'J. Mateu',
         role: 'editor'
     },
     {
         id: 3,
-        login: 'adm2',
+        login: 'bsmateu',
         password: 'adm264',
-        name: 'ADM 2',
+        name: 'B. Mateu',
         role: 'editor'
     },
     {
@@ -59,12 +59,12 @@ export const ROLE_PERMISSIONS = {
     },
     editor: {
         visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'tarefas'],
-        editableTabs: ['orcamentos', 'tarefas'],
+        editableTabs: ['orcamentos', 'contas', 'tarefas'],
         canExportImport: false
     },
     budget_only: {
-        visibleTabs: ['orcamentos'],
-        editableTabs: ['orcamentos'],
+        visibleTabs: ['orcamentos', 'contas'],
+        editableTabs: ['orcamentos', 'contas'],
         canExportImport: false
     },
     producao_only: {
