@@ -2,8 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #F8FAFC;
+  }
+}
+
+@layer utilities {
+  /* Tabela com valores numéricos monoespaçados */
+  .mono-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-family: 'Inter', ui-monospace, monospace;
+  }
+
+  /* Scrollbar fina */
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-slate-200 rounded-full; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { @apply bg-slate-300; }
+
+  /* Card padrão SaaS */
+  .card {
+    @apply bg-white rounded-xl border border-slate-100 shadow-sm;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,.06), 0 1px 2px -1px rgba(0,0,0,.04);
+  }
+
+  /* Input refinado */
+  .input-field {
+    @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400
+           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+           transition-all duration-150;
+  }
+
+  /* Badge pill */
+  .badge-green  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100; }
+  .badge-red    { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-100; }
+  .badge-amber  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100; }
+  .badge-indigo { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100; }
+
+  /* Botão primário */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors duration-150 shadow-sm;
+  }
+
+  /* Th de tabela */
+  .th-cell {
+    @apply px-5 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider;
+  }
+
+  /* Td de tabela */
+  .td-cell {
+    @apply px-5 py-3.5 text-sm text-slate-700;
   }
 }

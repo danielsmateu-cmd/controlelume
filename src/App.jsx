@@ -235,7 +235,7 @@ function AppContent() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-[#F8FAFC]">
             <Sidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -243,8 +243,10 @@ function AppContent() {
                 onImportBackup={handleImportBackup}
                 onExportExcel={handleExportExcel}
             />
-            <main className="flex-1 overflow-y-auto p-8">
-                {renderContent()}
+            <main className="flex-1 overflow-y-auto scrollbar-thin">
+                <div className="max-w-7xl mx-auto px-8 py-8">
+                    {renderContent()}
+                </div>
             </main>
         </div>
     );
