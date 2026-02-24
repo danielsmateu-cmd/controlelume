@@ -885,38 +885,74 @@ const Orcamentos = ({ materials, setMaterials }) => {
             {/* Application UI */}
             <div className="space-y-6 pb-20 print:hidden">
                 {/* Client Data Form (Collapsible or Block) */}
-                <div className="bg-white p-5 rounded-xl border border-slate-100" style={{ boxShadow: '0 1px 3px 0 rgba(0,0,0,.06)' }}>
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                        <User size={14} /> Dados do Cliente — Para Impressão na Proposta
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <User size={16} /> Dados do Cliente (Para Impressão)
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <input type="text" placeholder="Nome Completo" value={clientData.name}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <input
+                            type="text"
+                            placeholder="Nome Completo"
+                            value={clientData.name}
                             onChange={e => setClientData({ ...clientData, name: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="CPF / CNPJ" value={clientData.doc}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="CPF / CNPJ"
+                            value={clientData.doc}
                             onChange={e => setClientData({ ...clientData, doc: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="Telefone" value={clientData.phone}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Telefone"
+                            value={clientData.phone}
                             onChange={e => setClientData({ ...clientData, phone: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="Endereço" value={clientData.address}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Endereço"
+                            value={clientData.address}
                             onChange={e => setClientData({ ...clientData, address: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="Cidade" value={clientData.city}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Cidade"
+                            value={clientData.city}
                             onChange={e => setClientData({ ...clientData, city: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="CEP" value={clientData.zip}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="CEP"
+                            value={clientData.zip}
                             onChange={e => setClientData({ ...clientData, zip: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="Número" value={clientData.number}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Número"
+                            value={clientData.number}
                             onChange={e => setClientData({ ...clientData, number: e.target.value })}
-                            className="input-field" />
-                        <input type="text" placeholder="Bairro" value={clientData.neighborhood}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Bairro"
+                            value={clientData.neighborhood}
                             onChange={e => setClientData({ ...clientData, neighborhood: e.target.value })}
-                            className="input-field" />
-                        <input type="email" placeholder="E-mail" value={clientData.email}
+                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <input
+                            type="email"
+                            placeholder="E-mail"
+                            value={clientData.email}
                             onChange={e => setClientData({ ...clientData, email: e.target.value })}
-                            className="input-field lg:col-span-2" />
+                            className="lg:col-span-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
                     </div>
                 </div>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
