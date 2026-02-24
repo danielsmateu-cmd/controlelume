@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'vendas', label: 'Entradas', icon: ShoppingCart },
         { id: 'orcamentos', label: 'Orçamentos', icon: Calculator },
         { id: 'contas', label: 'Produção', icon: Factory },
+        { id: 'tarefas', label: 'Tarefas', icon: ClipboardList },
     ];
 
     // Filter menu items by what the current user can see

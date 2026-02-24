@@ -53,13 +53,13 @@ export const USERS = [
 // Permissões por role
 export const ROLE_PERMISSIONS = {
     admin: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas'],
-        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'tarefas'],
+        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'tarefas'],
         canExportImport: true
     },
     editor: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas'],
-        editableTabs: ['orcamentos'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'tarefas'],
+        editableTabs: ['orcamentos', 'tarefas'],
         canExportImport: false
     },
     budget_only: {

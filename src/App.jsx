@@ -7,6 +7,7 @@ import Saida from './pages/Saida';
 import Entradas from './pages/Entradas';
 import Anotacoes from './pages/Anotacoes';
 import Orcamentos from './pages/Orcamentos';
+import Tarefas from './pages/Tarefas';
 import Login from './pages/Login';
 import { api } from './services/api';
 
@@ -220,6 +221,8 @@ function AppContent() {
                 return <Anotacoes />;
             case 'orcamentos':
                 return <Orcamentos materials={materials} setMaterials={setMaterials} />;
+            case 'tarefas':
+                return <Tarefas />;
             default:
                 return canView('resumo')
                     ? <Resumo expenses={expenses} orders={orders} />
