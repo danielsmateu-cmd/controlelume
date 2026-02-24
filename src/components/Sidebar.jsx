@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup }) => {
+const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onExportExcel }) => {
     const fileInputRef = useRef(null);
     const { currentUser, logout, canView, permissions } = useAuth();
 
@@ -54,6 +54,13 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup }) =>
             {/* Backup buttons - only for admin */}
             {permissions?.canExportImport && (
                 <div className="px-4 border-t border-gray-100 pt-3 pb-2 space-y-1">
+                    <button
+                        onClick={onExportExcel}
+                        className="flex items-center w-full px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-2"
+                    >
+                        <FileSpreadsheet size={14} className="text-emerald-600" /> Exportar Planilha
+                    </button>
+
                     <button
                         onClick={onExportBackup}
                         className="flex items-center w-full px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-2"

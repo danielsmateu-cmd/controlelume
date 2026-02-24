@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Resumo from './pages/Resumo';
@@ -128,6 +129,62 @@ function AppContent() {
         URL.revokeObjectURL(url);
     };
 
+    const handleExportExcel = () => {
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+        // Aba Despesas
+        const despesasData = expenses.map(e => ({
+            'Tipo': e.type === 'fixos' ? 'Fixo' : 'Variável',
+            'Categoria': e.category,
+            'Descrição': e.description,
+            'Mês': months[e.month] || '',
+            'Ano': e.year,
+            'Valor (R$)': e.amount || 0,
+            'Data': e.date || '',
+            'Vencimento': e.dueDate || '',
+            'Pago': e.paid ? 'Sim' : 'Não',
+            'Pessoas': e.people || ''
+        }));
+
+        // Aba Vendas
+        const vendasData = orders.map(o => ({
+            'Cliente': o.clientName,
+            'Descrição': o.description,
+            'Data Pedido': o.orderDate || '',
+            'Ano': o.year,
+            'Valor (R$)': o.value || 0,
+            'Forma Pagamento': o.paymentMethod || '',
+            'Data Pagamento': o.paymentDate || '',
+            'Pago': o.isPaid ? 'Sim' : 'Não'
+        }));
+
+        // Aba Anotações
+        const anotacoesData = notes.map(n => ({
+            'Descrição': n.description,
+            'Valor (R$)': n.value || 0,
+            'Data': n.date || ''
+        }));
+
+        // Aba Materiais
+        const materiaisData = materials.map(m => ({
+            'Nome': m.name,
+            'Tipo': m.type === 'unit' ? 'Unidade' : m.type === 'linear' ? 'Linear' : 'Chapa',
+            'Largura (cm)': m.width || '',
+            'Altura (cm)': m.height || '',
+            'Preço Unitário (R$)': m.price || 0,
+            'Preço/m² (R$)': m.pricePerM2 || 0
+        }));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(despesasData.length ? despesasData : [{}]), 'Despesas');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendasData.length ? vendasData : [{}]), 'Vendas');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anotacoesData.length ? anotacoesData : [{}]), 'Anotações');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(materiaisData.length ? materiaisData : [{}]), 'Materiais');
+
+        const date = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `controle_antigravity_${date}.xlsx`);
+    };
+
     const handleImportBackup = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -181,6 +238,7 @@ function AppContent() {
                 setActiveTab={setActiveTab}
                 onExportBackup={handleExportBackup}
                 onImportBackup={handleImportBackup}
+                onExportExcel={handleExportExcel}
             />
             <main className="flex-1 overflow-y-auto p-8">
                 {renderContent()}
