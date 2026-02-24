@@ -129,7 +129,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
     const LumeLogo = () => (
         <div className="flex flex-col items-center justify-center">
-            <img src="/Logo%20LUME.png" alt="LUME Logo" className="h-60 object-contain" />
+            <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-60 object-contain" />
             <div className="text-center leading-none mt-1">
                 <span className="block text-[10px] tracking-[0.2em] text-gray-700 font-bold">ACRÍLICOS | DESIGN DE PRODUTOS</span>
             </div>
@@ -726,7 +726,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 {/* HEAD - Split Layout (Logo Left / Data Right) */}
                 <div className="flex justify-between items-center mb-10 pb-6 border-b border-slate-50">
                     <div className="flex-1">
-                        <img src="/Logo%20LUME.png" alt="LUME Logo" className="h-40 object-contain" />
+                        <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-40 object-contain" />
                     </div>
                     <div className="flex-1 text-right">
                         <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-2">PROPOSTA COMERCIAL</h1>
@@ -1005,7 +1005,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp size={14} className="text-orange-500" /> Multiplicador (Markup)
+                            <TrendingUp size={14} className="text-orange-500" /> Multiplicador
                         </label>
                         <input
                             type="number"
@@ -1241,7 +1241,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                         </p>
                                     </div>
                                 </div>
-                                <p className="text-indigo-200/60 text-[10px] mt-4 italic">* Cálculos baseados no markup de {markup}x e nos itens adicionados.</p>
+                                <p className="text-indigo-200/60 text-[10px] mt-4 italic">* Cálculos baseados no multiplicador de {markup}x e nos itens adicionados.</p>
                             </div>
 
                             <div className="flex flex-col gap-3 w-full md:w-auto">

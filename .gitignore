@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Ambiente local (NUNCA enviar ao GitHub!)
+.env
+.env.local
+.env.*.local
+
+# Dados locais (antigo servidor JSON)
+data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema
+.DS_Store
+Thumbs.db
