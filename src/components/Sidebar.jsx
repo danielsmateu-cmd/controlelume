@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,7 +12,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'saida', label: 'Saída', icon: Wallet },
         { id: 'vendas', label: 'Entradas', icon: ShoppingCart },
         { id: 'orcamentos', label: 'Orçamentos', icon: Calculator },
-        { id: 'contas', label: 'Anotações', icon: DollarSign },
+        { id: 'contas', label: 'Produção', icon: Factory },
     ];
 
     // Filter menu items by what the current user can see
@@ -27,7 +27,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
     return (
         <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
             <div className="p-6">
-                <h1 className="text-xl font-bold text-indigo-600">Controle Web</h1>
+                <h1 className="text-xl font-bold text-indigo-600">Controle Lume</h1>
             </div>
 
             <nav className="flex-1 px-4 space-y-2">

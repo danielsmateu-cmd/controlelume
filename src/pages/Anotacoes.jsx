@@ -1,159 +1,239 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Calendar, DollarSign, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Factory, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, User, Package, Calendar, DollarSign } from 'lucide-react';
 import clsx from 'clsx';
+import { api } from '../services/api';
 
-const Anotacoes = ({ notes, setNotes, readOnly = false }) => {
-    const [newNote, setNewNote] = useState({
-        description: '',
-        value: '',
-        date: new Date().toISOString().split('T')[0]
-    });
+const ETAPAS = [
+    { id: 'arte', label: 'Arte / Aprovação' },
+    { id: 'corte', label: 'Corte' },
+    { id: 'usinagem', label: 'Usinagem' },
+    { id: 'acabamento', label: 'Acabamento' },
+    { id: 'montagem', label: 'Montagem' },
+    { id: 'entrega', label: 'Pronto p/ Entrega' },
+];
 
-    const handleAddNote = (e) => {
-        e.preventDefault();
-        if (!newNote.description || !newNote.value || !newNote.date) return;
+const STATUS_ETAPA = {
+    pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-500 border-gray-200', icon: Clock },
+    em_andamento: { label: 'Em andamento', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: AlertCircle },
+    concluido: { label: 'Concluído', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
+};
 
-        const noteToAdd = {
-            id: Date.now(),
-            description: newNote.description,
-            value: parseFloat(newNote.value),
-            date: newNote.date,
-            isPaid: false
-        };
+const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
+    const [expanded, setExpanded] = useState(false);
+    const etapas = producaoData?.etapas || {};
 
-        setNotes([noteToAdd, ...notes]);
-        setNewNote({
-            description: '',
-            value: '',
-            date: new Date().toISOString().split('T')[0]
-        });
-    };
+    const totalEtapas = ETAPAS.length;
+    const concluidas = ETAPAS.filter(e => etapas[e.id] === 'concluido').length;
+    const progresso = Math.round((concluidas / totalEtapas) * 100);
 
-    const toggleNoteStatus = (id) => {
-        setNotes(notes.map(note =>
-            note.id === id ? { ...note, isPaid: !note.isPaid } : note
-        ));
-    };
-
-    const handleDeleteNote = (id) => {
-        if (window.confirm('Tem certeza que deseja excluir esta anotação?')) {
-            setNotes(notes.filter(note => note.id !== id));
-        }
+    const getProgressColor = () => {
+        if (progresso === 100) return 'bg-green-500';
+        if (progresso >= 50) return 'bg-blue-500';
+        return 'bg-amber-500';
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800">Anotações</h2>
-                {readOnly && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700">
-                        👁️ Somente Visualização
-                    </span>
-                )}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div
+                className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setExpanded(!expanded)}
+            >
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <User size={14} className="text-indigo-500 flex-shrink-0" />
+                            <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                                <Calendar size={12} />
+                                {new Date(budget.date).toLocaleDateString('pt-BR')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <Package size={12} />
+                                {budget.items?.length} {budget.items?.length === 1 ? 'item' : 'itens'}
+                            </span>
+                            <span className="flex items-center gap-1 font-semibold text-indigo-600">
+                                <DollarSign size={12} />
+                                {(budget.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                            <div className="text-xs font-bold text-gray-700">{progresso}%</div>
+                            <div className="text-[10px] text-gray-400">{concluidas}/{totalEtapas} etapas</div>
+                        </div>
+                        {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                    </div>
+                </div>
+
+                {/* Barra de progresso */}
+                <div className="mt-3">
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                            className={clsx("h-2 rounded-full transition-all duration-500", getProgressColor())}
+                            style={{ width: `${progresso}%` }}
+                        />
+                    </div>
+                </div>
             </div>
 
-            {/* Form - hidden when readOnly */}
-            {!readOnly && (
-                <form onSubmit={handleAddNote} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 space-y-2">
-                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                            <FileText size={16} className="text-indigo-500" /> Descritivo
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="Ex: Compra de materiais"
-                            value={newNote.description}
-                            onChange={(e) => setNewNote({ ...newNote, description: e.target.value })}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                        />
-                    </div>
-
-                    <div className="w-full md:w-48 space-y-2">
-                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                            <DollarSign size={16} className="text-green-500" /> Valor
-                        </label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            value={newNote.value}
-                            onChange={(e) => setNewNote({ ...newNote, value: e.target.value })}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                        />
-                    </div>
-
-                    <div className="w-full md:w-48 space-y-2">
-                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                            <Calendar size={16} className="text-blue-500" /> Data
-                        </label>
-                        <input
-                            type="date"
-                            value={newNote.date}
-                            onChange={(e) => setNewNote({ ...newNote, date: e.target.value })}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                        />
-                    </div>
-
-                    <div className="flex items-end">
-                        <button
-                            type="submit"
-                            className="w-full md:w-auto px-6 py-2 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Plus size={20} /> Adicionar
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {/* List */}
-            <div className="space-y-4">
-                {notes.length === 0 ? (
-                    <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300">
-                        <p className="text-gray-500">Nenhuma anotação encontrada.</p>
-                    </div>
-                ) : (
-                    notes.map((note) => (
-                        <div key={note.id} className="bg-white px-6 py-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900">{note.description}</h4>
-                                <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar size={14} /> {new Date(note.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                    </span>
-                                    <span className="font-bold text-indigo-600">
-                                        {note.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                {note.value > 0 && (
-                                    <button
-                                        onClick={() => !readOnly && toggleNoteStatus(note.id)}
-                                        disabled={readOnly}
-                                        className={clsx("w-24 text-[11px] py-1 rounded-full font-bold border transition-all",
-                                            readOnly ? "cursor-default" : "cursor-pointer shadow-sm",
-                                            note.isPaid
-                                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                                                : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                                        )}>
-                                        {note.isPaid ? 'PAGO' : 'PENDENTE'}
-                                    </button>
-                                )}
-                                {!readOnly && (
-                                    <button
-                                        onClick={() => handleDeleteNote(note.id)}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                )}
+            {/* Itens do orçamento expandido */}
+            {expanded && (
+                <div className="border-t border-gray-100 p-5 space-y-4">
+                    {/* Itens */}
+                    {budget.items?.length > 0 && (
+                        <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Itens do Pedido</p>
+                            <div className="space-y-1">
+                                {budget.items.map((item, i) => (
+                                    <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">{item.quantity}x {item.name}</span>
+                                        <span className="text-gray-500">{(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
+                    )}
+
+                    {/* Etapas de produção */}
+                    <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Etapas de Produção</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {ETAPAS.map(etapa => {
+                                const statusAtual = etapas[etapa.id] || 'pendente';
+                                const statusInfo = STATUS_ETAPA[statusAtual];
+                                const Icon = statusInfo.icon;
+
+                                return (
+                                    <div key={etapa.id} className={clsx("rounded-xl border p-3 flex items-center justify-between", statusInfo.color)}>
+                                        <div className="flex items-center gap-2">
+                                            <Icon size={14} />
+                                            <span className="text-xs font-semibold">{etapa.label}</span>
+                                        </div>
+                                        <select
+                                            value={statusAtual}
+                                            onChange={e => onUpdateEtapa(budget.id, etapa.id, e.target.value)}
+                                            className="text-[10px] font-bold bg-transparent border-none outline-none cursor-pointer ml-1"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <option value="pendente">Pendente</option>
+                                            <option value="em_andamento">Em andamento</option>
+                                            <option value="concluido">Concluído</option>
+                                        </select>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Observações */}
+                    <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações de Produção</p>
+                        <textarea
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                            rows={2}
+                            placeholder="Anotações internas de produção..."
+                            value={producaoData?.obs || ''}
+                            onChange={e => onUpdateEtapa(budget.id, '__obs__', e.target.value)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-export default Anotacoes;
+const Producao = () => {
+    const [budgetsAprovados, setBudgetsAprovados] = useState([]);
+    const [producaoData, setProducaoData] = useState(() => {
+        const saved = localStorage.getItem('producao_data');
+        return saved ? JSON.parse(saved) : {};
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.getBudgets().then(data => {
+            if (data) {
+                setBudgetsAprovados(data.filter(b => b.status === 'Aprovado'));
+            }
+            setLoading(false);
+        });
+    }, []);
+
+    const handleUpdateEtapa = (budgetId, etapaId, valor) => {
+        setProducaoData(prev => {
+            const updated = {
+                ...prev,
+                [budgetId]: {
+                    ...prev[budgetId],
+                    ...(etapaId === '__obs__'
+                        ? { obs: valor }
+                        : { etapas: { ...(prev[budgetId]?.etapas || {}), [etapaId]: valor } }
+                    )
+                }
+            };
+            localStorage.setItem('producao_data', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    const totalConcluidos = budgetsAprovados.filter(b => {
+        const etapas = producaoData[b.id]?.etapas || {};
+        return ETAPAS.every(e => etapas[e.id] === 'concluido');
+    }).length;
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <Factory className="text-indigo-600" size={24} />
+                        Produção
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">Orçamentos aprovados em produção</p>
+                </div>
+                <div className="flex gap-3">
+                    <div className="text-center px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <div className="text-xl font-black text-indigo-600">{budgetsAprovados.length}</div>
+                        <div className="text-[10px] text-indigo-400 font-bold uppercase">Em produção</div>
+                    </div>
+                    <div className="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
+                        <div className="text-xl font-black text-green-600">{totalConcluidos}</div>
+                        <div className="text-[10px] text-green-400 font-bold uppercase">Concluídos</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Lista */}
+            {loading ? (
+                <div className="text-center py-16 text-gray-400">
+                    <Factory size={40} className="mx-auto mb-3 opacity-20 animate-pulse" />
+                    <p>Carregando...</p>
+                </div>
+            ) : budgetsAprovados.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <Factory size={48} className="mx-auto mb-4 text-gray-200" />
+                    <p className="text-gray-500 font-medium">Nenhum orçamento aprovado ainda.</p>
+                    <p className="text-sm text-gray-400 mt-1">Aprove um orçamento na tela de <strong>Orçamentos</strong> para ele aparecer aqui.</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {budgetsAprovados.map(budget => (
+                        <ProducaoCard
+                            key={budget.id}
+                            budget={budget}
+                            producaoData={producaoData[budget.id]}
+                            onUpdateEtapa={handleUpdateEtapa}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default Producao;
