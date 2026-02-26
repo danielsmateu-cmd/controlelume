@@ -60,7 +60,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     };
 
     // Importar dados de um orçamento aprovado
-    const handleImportBudget = (budget) => {
+    const handleImportBudget = async (budget) => {
         setFormData(prev => ({
             ...prev,
             clientName: budget.clientData?.name || '',
@@ -68,6 +68,16 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             value: budget.total ? String(budget.total.toFixed(2)) : ''
         }));
         setShowBudgetPicker(false);
+
+        // Remove imediatamente localmente da lista de importação
+        setApprovedBudgets(prev => prev.filter(b => b.id !== budget.id));
+
+        // Atualiza o banco para que não volte a aparecer (fica como Faturado)
+        try {
+            await api.updateBudget(budget.id, { status: 'Faturado' });
+        } catch (error) {
+            console.error('Erro ao atualizar status do orçamento:', error);
+        }
     };
 
     const handleSubmit = async (e) => {

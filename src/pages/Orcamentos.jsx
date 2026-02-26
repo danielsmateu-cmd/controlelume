@@ -332,6 +332,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
             switch (status) {
                 case 'Aprovado': return 'bg-green-100 text-green-700 border-green-200';
                 case 'Recusado': return 'bg-red-100 text-red-700 border-red-200';
+                case 'Faturado': return 'bg-blue-100 text-blue-700 border-blue-200';
                 default: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
             }
         };
@@ -389,7 +390,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center gap-1">
-                                                    {['Aguardando', 'Aprovado', 'Recusado'].map(status => (
+                                                    {['Aguardando', 'Aprovado', 'Recusado', 'Faturado'].map(status => (
                                                         <button
                                                             key={status}
                                                             onClick={() => handleUpdateStatus(budget.id, status)}
@@ -404,12 +405,14 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                             {status === 'Aprovado' && <CheckCircle size={16} />}
                                                             {status === 'Recusado' && <XCircle size={16} />}
                                                             {status === 'Aguardando' && <Clock size={16} />}
+                                                            {status === 'Faturado' && <Receipt size={16} />}
                                                         </button>
                                                     ))}
                                                 </div>
                                                 <div className={clsx("text-[10px] font-bold mt-1 uppercase",
                                                     budget.status === 'Aprovado' ? 'text-green-600' :
-                                                        budget.status === 'Recusado' ? 'text-red-500' : 'text-yellow-600'
+                                                        budget.status === 'Recusado' ? 'text-red-500' :
+                                                            budget.status === 'Faturado' ? 'text-blue-600' : 'text-yellow-600'
                                                 )}>
                                                     {budget.status}
                                                 </div>
