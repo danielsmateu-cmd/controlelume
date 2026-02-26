@@ -36,34 +36,11 @@ function AppContent() {
         }))
     );
 
-    const [expenses, setExpenses] = useState(() => {
-        const saved = localStorage.getItem('expenses');
-        return saved ? JSON.parse(saved) : initialFixedExpenses;
-    });
+    const [expenses, setExpenses] = useState(initialFixedExpenses);
 
-    const [orders, setOrders] = useState(() => {
-        const saved = localStorage.getItem('orders');
-        return saved ? JSON.parse(saved) : [
-            {
-                id: 1,
-                clientName: 'João Silva',
-                description: 'Camiseta personalizada G',
-                orderDate: `${currentYear}-02-10`,
-                value: 85.00,
-                paymentDate: `${currentYear}-02-12`,
-                isPaid: true,
-                paymentMethod: 'Pix/Transferência',
-                year: currentYear
-            }
-        ];
-    });
+    const [orders, setOrders] = useState([]);
 
-    const [notes, setNotes] = useState(() => {
-        const saved = localStorage.getItem('notes');
-        return saved ? JSON.parse(saved) : [
-            { id: 1, description: 'Exemplo de anotação', value: 150.00, date: '2024-02-11' }
-        ];
-    });
+    const [notes, setNotes] = useState([]);
 
     const [materials, setMaterials] = useState(() => {
         const saved = localStorage.getItem('materials');
@@ -109,13 +86,11 @@ function AppContent() {
     useEffect(() => {
         if (isLoading) return;
         localStorage.setItem('orders', JSON.stringify(orders));
-        api.saveOrders(orders);
     }, [orders, isLoading]);
 
     useEffect(() => {
         if (isLoading) return;
         localStorage.setItem('notes', JSON.stringify(notes));
-        api.saveNotes(notes);
     }, [notes, isLoading]);
 
     useEffect(() => {

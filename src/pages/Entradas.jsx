@@ -70,7 +70,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         setShowBudgetPicker(false);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const totalValue = parseFloat(formData.value) || 0;
         const numInstallments = parseInt(formData.installments);
@@ -84,7 +84,6 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 : formData.description,
             orderDate: formData.orderDate,
             value: installmentValue,
-            // paymentDate só é preenchido quando o usuário confirmar "Pago"
             paymentDate: null,
             isPaid: false,
             paymentMethod: formData.paymentMethod,
@@ -93,35 +92,50 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             year: new Date(formData.orderDate + 'T00:00:00').getUTCFullYear()
         }));
 
-        setOrders([...newOrders, ...orders]);
+        const updatedOrders = [...newOrders, ...orders];
+        setOrders(updatedOrders);
         setFormData(emptyForm);
+
+        try {
+            await api.saveOrders(updatedOrders);
+        } catch (err) {
+            console.error('Erro ao salvar no Supabase:', err);
+        }
     };
 
     // Toggle com confirmação e data automática ao pagar
-    const togglePaymentStatus = (id) => {
+    const togglePaymentStatus = async (id) => {
         const order = orders.find(o => o.id === id);
         if (!order) return;
 
+        let updatedOrders;
         if (!order.isPaid) {
             const confirmed = window.confirm(
                 `Confirmar pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será registrada como hoje (${new Date().toLocaleDateString('pt-BR')}).`
             );
             if (!confirmed) return;
-            setOrders(orders.map(o =>
+            updatedOrders = orders.map(o =>
                 o.id === id
                     ? { ...o, isPaid: true, paymentDate: new Date().toISOString().split('T')[0] }
                     : o
-            ));
+            );
         } else {
             const confirmed = window.confirm(
                 `Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será removida.`
             );
             if (!confirmed) return;
-            setOrders(orders.map(o =>
+            updatedOrders = orders.map(o =>
                 o.id === id
                     ? { ...o, isPaid: false, paymentDate: null }
                     : o
-            ));
+            );
+        }
+
+        setOrders(updatedOrders);
+        try {
+            await api.saveOrders(updatedOrders);
+        } catch (err) {
+            console.error('Erro ao salvar no Supabase:', err);
         }
     };
 
