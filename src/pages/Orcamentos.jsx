@@ -462,7 +462,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* ─── CHAPAS ──────────────────────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
                         <form onSubmit={handleAddMaterial} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                             <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-2">
@@ -479,7 +479,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     required
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-600 uppercase">Largura (cm)</label>
                                     <input type="number" placeholder="200" value={newMaterial.width}
@@ -546,7 +546,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* ─── POR UNIDADE ─────────────────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
                         <form onSubmit={handleAddUnitMaterial} className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 space-y-4">
                             <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-2">
@@ -610,7 +610,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* ─── POR METRO LINEAR ────────────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
                         <form onSubmit={handleAddLinearMaterial} className="bg-white p-6 rounded-2xl shadow-sm border border-amber-100 space-y-4">
                             <h3 className="text-sm font-bold text-amber-600 uppercase tracking-widest flex items-center gap-2">
@@ -892,7 +892,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4">
                         <User size={16} /> Dados do Cliente (Para Impressão)
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                         <input
                             type="text"
                             placeholder="Nome Completo"
@@ -982,7 +982,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* Global Settings Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                             <Package size={14} className="text-indigo-500" /> Nome do Item
@@ -1142,7 +1142,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
                 {/* Results and Detail Section */}
                 {(costPerPiece > 0 || budgetItems.length > 0) && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                         {costPerPiece > 0 && (
                             <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Resumo do Item Atual</h3>

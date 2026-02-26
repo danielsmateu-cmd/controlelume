@@ -417,7 +417,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                         <div key={month} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                             <div className="bg-gray-50 px-6 py-2 border-b border-gray-100 flex justify-between items-center">
                                 <h3 className="font-semibold text-gray-800 capitalize">{month}</h3>
-                                <div className="flex gap-4 text-sm">
+                                <div className="flex gap-2 text-sm">
                                     <span className="text-gray-600">Total: <span className="font-semibold">{fmt(totalValue)}</span></span>
                                     <span className="text-green-600">Pago: <span className="font-semibold">{fmt(totalPaid)}</span></span>
                                     <span className="text-red-600">Pendente: <span className="font-semibold">{fmt(totalPending)}</span></span>
@@ -425,8 +425,8 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             </div>
                             <div className="divide-y divide-gray-100">
                                 {monthOrders.map((order) => (
-                                    <div key={order.id} className="p-2 flex items-center justify-between hover:bg-gray-50 transition-colors gap-4">
-                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                    <div key={order.id} className="p-2 flex items-center justify-between hover:bg-gray-50 transition-colors gap-2">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <div className="w-48 flex-shrink-0">
                                                 <p className="font-semibold text-gray-800 truncate text-sm" title={order.clientName}>{order.clientName}</p>
                                                 <div className="flex flex-wrap gap-1 mt-0.5">
@@ -446,7 +446,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-6 flex-shrink-0">
+                                        <div className="flex items-center gap-3 flex-shrink-0">
                                             {/* Datas: pedido + pagamento (só se pago) */}
                                             <div className="text-xs text-gray-500 w-40 text-center flex flex-col">
                                                 <span>Pedido: {new Date(order.orderDate).toLocaleDateString('pt-BR')}</span>

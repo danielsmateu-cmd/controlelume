@@ -37,13 +37,13 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                 className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setExpanded(!expanded)}
             >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <User size={14} className="text-indigo-500 flex-shrink-0" />
                             <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                                 <Calendar size={12} />
                                 {new Date(budget.date).toLocaleDateString('pt-BR')}

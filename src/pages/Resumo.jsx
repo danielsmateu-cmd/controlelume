@@ -81,8 +81,8 @@ const Resumo = ({ expenses, orders }) => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-gray-800">Resumo Financeiro</h2>
                     <select
                         value={selectedYear}
@@ -94,7 +94,7 @@ const Resumo = ({ expenses, orders }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <StatCard
                     title={`Total Entradas (Pagas) - Ano ${selectedYear}`}
                     value={annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

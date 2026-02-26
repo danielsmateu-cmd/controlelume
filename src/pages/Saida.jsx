@@ -578,7 +578,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         </div>
 
                         {/* TOTALS SUMMARY */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
                                 <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Pago - {months[selectedMonth]}</p>
                                 <p className="text-xl font-bold text-green-700">
