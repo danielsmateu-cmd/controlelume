@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Check, X } from 'lucide-react';
 import { api } from '../services/api';
 
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
@@ -27,14 +27,101 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
     const withdrawalPeople = ['Juliana', 'Daniel', 'Bruno', 'Outros'];
 
-    // Handlers
-    const toggleExpenseStatus = (id) => {
-        setExpenses(expenses.map(exp => {
-            if (exp.id === id) {
-                return { ...exp, paid: !exp.paid };
-            }
-            return exp;
-        }));
+    const [confirmingId, setConfirmingId] = useState(null);
+    const [paymentDateStr, setPaymentDateStr] = useState('');
+
+    const startPaymentConfirmation = (expense) => {
+        if (expense.paid) {
+            const confirmed = window.confirm(`Reverter pagamento de "${expense.description || expense.category}"?`);
+            if (!confirmed) return;
+
+            const updatedExpense = { ...expense, paid: false, paymentDate: null };
+            setExpenses(expenses.map(e => e.id === expense.id ? updatedExpense : e));
+            api.updateExpense(expense.id, { paid: false, paymentDate: null }).catch(err => console.error(err));
+        } else {
+            setConfirmingId(expense.id);
+            const today = new Date();
+            const d = String(today.getDate()).padStart(2, '0');
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const y = today.getFullYear();
+            setPaymentDateStr(`${d}/${m}/${y}`);
+        }
+    };
+
+    const handlePaymentDateChange = (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 8) val = val.slice(0, 8);
+
+        let formatted = val;
+        if (val.length >= 5) {
+            formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+        } else if (val.length >= 3) {
+            formatted = `${val.slice(0, 2)}/${val.slice(2)}`;
+        }
+        setPaymentDateStr(formatted);
+    };
+
+    const handlePaymentDateBlur = () => {
+        let str = paymentDateStr.replace(/\D/g, '');
+        if (!str) return;
+
+        const currY = new Date().getFullYear().toString();
+        const currM = String(new Date().getMonth() + 1).padStart(2, '0');
+
+        if (str.length === 2) str = str + currM + currY;
+        else if (str.length === 4) str = str + currY;
+        else if (str.length === 6) str = str.slice(0, 4) + '20' + str.slice(4, 6);
+
+        let formatted = str;
+        if (str.length === 8) {
+            formatted = `${str.slice(0, 2)}/${str.slice(2, 4)}/${str.slice(4, 8)}`;
+        }
+        setPaymentDateStr(formatted);
+    };
+
+    const finalizePayment = async (expenseId) => {
+        const expense = expenses.find(e => e.id === expenseId);
+        if (!expense) return;
+
+        let str = paymentDateStr.replace(/\D/g, '');
+        const currY = new Date().getFullYear().toString();
+        const currM = String(new Date().getMonth() + 1).padStart(2, '0');
+
+        if (str.length === 2) str = str + currM + currY;
+        else if (str.length === 4) str = str + currY;
+        else if (str.length === 6) str = str.slice(0, 4) + '20' + str.slice(4, 6);
+
+        if (str.length !== 8) {
+            alert("Data inválida. Use DD/MM/AAAA.");
+            return;
+        }
+
+        const d = str.slice(0, 2);
+        const m = str.slice(2, 4);
+        const y = str.slice(4, 8);
+        const isoDate = `${y}-${m}-${d}`;
+
+        const pDate = new Date(isoDate);
+        if (isNaN(pDate.getTime()) || isoDate.length !== 10) {
+            alert("Data inválida. Verifique o valor inserido.");
+            return;
+        }
+
+        const updatedExpense = { ...expense, paid: true, paymentDate: isoDate };
+        setExpenses(expenses.map(e => e.id === expenseId ? updatedExpense : e));
+        setConfirmingId(null);
+        setPaymentDateStr('');
+
+        try {
+            await api.updateExpense(expenseId, { paid: true, paymentDate: isoDate });
+        } catch (err) {
+            console.error('Erro ao salvar no Supabase:', err);
+        }
+    };
+
+    const handleDateKeyDown = (e, expenseId) => {
+        if (e.key === 'Enter') finalizePayment(expenseId);
+        if (e.key === 'Escape') setConfirmingId(null);
     };
 
     const updateExpenseField = (id, field, value) => {
@@ -203,15 +290,30 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             </td>
                             <td className="px-6 py-2 text-center">
                                 {activeTab === 'fornecedores' && (
-                                    <button
-                                        onClick={() => toggleExpenseStatus(expense.id)}
-                                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${expense.paid
-                                            ? 'bg-green-100 text-green-700 border border-green-200'
-                                            : 'bg-red-100 text-red-700 border border-red-200'
-                                            }`}
-                                    >
-                                        {expense.paid ? 'PAGO' : 'PENDENTE'}
-                                    </button>
+                                    confirmingId === expense.id ? (
+                                        <div className="flex items-center justify-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm mx-auto w-fit">
+                                            <input
+                                                type="text" autoFocus onFocus={e => e.target.select()}
+                                                value={paymentDateStr} onChange={handlePaymentDateChange}
+                                                onBlur={handlePaymentDateBlur} onKeyDown={(e) => handleDateKeyDown(e, expense.id)}
+                                                className="w-[66px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
+                                                placeholder="DD/MM/AAAA"
+                                            />
+                                            <button onClick={() => finalizePayment(expense.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar"><Check size={14} /></button>
+                                            <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar"><X size={14} /></button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => !readOnly && startPaymentConfirmation(expense)}
+                                            disabled={readOnly}
+                                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
+                                                ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
+                                                : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
+                                                }`}
+                                        >
+                                            {expense.paid ? 'PAGO' : 'PENDENTE'}
+                                        </button>
+                                    )
                                 )}
                             </td>
                             <td className="px-6 py-2 text-sm text-right">
@@ -337,16 +439,30 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2 text-center">
-                                                    <button
-                                                        onClick={() => !readOnly && toggleExpenseStatus(expense.id)}
-                                                        disabled={readOnly}
-                                                        className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? '' : 'shadow-sm'} ${expense.paid
-                                                            ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
-                                                            : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
-                                                            }`}
-                                                    >
-                                                        {expense.paid ? 'PAGO' : 'NÃO PAGO'}
-                                                    </button>
+                                                    {confirmingId === expense.id ? (
+                                                        <div className="flex items-center justify-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm mx-auto w-fit">
+                                                            <input
+                                                                type="text" autoFocus onFocus={e => e.target.select()}
+                                                                value={paymentDateStr} onChange={handlePaymentDateChange}
+                                                                onBlur={handlePaymentDateBlur} onKeyDown={(e) => handleDateKeyDown(e, expense.id)}
+                                                                className="w-[66px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
+                                                                placeholder="DD/MM/AAAA"
+                                                            />
+                                                            <button onClick={() => finalizePayment(expense.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar"><Check size={14} /></button>
+                                                            <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar"><X size={14} /></button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => !readOnly && startPaymentConfirmation(expense)}
+                                                            disabled={readOnly}
+                                                            className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
+                                                                ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
+                                                                : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
+                                                                }`}
+                                                        >
+                                                            {expense.paid ? 'PAGO' : 'NÃO PAGO'}
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

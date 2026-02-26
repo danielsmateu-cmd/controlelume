@@ -165,7 +165,8 @@ export const api = {
             if (error) throw error;
             return data.map(e => ({
                 ...e,
-                dueDate: e.due_date
+                dueDate: e.due_date,
+                paymentDate: e.payment_date
             }));
         } catch (err) {
             console.error('Supabase getExpenses:', err);
@@ -188,6 +189,27 @@ export const api = {
         }
     },
 
+    async updateExpense(id, updates) {
+        try {
+            const dbUpdates = {};
+            if (updates.paid !== undefined) dbUpdates.paid = updates.paid;
+            if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
+            if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+            if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+
+            const { error } = await supabase
+                .from('expenses')
+                .update(dbUpdates)
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase updateExpense:', err);
+            return false;
+        }
+    },
+
     async saveExpenses(expensesList) {
         try {
             const { error } = await supabase
@@ -204,6 +226,7 @@ export const api = {
                         date: e.date,
                         due_date: e.dueDate,
                         paid: e.paid,
+                        payment_date: e.paymentDate,
                         people: e.people
                     }))
                 );
