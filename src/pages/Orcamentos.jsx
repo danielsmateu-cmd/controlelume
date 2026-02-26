@@ -131,7 +131,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         localStorage.setItem('materialsOrder', JSON.stringify(currentOrder));
     };
 
-    const orderedMaterials = [...materials].sort((a, b) => {
+    const baseOrderedMaterials = [...materials].sort((a, b) => {
         let idxA = materialsOrder.indexOf(a.id);
         let idxB = materialsOrder.indexOf(b.id);
         if (idxA === -1) idxA = 999999;
@@ -139,9 +139,12 @@ const Orcamentos = ({ materials, setMaterials }) => {
         return idxA - idxB;
     });
 
-    const sheetMaterials = orderedMaterials.filter(m => !m.type || m.type === 'sheet');
-    const unitMaterials = orderedMaterials.filter(m => m.type === 'unit');
-    const linearMaterials = orderedMaterials.filter(m => m.type === 'linear');
+    const sheetMaterials = baseOrderedMaterials.filter(m => !m.type || m.type === 'sheet');
+    const linearMaterials = baseOrderedMaterials.filter(m => m.type === 'linear');
+    const unitMaterials = baseOrderedMaterials.filter(m => m.type === 'unit');
+
+    // Default global ordered array mapped to columns grouped essentially by category
+    const orderedMaterials = [...sheetMaterials, ...linearMaterials, ...unitMaterials];
 
     const [newUnitMaterial, setNewUnitMaterial] = useState({ name: '', pricePerUnit: '' });
     const [newLinearMaterial, setNewLinearMaterial] = useState({ name: '', pricePerMeter: '' });
