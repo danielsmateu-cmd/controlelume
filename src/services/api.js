@@ -229,23 +229,34 @@ export const api = {
 
     async saveOrders(ordersList) {
         try {
-            const { error } = await supabase
-                .from('orders')
-                .upsert(
-                    ordersList.map(o => ({
-                        id: typeof o.id === 'string' && o.id.startsWith('fixed') ? null : (typeof o.id === 'number' && o.id > 10000000 ? o.id : null), // Try to use existing ID if it looks like a timestamp, otherwise let DB handle
-                        client_name: o.clientName,
-                        description: o.description,
-                        order_date: o.orderDate,
-                        value: o.value,
-                        payment_date: o.paymentDate,
-                        is_paid: o.isPaid,
-                        payment_method: o.paymentMethod,
-                        year: o.year
-                    })).filter(o => o.id !== null || o.client_name !== null) // basic filter
-                );
+            // Separa registros com ID real (number, do banco) dos novos (string/timestamp/null)
+            const toMap = (o) => ({
+                client_name: o.clientName,
+                description: o.description,
+                order_date: o.orderDate,
+                value: o.value,
+                payment_date: o.paymentDate,
+                is_paid: o.isPaid,
+                payment_method: o.paymentMethod,
+                year: o.year
+            });
 
-            if (error) throw error;
+            const existentes = ordersList
+                .filter(o => typeof o.id === 'number' && Number.isInteger(o.id) && o.id > 0 && o.id < 1000000000)
+                .map(o => ({ id: o.id, ...toMap(o) }));
+
+            const novos = ordersList
+                .filter(o => !(typeof o.id === 'number' && Number.isInteger(o.id) && o.id > 0 && o.id < 1000000000))
+                .map(o => toMap(o));
+
+            if (existentes.length > 0) {
+                const { error } = await supabase.from('orders').upsert(existentes);
+                if (error) throw error;
+            }
+            if (novos.length > 0) {
+                const { error } = await supabase.from('orders').insert(novos);
+                if (error) throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase saveOrders:', err);
@@ -272,17 +283,29 @@ export const api = {
 
     async saveNotes(notesList) {
         try {
-            const { error } = await supabase
-                .from('notes')
-                .upsert(
-                    notesList.map(n => ({
-                        id: typeof n.id === 'number' && n.id > 10000000 ? n.id : null,
-                        description: n.description,
-                        value: n.value,
-                        date: n.date
-                    }))
-                );
-            if (error) throw error;
+            // Separa notas com ID real do banco das novas
+            const toMap = (n) => ({
+                description: n.description,
+                value: n.value,
+                date: n.date
+            });
+
+            const existentes = notesList
+                .filter(n => typeof n.id === 'number' && Number.isInteger(n.id) && n.id > 0 && n.id < 1000000000)
+                .map(n => ({ id: n.id, ...toMap(n) }));
+
+            const novas = notesList
+                .filter(n => !(typeof n.id === 'number' && Number.isInteger(n.id) && n.id > 0 && n.id < 1000000000))
+                .map(n => toMap(n));
+
+            if (existentes.length > 0) {
+                const { error } = await supabase.from('notes').upsert(existentes);
+                if (error) throw error;
+            }
+            if (novas.length > 0) {
+                const { error } = await supabase.from('notes').insert(novas);
+                if (error) throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase saveNotes:', err);
