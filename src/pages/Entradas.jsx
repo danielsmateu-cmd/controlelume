@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -41,6 +41,8 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     };
 
     const [formData, setFormData] = useState(emptyForm);
+    const [confirmingId, setConfirmingId] = useState(null);
+    const [paymentDateStr, setPaymentDateStr] = useState('');
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -115,56 +117,98 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
     };
 
-    // Toggle com confirmação e data automática ao pagar
-    const togglePaymentStatus = async (id) => {
-        const order = orders.find(o => o.id === id);
+    const startPaymentConfirmation = (order) => {
+        if (order.isPaid) {
+            const confirmed = window.confirm(`Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?`);
+            if (!confirmed) return;
+
+            const updatedOrder = { ...order, isPaid: false, paymentDate: null };
+            setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
+            api.updateOrder(order.id, { isPaid: false, paymentDate: null }).catch(err => console.error(err));
+        } else {
+            setConfirmingId(order.id);
+            const today = new Date();
+            const d = String(today.getDate()).padStart(2, '0');
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const y = today.getFullYear();
+            setPaymentDateStr(`${d}/${m}/${y}`);
+        }
+    };
+
+    const handlePaymentDateChange = (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 8) val = val.slice(0, 8);
+
+        let formatted = val;
+        if (val.length >= 5) {
+            formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+        } else if (val.length >= 3) {
+            formatted = `${val.slice(0, 2)}/${val.slice(2)}`;
+        }
+        setPaymentDateStr(formatted);
+    };
+
+    const handlePaymentDateBlur = () => {
+        let str = paymentDateStr.replace(/\D/g, '');
+        if (!str) return;
+
+        const currY = new Date().getFullYear().toString();
+        const currM = String(new Date().getMonth() + 1).padStart(2, '0');
+
+        if (str.length === 2) str = str + currM + currY;
+        else if (str.length === 4) str = str + currY;
+        else if (str.length === 6) str = str.slice(0, 4) + '20' + str.slice(4, 6);
+
+        let formatted = str;
+        if (str.length === 8) {
+            formatted = `${str.slice(0, 2)}/${str.slice(2, 4)}/${str.slice(4, 8)}`;
+        }
+        setPaymentDateStr(formatted);
+    };
+
+    const finalizePayment = async (orderId) => {
+        const order = orders.find(o => o.id === orderId);
         if (!order) return;
 
-        let updatedOrder;
-        if (!order.isPaid) {
-            let inputDateStr = window.prompt(
-                `Confirmar pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nConfirme ou altere a data do pagamento (DD/MM/AAAA):`,
-                new Date().toLocaleDateString('pt-BR')
-            );
-            if (inputDateStr === null) return; // User cancelled
+        let str = paymentDateStr.replace(/\D/g, '');
+        const currY = new Date().getFullYear().toString();
+        const currM = String(new Date().getMonth() + 1).padStart(2, '0');
 
-            let isoDate;
-            const regexBR = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/;
-            const regexISO = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+        if (str.length === 2) str = str + currM + currY;
+        else if (str.length === 4) str = str + currY;
+        else if (str.length === 6) str = str.slice(0, 4) + '20' + str.slice(4, 6);
 
-            const str = inputDateStr.trim();
-            if (regexBR.test(str)) {
-                const [, d, m, y] = str.match(regexBR);
-                const year = y.length === 2 ? `20${y}` : y;
-                isoDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            } else if (regexISO.test(str)) {
-                const [, y, m, d] = str.match(regexISO);
-                isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            } else {
-                alert("Formato de data inválido. Use DD/MM/AAAA (ex: 26/02/2026).");
-                return;
-            }
-
-            updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
-        } else {
-            const confirmed = window.confirm(
-                `Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será removida.`
-            );
-            if (!confirmed) return;
-            updatedOrder = { ...order, isPaid: false, paymentDate: null };
+        if (str.length !== 8) {
+            alert("Data inválida. Use DD/MM/AAAA.");
+            return;
         }
 
-        const updatedOrders = orders.map(o => o.id === id ? updatedOrder : o);
-        setOrders(updatedOrders);
+        const d = str.slice(0, 2);
+        const m = str.slice(2, 4);
+        const y = str.slice(4, 8);
+        const isoDate = `${y}-${m}-${d}`;
+
+        const pDate = new Date(isoDate);
+        if (isNaN(pDate.getTime()) || isoDate.length !== 10) {
+            alert("Data inválida. Verifique o valor inserido.");
+            return;
+        }
+
+        const updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
+        setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
+        setConfirmingId(null);
+        setPaymentDateStr('');
 
         try {
-            await api.updateOrder(id, {
-                isPaid: updatedOrder.isPaid,
-                paymentDate: updatedOrder.paymentDate
-            });
+            await api.updateOrder(orderId, { isPaid: true, paymentDate: isoDate });
         } catch (err) {
-            console.error('Erro ao atualizar no Supabase:', err);
+            console.error('Erro ao salvar no Supabase:', err);
         }
+    };
+
+    const handleDateKeyDown = (e, orderId) => {
+        if (e.key === 'Enter') finalizePayment(orderId);
+        if (e.key === 'Escape') setConfirmingId(null);
     };
 
     const handleDelete = async (id) => {
@@ -419,25 +463,49 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                 {fmt(order.value)}
                                             </div>
 
-                                            <button
-                                                onClick={() => !readOnly && togglePaymentStatus(order.id)}
-                                                disabled={readOnly}
-                                                className={clsx(
-                                                    "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center",
-                                                    readOnly ? "cursor-default" : "cursor-pointer",
-                                                    order.isPaid
-                                                        ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                                                        : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
-                                                )}
-                                            >
-                                                {order.isPaid ? 'PAGO' : 'PENDENTE'}
-                                            </button>
+                                            {confirmingId === order.id ? (
+                                                <div className="flex items-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm">
+                                                    <input
+                                                        type="text"
+                                                        autoFocus
+                                                        onFocus={e => e.target.select()}
+                                                        value={paymentDateStr}
+                                                        onChange={handlePaymentDateChange}
+                                                        onBlur={handlePaymentDateBlur}
+                                                        onKeyDown={(e) => handleDateKeyDown(e, order.id)}
+                                                        className="w-[72px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
+                                                        placeholder="DD/MM/AAAA"
+                                                    />
+                                                    <button onClick={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
+                                                        <Check size={14} />
+                                                    </button>
+                                                    <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => !readOnly && startPaymentConfirmation(order)}
+                                                        disabled={readOnly}
+                                                        className={clsx(
+                                                            "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center",
+                                                            readOnly ? "cursor-default" : "cursor-pointer",
+                                                            order.isPaid
+                                                                ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                                                                : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
+                                                        )}
+                                                    >
+                                                        {order.isPaid ? 'PAGO' : 'PENDENTE'}
+                                                    </button>
 
-                                            {!readOnly && (
-                                                <button onClick={() => handleDelete(order.id)}
-                                                    className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Excluir">
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                    {!readOnly && (
+                                                        <button onClick={() => handleDelete(order.id)}
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Excluir">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>
