@@ -122,11 +122,30 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
         let updatedOrder;
         if (!order.isPaid) {
-            const confirmed = window.confirm(
-                `Confirmar pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será registrada como hoje (${new Date().toLocaleDateString('pt-BR')}).`
+            let inputDateStr = window.prompt(
+                `Confirmar pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nConfirme ou altere a data do pagamento (DD/MM/AAAA):`,
+                new Date().toLocaleDateString('pt-BR')
             );
-            if (!confirmed) return;
-            updatedOrder = { ...order, isPaid: true, paymentDate: new Date().toISOString().split('T')[0] };
+            if (inputDateStr === null) return; // User cancelled
+
+            let isoDate;
+            const regexBR = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/;
+            const regexISO = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
+            const str = inputDateStr.trim();
+            if (regexBR.test(str)) {
+                const [, d, m, y] = str.match(regexBR);
+                const year = y.length === 2 ? `20${y}` : y;
+                isoDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            } else if (regexISO.test(str)) {
+                const [, y, m, d] = str.match(regexISO);
+                isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            } else {
+                alert("Formato de data inválido. Use DD/MM/AAAA (ex: 26/02/2026).");
+                return;
+            }
+
+            updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
         } else {
             const confirmed = window.confirm(
                 `Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será removida.`
