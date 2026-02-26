@@ -141,7 +141,8 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta entrada?')) {
             try {
-                await api.deleteOrder(id);
+                const success = await api.deleteOrder(id);
+                if (!success) throw new Error("A API retornou false");
                 setOrders(orders.filter(order => order.id !== id));
             } catch (err) {
                 console.error('Erro ao excluir:', err);

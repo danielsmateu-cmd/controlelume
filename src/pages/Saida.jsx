@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { api } from '../services/api';
 
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const [activeTab, setActiveTab] = useState('fixos');
@@ -142,7 +143,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
             try {
-                await api.deleteExpense(id);
+                const success = await api.deleteExpense(id);
+                if (!success) throw new Error("A API retornou false");
                 setExpenses(expenses.filter(e => e.id !== id));
             } catch (err) {
                 console.error('Erro ao excluir:', err);
