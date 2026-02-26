@@ -182,13 +182,15 @@ const Orcamentos = ({ materials, setMaterials }) => {
             if (m.type === 'unit') {
                 payload.width = 0;
                 payload.height = 0;
+                payload.price_per_m2 = 0;
             } else if (m.type === 'linear') {
                 payload.width = 0;
                 payload.height = 1;
+                payload.price_per_m2 = 0;
             } else {
                 payload.width = parseFloat(editMaterialData.width) || 0;
                 payload.height = parseFloat(editMaterialData.height) || 0;
-                payload.pricePerM2 = (payload.price / ((payload.width * payload.height) / 10000)) || 0;
+                payload.price_per_m2 = (payload.price / ((payload.width * payload.height) / 10000)) || 0;
             }
 
             const updated = await api.updateMaterial(m.id, payload);
