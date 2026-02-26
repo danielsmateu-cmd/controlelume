@@ -1319,25 +1319,44 @@ const Orcamentos = ({ materials, setMaterials }) => {
                             <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Resumo do Item Atual</h3>
                                 <div className="space-y-3">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-gray-500 uppercase text-[10px] font-bold">Custo Material:</span>
-                                        <span className="font-bold text-gray-700">{(costPerPiece * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase border-b pb-2 mb-2">
+                                        <span className="w-1/3">Descrição</span>
+                                        <span className="w-1/3 text-center">Unitário</span>
+                                        <span className="w-1/3 text-right">Total</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 uppercase text-[10px] font-bold">Adicional NF ({nfPercentage}%):</span>
-                                        <span className="font-bold text-red-500">+{nfValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <div className="flex justify-between items-center text-[13px]">
+                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Custo Material:</span>
+                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right font-bold text-gray-700">{(costPerPiece * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 uppercase text-[10px] font-bold">Taxa Parcelamento ({taxPercentage}%):</span>
-                                        <span className="font-bold text-red-500">+{taxValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <div className="flex justify-between items-center text-[13px]">
+                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Adicional NF ({nfPercentage}%):</span>
+                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(nfPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right font-bold text-red-500">+{nfValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-gray-500 uppercase text-[10px] font-bold">Lucro Estimado:</span>
-                                        <span className="font-bold text-green-600">
+                                    <div className="flex justify-between items-center text-[13px]">
+                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Parcelam. ({taxPercentage}%):</span>
+                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(taxPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right font-bold text-red-500">+{taxValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[13px]">
+                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Lucro Estimado:</span>
+                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice - costPerPiece).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right font-bold text-green-600">
                                             {(subtotal - (costPerPiece * (parseFloat(globalQty) || 1))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
                                     <div className="h-px bg-gray-100"></div>
+                                    <div className="flex justify-between items-center py-1">
+                                        <span className="text-xs font-bold text-gray-400 uppercase">Quantidade do Item:</span>
+                                        <input
+                                            type="number"
+                                            value={globalQty}
+                                            onChange={e => setGlobalQty(e.target.value)}
+                                            className="w-20 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                                            min="1"
+                                        />
+                                    </div>
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="text-xs font-bold text-gray-400 uppercase">Preço Final do Item:</span>
                                         <span className="text-2xl text-indigo-600 font-black">
