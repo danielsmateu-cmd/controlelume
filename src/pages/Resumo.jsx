@@ -80,7 +80,7 @@ const Resumo = ({ expenses, orders }) => {
     }, { entradas: 0, entradasPendentes: 0, totalSaidas: 0, saldo: 0 });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-gray-800">Resumo Financeiro</h2>

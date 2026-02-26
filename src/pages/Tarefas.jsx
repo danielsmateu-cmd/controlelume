@@ -182,7 +182,7 @@ const PessoaPanel = ({ pessoa }) => {
 };
 
 const Tarefas = () => (
-    <div className="space-y-5">
+    <div className="space-y-3">
         <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <ClipboardList className="text-indigo-600" size={24} />

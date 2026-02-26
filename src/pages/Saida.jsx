@@ -334,7 +334,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">Saída / Despesas</h2>
                 {readOnly && (
@@ -379,7 +379,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
                 {/* GASTOS FIXOS */}
                 {activeTab === 'fixos' && (
-                    <div className="space-y-6">
+                    <div className="space-y-3">
                         {/* MONTH TABS */}
                         <div className="flex space-x-1 overflow-x-auto pb-2 border-b border-gray-100 scrollbar-hide">
                             {months.map((month, index) => (
@@ -560,7 +560,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
                 {/* FORNECEDORES */}
                 {activeTab === 'fornecedores' && (
-                    <div className="space-y-6">
+                    <div className="space-y-3">
                         {/* MONTH TABS */}
                         <div className="flex space-x-1 overflow-x-auto pb-2 border-b border-gray-100 scrollbar-hide">
                             {months.map((month, index) => (
@@ -611,7 +611,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         {!readOnly && (
                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                                 <h3 className="text-sm font-semibold text-gray-800 mb-4">Adicionar Pagamento a Fornecedor</h3>
-                                <form onSubmit={handleAddFornecedores} className="space-y-4">
+                                <form onSubmit={handleAddFornecedores} className="space-y-2">
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                         <div className="md:col-span-4">
                                             <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição/Fornecedor</label>

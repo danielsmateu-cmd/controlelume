@@ -230,7 +230,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     });
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-4">
             {/* Cabeçalho */}
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">Entradas</h2>
@@ -253,7 +253,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             </div>
 
             {!readOnly && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-2">
 
                     {/* Importar Orçamento Aprovado */}
                     <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
@@ -400,7 +400,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             )}
 
             {/* Lista agrupada por mês */}
-            <div className="space-y-6">
+            <div className="space-y-3">
                 {Object.entries(filteredOrders.reduce((acc, order) => {
                     const monthYear = new Date(order.orderDate).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
