@@ -176,38 +176,25 @@ export const api = {
 
     async saveExpenses(expensesList) {
         try {
-            const toMap = (e) => ({
-                type: e.type,
-                year: e.year,
-                month: e.month,
-                category: e.category,
-                description: e.description,
-                amount: e.amount || 0,
-                date: e.date,
-                due_date: e.dueDate,
-                paid: e.paid,
-                people: e.people
-            });
+            const { error } = await supabase
+                .from('expenses')
+                .upsert(
+                    expensesList.map(e => ({
+                        id: e.id, // Mantém o ID original (pode ser string 'fixed-...' ou number)
+                        type: e.type,
+                        year: e.year,
+                        month: e.month,
+                        category: e.category,
+                        description: e.description,
+                        amount: e.amount || 0,
+                        date: e.date,
+                        due_date: e.dueDate,
+                        paid: e.paid,
+                        people: e.people
+                    }))
+                );
 
-            // IDs de despesas fixas começam com 'fixed-' e não devem ser enviados como ID numérico
-            const existentes = expensesList
-                .filter(e => typeof e.id === 'number' && Number.isInteger(e.id) && e.id > 0)
-                .map(e => ({ id: e.id, ...toMap(e) }));
-
-            const novos = expensesList
-                .filter(e => !(typeof e.id === 'number' && Number.isInteger(e.id) && e.id > 0))
-                .map(e => toMap(e));
-
-            if (existentes.length > 0) {
-                for (const e of existentes) {
-                    const { error } = await supabase.from('expenses').update(toMap(e)).eq('id', e.id);
-                    if (error) throw error;
-                }
-            }
-            if (novos.length > 0) {
-                const { error } = await supabase.from('expenses').insert(novos);
-                if (error) throw error;
-            }
+            if (error) throw error;
             return true;
         } catch (err) {
             console.error('Supabase saveExpenses:', err);
@@ -248,7 +235,7 @@ export const api = {
                 order_date: o.orderDate,
                 value: o.value,
                 payment_date: o.paymentDate,
-                is_paid: !!o.isPaid, // Força booleano para garantir envio
+                is_paid: Boolean(o.isPaid), // Mapeamento explícito para booleano
                 payment_method: o.paymentMethod,
                 year: o.year
             });
