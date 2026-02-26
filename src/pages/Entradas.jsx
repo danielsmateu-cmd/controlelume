@@ -76,8 +76,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const numInstallments = parseInt(formData.installments);
         const installmentValue = totalValue / numInstallments;
 
-        const newOrders = formData.installmentDates.map((date, index) => ({
-            id: Date.now() + index,
+        const newOrdersToInsert = formData.installmentDates.map((date, index) => ({
             clientName: formData.clientName,
             description: numInstallments > 1
                 ? `${formData.description} (${index + 1}/${numInstallments})`
@@ -92,14 +91,17 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             year: new Date(formData.orderDate + 'T00:00:00').getUTCFullYear()
         }));
 
-        const updatedOrders = [...newOrders, ...orders];
-        setOrders(updatedOrders);
-        setFormData(emptyForm);
-
         try {
-            await api.saveOrders(updatedOrders);
+            const insertedOrders = await api.addOrders(newOrdersToInsert);
+            if (insertedOrders) {
+                setOrders([...insertedOrders, ...orders]);
+                setFormData(emptyForm);
+            } else {
+                alert('Erro ao salvar pedidos. Verifique o console.');
+            }
         } catch (err) {
             console.error('Erro ao salvar no Supabase:', err);
+            alert('Erro de conexão ao salvar.');
         }
     };
 
@@ -108,44 +110,38 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const order = orders.find(o => o.id === id);
         if (!order) return;
 
-        let updatedOrders;
+        let updatedOrder;
         if (!order.isPaid) {
             const confirmed = window.confirm(
                 `Confirmar pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será registrada como hoje (${new Date().toLocaleDateString('pt-BR')}).`
             );
             if (!confirmed) return;
-            updatedOrders = orders.map(o =>
-                o.id === id
-                    ? { ...o, isPaid: true, paymentDate: new Date().toISOString().split('T')[0] }
-                    : o
-            );
+            updatedOrder = { ...order, isPaid: true, paymentDate: new Date().toISOString().split('T')[0] };
         } else {
             const confirmed = window.confirm(
                 `Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?\n\nA data de pagamento será removida.`
             );
             if (!confirmed) return;
-            updatedOrders = orders.map(o =>
-                o.id === id
-                    ? { ...o, isPaid: false, paymentDate: null }
-                    : o
-            );
+            updatedOrder = { ...order, isPaid: false, paymentDate: null };
         }
 
+        const updatedOrders = orders.map(o => o.id === id ? updatedOrder : o);
         setOrders(updatedOrders);
+
         try {
-            await api.saveOrders(updatedOrders);
+            await api.updateOrder(id, {
+                isPaid: updatedOrder.isPaid,
+                paymentDate: updatedOrder.paymentDate
+            });
         } catch (err) {
-            console.error('Erro ao salvar no Supabase:', err);
+            console.error('Erro ao atualizar no Supabase:', err);
         }
     };
 
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta entrada?')) {
             try {
-                // Se for um ID numérico (já está no banco), deleta da API
-                if (typeof id === 'number' && id < 1000000000) {
-                    await api.deleteOrder(id);
-                }
+                await api.deleteOrder(id);
                 setOrders(orders.filter(order => order.id !== id));
             } catch (err) {
                 console.error('Erro ao excluir:', err);

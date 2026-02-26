@@ -254,47 +254,55 @@ export const api = {
         }
     },
 
-    async saveOrders(ordersList) {
+    async addOrders(newOrdersArray) {
         try {
-            // Separa registros com ID real (number, do banco) dos novos (string/timestamp/null)
             const toMap = (o) => ({
                 client_name: o.clientName,
                 description: o.description,
                 order_date: o.orderDate,
                 value: o.value,
                 payment_date: o.paymentDate,
-                is_paid: Boolean(o.isPaid), // Mapeamento explícito para booleano
+                is_paid: Boolean(o.isPaid),
                 payment_method: o.paymentMethod,
                 year: o.year
             });
 
-            const existentes = ordersList
-                .filter(o => typeof o.id === 'number' && Number.isInteger(o.id) && o.id > 0 && o.id < 1000000000)
-                .map(o => ({ id: o.id, ...toMap(o) }));
+            const { data, error } = await supabase
+                .from('orders')
+                .insert(newOrdersArray.map(toMap))
+                .select();
 
-            const novos = ordersList
-                .filter(o => !(typeof o.id === 'number' && Number.isInteger(o.id) && o.id > 0 && o.id < 1000000000))
-                .map(o => toMap(o));
+            if (error) throw error;
+            return data.map(o => ({
+                ...o,
+                clientName: o.client_name,
+                orderDate: o.order_date,
+                paymentDate: o.payment_date,
+                isPaid: o.is_paid,
+                paymentMethod: o.payment_method
+            }));
+        } catch (err) {
+            console.error('Supabase addOrders:', err);
+            return null;
+        }
+    },
 
-            if (existentes.length > 0) {
-                for (const o of existentes) {
-                    const { error } = await supabase
-                        .from('orders')
-                        .update(toMap(o))
-                        .eq('id', o.id);
-                    if (error) {
-                        console.error(`Erro ao atualizar pedido ${o.id}:`, error);
-                        throw error;
-                    }
-                }
-            }
-            if (novos.length > 0) {
-                const { error } = await supabase.from('orders').insert(novos);
-                if (error) throw error;
-            }
+    async updateOrder(id, updates) {
+        try {
+            const dbUpdates = {};
+            if (updates.isPaid !== undefined) dbUpdates.is_paid = updates.isPaid;
+            if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
+            if (updates.clientName !== undefined) dbUpdates.client_name = updates.clientName;
+
+            const { error } = await supabase
+                .from('orders')
+                .update(dbUpdates)
+                .eq('id', id);
+
+            if (error) throw error;
             return true;
         } catch (err) {
-            console.error('Supabase saveOrders:', err);
+            console.error('Supabase updateOrder:', err);
             return false;
         }
     },
