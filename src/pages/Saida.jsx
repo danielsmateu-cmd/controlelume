@@ -139,9 +139,18 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         });
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
-            setExpenses(expenses.filter(e => e.id !== id));
+            try {
+                // Se for ID numérico (extra/fornecedor), deleta da API
+                if (typeof id === 'number' && id < 1000000000) {
+                    await api.deleteExpense(id);
+                }
+                setExpenses(expenses.filter(e => e.id !== id));
+            } catch (err) {
+                console.error('Erro ao excluir:', err);
+                alert('Erro ao excluir do servidor. Tente novamente.');
+            }
         }
     };
 

@@ -169,8 +169,22 @@ export const api = {
             }));
         } catch (err) {
             console.error('Supabase getExpenses:', err);
-            const saved = localStorage.getItem('expenses');
-            return saved ? JSON.parse(saved) : null;
+            return [];
+        }
+    },
+
+    async deleteExpense(id) {
+        try {
+            const { error } = await supabase
+                .from('expenses')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteExpense:', err);
+            return false;
         }
     },
 
@@ -221,8 +235,22 @@ export const api = {
             }));
         } catch (err) {
             console.error('Supabase getOrders:', err);
-            const saved = localStorage.getItem('orders');
-            return saved ? JSON.parse(saved) : null;
+            return [];
+        }
+    },
+
+    async deleteOrder(id) {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteOrder:', err);
+            return false;
         }
     },
 
@@ -283,8 +311,22 @@ export const api = {
             return data;
         } catch (err) {
             console.error('Supabase getNotes:', err);
-            const saved = localStorage.getItem('notes');
-            return saved ? JSON.parse(saved) : null;
+            return [];
+        }
+    },
+
+    async deleteNote(id) {
+        try {
+            const { error } = await supabase
+                .from('notes')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteNote:', err);
+            return false;
         }
     },
 

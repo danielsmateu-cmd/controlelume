@@ -125,9 +125,18 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta entrada?')) {
-            setOrders(orders.filter(order => order.id !== id));
+            try {
+                // Se for um ID numérico (já está no banco), deleta da API
+                if (typeof id === 'number' && id < 1000000000) {
+                    await api.deleteOrder(id);
+                }
+                setOrders(orders.filter(order => order.id !== id));
+            } catch (err) {
+                console.error('Erro ao excluir:', err);
+                alert('Erro ao excluir do servidor. Tente novamente.');
+            }
         }
     };
 
