@@ -746,15 +746,15 @@ const Orcamentos = ({ materials, setMaterials }) => {
                         }
                     }
                     .print-table th, .print-table td {
-                        border-bottom: 0.5pt solid #f1f5f9;
+                        border-bottom: 0.5pt solid #e2e8f0;
                         padding: 10px 4px;
                         border-left: none;
                         border-right: none;
                         border-top: none;
                     }
                     .print-table th {
-                        border-bottom: 1pt solid #334155;
-                        color: #64748b;
+                        border-bottom: 1pt solid #0f172a;
+                        color: #475569;
                     }
                     .print-table {
                         border-collapse: collapse;
@@ -763,11 +763,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     .section-title {
                         font-size: 8px;
                         font-weight: 800;
-                        color: #94a3b8;
+                        color: #475569;
                         text-transform: uppercase;
                         letter-spacing: 0.1em;
                         margin-bottom: 8px;
-                        border-bottom: 0.5pt solid #e2e8f0;
+                        border-bottom: 0.5pt solid #cbd5e1;
                         padding-bottom: 4px;
                     }
                 `}
@@ -781,9 +781,9 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     </div>
                     <div className="flex-1 text-right">
                         <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-2">PROPOSTA COMERCIAL</h1>
-                        <div className="text-[9px] text-slate-400 space-y-0.5 leading-relaxed">
-                            <p className="font-bold text-slate-600 text-xs mb-1">{new Date().toLocaleDateString('pt-BR')}</p>
-                            <p className="font-bold text-slate-600 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
+                        <div className="text-[9px] text-slate-600 space-y-0.5 leading-relaxed">
+                            <p className="font-bold text-slate-800 text-xs mb-1">{new Date().toLocaleDateString('pt-BR')}</p>
+                            <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
                             <p>CNPJ: 66.022.922/0001-08</p>
                             <p>Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP</p>
                             <p>CEP: 13.347-458 | WhatsApp: (19) 99916-2239</p>
@@ -796,24 +796,24 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     <div className="section-title">Informações do Cliente</div>
                     <div className="grid grid-cols-4 gap-y-4">
                         <div className="col-span-2">
-                            <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Nome / Razão Social</span>
-                            <span className="text-xs font-bold text-slate-700 uppercase">{clientData.name}</span>
+                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Nome / Razão Social</span>
+                            <span className="text-xs font-bold text-slate-800 uppercase">{clientData.name}</span>
                         </div>
                         <div>
-                            <span className="text-[8px] uppercase text-slate-400 block mb-0.5">CPF / CNPJ</span>
-                            <span className="text-xs text-slate-600">{clientData.doc}</span>
+                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">CPF / CNPJ</span>
+                            <span className="text-xs text-slate-800">{clientData.doc}</span>
                         </div>
                         <div className="text-right">
-                            <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Telefone</span>
-                            <span className="text-xs text-slate-600">{clientData.phone}</span>
+                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Telefone</span>
+                            <span className="text-xs text-slate-800">{clientData.phone}</span>
                         </div>
                         <div className="col-span-2">
-                            <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Email</span>
-                            <span className="text-xs text-slate-600">{clientData.email || '-'}</span>
+                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Email</span>
+                            <span className="text-xs text-slate-800">{clientData.email || '-'}</span>
                         </div>
                         <div className="col-span-2 text-right">
-                            <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Endereço</span>
-                            <span className="text-xs text-slate-600">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
+                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Endereço</span>
+                            <span className="text-xs text-slate-800">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
                         </div>
                     </div>
                 </div>
@@ -834,27 +834,27 @@ const Orcamentos = ({ materials, setMaterials }) => {
                             {budgetItems.map(item => (
                                 <tr key={item.id}>
                                     <td className="text-center font-bold">{item.quantity}</td>
-                                    <td className="uppercase px-2">{item.name}</td>
-                                    <td className="text-right">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td className="text-right font-bold">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td className="uppercase px-2 text-slate-800 font-bold">{item.name}</td>
+                                    <td className="text-right text-slate-800">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className="text-right font-black text-slate-900">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 </tr>
                             ))}
                             {/* Fill Empty Rows */}
                             {Array.from({ length: Math.max(0, 5 - budgetItems.length) }).map((_, i) => (
                                 <tr key={`empty-${i}`} className="h-6">
-                                    <td className="border-b border-gray-200"></td>
-                                    <td className="border-b border-gray-200"></td>
-                                    <td className="border-b border-gray-200"></td>
-                                    <td className="border-b border-gray-200"></td>
+                                    <td className="border-b border-slate-200"></td>
+                                    <td className="border-b border-slate-200"></td>
+                                    <td className="border-b border-slate-200"></td>
+                                    <td className="border-b border-slate-200"></td>
                                 </tr>
                             ))}
                         </tbody>
                         <tfoot>
                             <tr>
                                 <td colSpan="2" className="border-none"></td>
-                                <td className="text-slate-400 font-medium text-right py-6 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
-                                <td className="font-black text-2xl text-right text-slate-800 py-6 border-none whitespace-nowrap">
-                                    R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                <td className="text-slate-600 font-bold text-right py-6 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
+                                <td className="font-black text-2xl text-right text-slate-900 py-6 border-none whitespace-nowrap">
+                                    R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                             </tr>
                         </tfoot>
@@ -867,14 +867,14 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     <div className="col-span-8">
                         <div className="section-title">Condições de Pagamento</div>
                         <div className="space-y-6">
-                            <div className="flex justify-between items-center border-b border-slate-50 pb-4">
+                            <div className="flex justify-between items-center border-b border-slate-200 pb-4">
                                 <div>
-                                    <span className="text-[10px] font-bold text-slate-700 block uppercase">À Vista (PIX ou Transferência)</span>
-                                    <span className="text-[9px] text-green-600 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
+                                    <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
+                                    <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-lg font-bold text-slate-800">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    <div className="text-[10px] text-green-600 uppercase mt-1 leading-tight text-right font-medium">
+                                    <span className="text-lg font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <div className="text-[10px] text-green-700 uppercase mt-1 leading-tight text-right font-bold">
                                         Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
                                         + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                     </div>
@@ -883,12 +883,12 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <span className="text-[10px] font-bold text-slate-700 block uppercase">Cartão de Crédito</span>
-                                    <span className="text-[9px] text-slate-400 uppercase">Parcelamento padrão sem descontos</span>
+                                    <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
+                                    <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-lg font-bold text-slate-800">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    <div className="text-[8px] text-slate-400 uppercase mt-1">Sem juros no cartão</div>
+                                    <span className="text-lg font-black text-slate-900">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <div className="text-[8px] text-slate-600 font-bold uppercase mt-1">Sem juros no cartão</div>
                                 </div>
                             </div>
                         </div>
@@ -896,17 +896,17 @@ const Orcamentos = ({ materials, setMaterials }) => {
                         <div className="section-title mt-4">Dados Bancários / Pagamento</div>
                         <div className="flex gap-8">
                             <div className="flex-1">
-                                <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Banco Itaú</span>
-                                <div className="text-[10px] text-slate-600 space-y-1">
-                                    <p><span className="font-bold">Ag:</span> 5396</p>
-                                    <p><span className="font-bold">Cc:</span> 97680-4</p>
+                                <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Banco Itaú</span>
+                                <div className="text-[10px] text-slate-800 space-y-1">
+                                    <p><span className="font-black">Ag:</span> 5396</p>
+                                    <p><span className="font-black">Cc:</span> 97680-4</p>
                                 </div>
                             </div>
                             <div className="flex-1">
-                                <span className="text-[8px] uppercase text-slate-400 block mb-0.5">Transferência PIX</span>
-                                <div className="text-[10px] text-slate-600">
-                                    <p className="font-bold text-slate-800">comercial@lumeacrilicos.com.br</p>
-                                    <p className="text-[8px] opacity-70 mt-1 uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
+                                <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Transferência PIX</span>
+                                <div className="text-[10px] text-slate-800">
+                                    <p className="font-black text-slate-900">comercial@lumeacrilicos.com.br</p>
+                                    <p className="text-[8px] opacity-90 mt-1 font-bold uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
                                 </div>
                             </div>
                         </div>
@@ -914,11 +914,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
                     {/* Coluna Direita: Prazo */}
                     <div className="col-span-4 flex flex-col pt-2">
-                        <div className="border-l border-slate-100 pl-6 h-full flex flex-col justify-start">
-                            <div className="section-title border-none mb-4">Prazo de Produção</div>
-                            <div className="text-3xl font-black text-slate-800 leading-none">10</div>
-                            <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Dias Úteis</div>
-                            <div className="text-[11px] italic text-slate-500 mt-4 leading-relaxed">
+                        <div className="border-l border-slate-300 pl-6 h-full flex flex-col justify-start">
+                            <div className="section-title border-none mb-4 text-slate-600 font-bold">Prazo de Produção</div>
+                            <div className="text-3xl font-black text-slate-900 leading-none">10</div>
+                            <div className="text-[10px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
+                            <div className="text-[11px] italic text-slate-700 mt-4 leading-relaxed font-medium">
                                 Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
                             </div>
                         </div>
@@ -926,7 +926,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* Footer simple */}
-                <div className="mt-8 text-center text-xs text-gray-500 border-t pt-2">
+                <div className="mt-8 text-center text-xs text-slate-600 font-bold border-t border-slate-300 pt-2">
                     Orçamento válido por 7 dias.
                 </div>
             </div>
