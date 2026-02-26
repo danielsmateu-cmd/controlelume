@@ -23,8 +23,19 @@ const Orcamentos = ({ materials, setMaterials }) => {
     const [view, setView] = useState('budget'); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
     const [globalQty, setGlobalQty] = useState('1');
-    const [nfPercentage, setNfPercentage] = useState('6');
-    const [taxPercentage, setTaxPercentage] = useState('11');
+    const [nfPercentage, setNfPercentage] = useState(() => {
+        const saved = localStorage.getItem('lume_global_settings');
+        return saved ? JSON.parse(saved).nfPercentage : '6';
+    });
+    const [taxPercentage, setTaxPercentage] = useState(() => {
+        const saved = localStorage.getItem('lume_global_settings');
+        return saved ? JSON.parse(saved).taxPercentage : '11';
+    });
+
+    const saveGlobalSettings = () => {
+        localStorage.setItem('lume_global_settings', JSON.stringify({ nfPercentage, taxPercentage }));
+        alert('Configurações salvas!');
+    };
     const [discount, setDiscount] = useState('10');
     const [itemName, setItemName] = useState('');
     const [budgetItems, setBudgetItems] = useState([]);
@@ -550,7 +561,41 @@ const Orcamentos = ({ materials, setMaterials }) => {
                         >
                             <ArrowLeft size={20} />
                         </button>
-                        <h2 className="text-2xl font-bold text-gray-800">Cadastro de Materiais</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">Cadastro de Configurações e Materiais</h2>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                    <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        <Settings size={16} /> Configurações Globais
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-600 flex items-center gap-2 uppercase">Adicional NF (%)</label>
+                            <input
+                                type="number"
+                                value={nfPercentage}
+                                onChange={e => setNfPercentage(e.target.value)}
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-600 flex items-center gap-2 uppercase">Taxa Parcelamento (%)</label>
+                            <input
+                                type="number"
+                                value={taxPercentage}
+                                onChange={e => setTaxPercentage(e.target.value)}
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <button
+                                onClick={saveGlobalSettings}
+                                className="w-full xl:w-1/2 flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold py-2 px-4 rounded-xl border border-indigo-200 transition-colors"
+                            >
+                                <Save size={18} /> Salvar Taxas Globais
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1190,28 +1235,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
                         />
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <DollarSign size={14} className="text-green-500" /> Adicional NF (%)
-                        </label>
-                        <input
-                            type="number"
-                            value={nfPercentage}
-                            onChange={e => setNfPercentage(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                        />
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <DollarSign size={14} className="text-blue-500" /> Taxa Parcelamento (%)
-                        </label>
-                        <input
-                            type="number"
-                            value={taxPercentage}
-                            onChange={e => setTaxPercentage(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                        />
-                    </div>
+                    <div className="col-span-1 md:col-span-2"></div>
                 </div>
 
                 {/* Budget Spreadsheet Table - TWO COLUMNS */}
@@ -1346,8 +1370,20 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                             {(subtotal - (costPerPiece * (parseFloat(globalQty) || 1))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
-                                    <div className="h-px bg-gray-100"></div>
-                                    <div className="flex justify-between items-center py-1">
+                                    <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
+                                        <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
+                                        <span className="w-1/3 text-center font-black text-indigo-700 text-sm">{(currentItemPrice / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right"></span>
+                                    </div>
+                                    {parseFloat(discount) > 0 && (
+                                        <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
+                                            <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
+                                            <span className="w-1/3 text-center font-black text-green-700 text-sm">{((currentItemPrice * (1 - (parseFloat(discount) / 100))) / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right"></span>
+                                        </div>
+                                    )}
+                                    <div className="h-px bg-gray-100 mt-2"></div>
+                                    <div className="flex justify-between items-center py-1 mt-2">
                                         <span className="text-xs font-bold text-gray-400 uppercase">Quantidade do Item:</span>
                                         <input
                                             type="number"
