@@ -250,8 +250,16 @@ export const api = {
                 .map(o => toMap(o));
 
             if (existentes.length > 0) {
-                const { error } = await supabase.from('orders').upsert(existentes);
-                if (error) throw error;
+                for (const o of existentes) {
+                    const { error } = await supabase
+                        .from('orders')
+                        .update(toMap(o))
+                        .eq('id', o.id);
+                    if (error) {
+                        console.error(`Erro ao atualizar pedido ${o.id}:`, error);
+                        throw error;
+                    }
+                }
             }
             if (novos.length > 0) {
                 const { error } = await supabase.from('orders').insert(novos);
@@ -299,8 +307,16 @@ export const api = {
                 .map(n => toMap(n));
 
             if (existentes.length > 0) {
-                const { error } = await supabase.from('notes').upsert(existentes);
-                if (error) throw error;
+                for (const n of existentes) {
+                    const { error } = await supabase
+                        .from('notes')
+                        .update(toMap(n))
+                        .eq('id', n.id);
+                    if (error) {
+                        console.error(`Erro ao atualizar nota ${n.id}:`, error);
+                        throw error;
+                    }
+                }
             }
             if (novas.length > 0) {
                 const { error } = await supabase.from('notes').insert(novas);

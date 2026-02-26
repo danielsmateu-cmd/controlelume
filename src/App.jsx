@@ -14,6 +14,7 @@ import { api } from './services/api';
 function AppContent() {
     const { currentUser, canEdit, canView } = useAuth();
     const [activeTab, setActiveTab] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
 
     // SHARED STATE
     const fixedCategories = ['ENERGIA', 'AGUA', 'INTERNET', 'DAS', 'CONTADOR', 'IPTU', 'FAXINA', 'DARE', 'FUNCIONARIO'];
@@ -93,29 +94,34 @@ function AppContent() {
             if (dbOrders && dbOrders.length > 0) setOrders(dbOrders);
             if (dbNotes && dbNotes.length > 0) setNotes(dbNotes);
             if (dbMaterials && dbMaterials.length > 0) setMaterials(dbMaterials);
+            setIsLoading(false);
         };
         loadData();
     }, []);
 
     // Persist to localStorage + Supabase on change
     useEffect(() => {
+        if (isLoading) return;
         localStorage.setItem('expenses', JSON.stringify(expenses));
         api.saveExpenses(expenses);
-    }, [expenses]);
+    }, [expenses, isLoading]);
 
     useEffect(() => {
+        if (isLoading) return;
         localStorage.setItem('orders', JSON.stringify(orders));
         api.saveOrders(orders);
-    }, [orders]);
+    }, [orders, isLoading]);
 
     useEffect(() => {
+        if (isLoading) return;
         localStorage.setItem('notes', JSON.stringify(notes));
         api.saveNotes(notes);
-    }, [notes]);
+    }, [notes, isLoading]);
 
     useEffect(() => {
+        if (isLoading) return;
         localStorage.setItem('materials', JSON.stringify(materials));
-    }, [materials]);
+    }, [materials, isLoading]);
 
     const handleExportBackup = () => {
         const data = { expenses, orders, notes, materials };
