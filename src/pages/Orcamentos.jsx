@@ -1373,13 +1373,17 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
                                         <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
                                         <span className="w-1/3 text-center font-black text-indigo-700 text-sm">{(currentItemPrice / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right"></span>
+                                        <span className="w-1/3 text-right font-bold text-indigo-600">
+                                            {currentItemPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </span>
                                     </div>
                                     {parseFloat(discount) > 0 && (
                                         <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
                                             <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
                                             <span className="w-1/3 text-center font-black text-green-700 text-sm">{((currentItemPrice * (1 - (parseFloat(discount) / 100))) / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                            <span className="w-1/3 text-right"></span>
+                                            <span className="w-1/3 text-right font-bold text-green-600">
+                                                {(currentItemPrice * (1 - (parseFloat(discount) / 100))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
                                         </div>
                                     )}
                                     <div className="h-px bg-gray-100 mt-2"></div>
