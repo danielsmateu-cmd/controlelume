@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -103,9 +103,45 @@ const Orcamentos = ({ materials, setMaterials }) => {
     });
 
     // Derived collections from materials prop
-    const sheetMaterials = materials.filter(m => !m.type || m.type === 'sheet');
-    const unitMaterials = materials.filter(m => m.type === 'unit');
-    const linearMaterials = materials.filter(m => m.type === 'linear');
+    const [materialsOrder, setMaterialsOrder] = useState(() => {
+        const saved = localStorage.getItem('materialsOrder');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    const handleMoveMaterial = (id, direction) => {
+        const currentOrder = [...materialsOrder];
+        materials.forEach(m => {
+            if (!currentOrder.includes(m.id)) currentOrder.push(m.id);
+        });
+
+        const index = currentOrder.indexOf(id);
+        if (index === -1) return;
+
+        if (direction === 'up' && index > 0) {
+            const temp = currentOrder[index - 1];
+            currentOrder[index - 1] = currentOrder[index];
+            currentOrder[index] = temp;
+        } else if (direction === 'down' && index < currentOrder.length - 1) {
+            const temp = currentOrder[index + 1];
+            currentOrder[index + 1] = currentOrder[index];
+            currentOrder[index] = temp;
+        }
+
+        setMaterialsOrder(currentOrder);
+        localStorage.setItem('materialsOrder', JSON.stringify(currentOrder));
+    };
+
+    const orderedMaterials = [...materials].sort((a, b) => {
+        let idxA = materialsOrder.indexOf(a.id);
+        let idxB = materialsOrder.indexOf(b.id);
+        if (idxA === -1) idxA = 999999;
+        if (idxB === -1) idxB = 999999;
+        return idxA - idxB;
+    });
+
+    const sheetMaterials = orderedMaterials.filter(m => !m.type || m.type === 'sheet');
+    const unitMaterials = orderedMaterials.filter(m => m.type === 'unit');
+    const linearMaterials = orderedMaterials.filter(m => m.type === 'linear');
 
     const [newUnitMaterial, setNewUnitMaterial] = useState({ name: '', pricePerUnit: '' });
     const [newLinearMaterial, setNewLinearMaterial] = useState({ name: '', pricePerMeter: '' });
@@ -532,7 +568,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                 {m.pricePerM2.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button onClick={() => handleDeleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                <div className="flex justify-center gap-1">
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-indigo-600" title="Subir"><ChevronUp size={18} /></button>
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-indigo-600" title="Descer"><ChevronDown size={18} /></button>
+                                                    <button type="button" onClick={() => handleDeleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -596,7 +636,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                 {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button onClick={() => handleDeleteUnitMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                <div className="flex justify-center gap-1">
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-emerald-600" title="Subir"><ChevronUp size={18} /></button>
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-emerald-600" title="Descer"><ChevronDown size={18} /></button>
+                                                    <button type="button" onClick={() => handleDeleteUnitMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -660,7 +704,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                 {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/m
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button onClick={() => handleDeleteLinearMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                <div className="flex justify-center gap-1">
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-amber-600" title="Subir"><ChevronUp size={18} /></button>
+                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-amber-600" title="Descer"><ChevronDown size={18} /></button>
+                                                    <button type="button" onClick={() => handleDeleteLinearMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1042,102 +1090,102 @@ const Orcamentos = ({ materials, setMaterials }) => {
                     </div>
                 </div>
 
-                {/* Budget Spreadsheet Table */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-indigo-600 text-white">
-                                <th className="px-3 py-1.5 text-[11px] font-bold uppercase" rowSpan="2">Serviços / Materiais</th>
-                                <th className="px-2 py-1.5 text-[10px] font-bold uppercase text-center border-l border-indigo-500" colSpan="2">Centímetros</th>
-                                <th className="px-3 py-1.5 text-[10px] font-bold uppercase text-right border-l border-indigo-500 pr-8" rowSpan="2">Custo (1 pç)</th>
-                            </tr>
-                            <tr className="bg-indigo-500 text-white">
-                                <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400">Medida X</th>
-                                <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400">Medida Y</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {/* ── Chapas ── */}
-                            {sheetMaterials.map(material => {
-                                const { areaM2, cost } = calculateRow(material);
-                                const m = measurements[material.id] || { x: '', y: '' };
-                                return (
-                                    <tr key={material.id} className="hover:bg-indigo-50/30 transition-colors">
-                                        <td className="px-3 py-1 text-[11px] font-bold text-gray-700 bg-gray-50/50">{material.name}</td>
-                                        <td className="px-1 py-1 border-l border-gray-100">
-                                            <input type="number" value={m.x} onChange={e => handleMeasurementChange(material.id, 'x', e.target.value)}
-                                                placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
-                                        </td>
-                                        <td className="px-1 py-1 border-l border-gray-100">
-                                            <input type="number" value={m.y} onChange={e => handleMeasurementChange(material.id, 'y', e.target.value)}
-                                                placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
-                                        </td>
-                                        <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-gray-800 text-[11px] pr-8">
-                                            {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
+                {/* Budget Spreadsheet Table - TWO COLUMNS */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {[
+                        [...orderedMaterials].slice(0, Math.ceil(orderedMaterials.length / 2)),
+                        [...orderedMaterials].slice(Math.ceil(orderedMaterials.length / 2))
+                    ].map((colMaterials, colIdx) => (
+                        <div key={`col-${colIdx}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden self-start">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-indigo-600 text-white">
+                                        <th className="px-3 py-1.5 text-[11px] font-bold uppercase" rowSpan="2">Serviços / Materiais</th>
+                                        <th className="px-2 py-1.5 text-[10px] font-bold uppercase text-center border-l border-indigo-500" colSpan="2">Centímetros</th>
+                                        <th className="px-3 py-1.5 text-[10px] font-bold uppercase text-right border-l border-indigo-500 pr-4" rowSpan="2">Custo (1 pç)</th>
                                     </tr>
-                                );
-                            })}
-
-                            {/* ── Por Unidade ── */}
-                            {unitMaterials.map(mat => {
-                                const qty = parseFloat(unitQtys[mat.id]) || 0;
-                                const cost = qty * mat.price;
-                                return (
-                                    <tr key={mat.id} className="hover:bg-emerald-50/30 transition-colors">
-                                        <td className="px-3 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/30">
-                                            {mat.name} <span className="text-[9px] font-normal text-emerald-500 ml-1">(unidade)</span>
-                                        </td>
-                                        <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
-                                            <input type="number" value={unitQtys[mat.id] || ''}
-                                                onChange={e => setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value }))}
-                                                placeholder="Qtd" className="w-full px-1 py-0.5 text-center text-[11px] border border-emerald-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none" />
-                                        </td>
-                                        <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-emerald-700 text-[11px] pr-8">
-                                            {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
+                                    <tr className="bg-indigo-500 text-white">
+                                        <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400 w-1/5">x</th>
+                                        <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400 w-1/5">y</th>
                                     </tr>
-                                );
-                            })}
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {colMaterials.map(mat => {
+                                        if (!mat.type || mat.type === 'sheet') {
+                                            const { areaM2, cost } = calculateRow(mat);
+                                            const m = measurements[mat.id] || { x: '', y: '' };
+                                            return (
+                                                <tr key={mat.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                    <td className="px-3 py-1 text-[11px] font-bold text-gray-700 bg-gray-50/50">{mat.name}</td>
+                                                    <td className="px-1 py-1 border-l border-gray-100">
+                                                        <input type="number" value={m.x} onChange={e => handleMeasurementChange(mat.id, 'x', e.target.value)}
+                                                            placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
+                                                    </td>
+                                                    <td className="px-1 py-1 border-l border-gray-100">
+                                                        <input type="number" value={m.y} onChange={e => handleMeasurementChange(mat.id, 'y', e.target.value)}
+                                                            placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
+                                                    </td>
+                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-gray-800 text-[11px] pr-4">
+                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        } else if (mat.type === 'unit') {
+                                            const qty = parseFloat(unitQtys[mat.id]) || 0;
+                                            const cost = qty * mat.price;
+                                            return (
+                                                <tr key={mat.id} className="hover:bg-emerald-50/30 transition-colors">
+                                                    <td className="px-3 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/30">
+                                                        {mat.name} <span className="text-[9px] font-normal text-emerald-500 ml-1">(unid)</span>
+                                                    </td>
+                                                    <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
+                                                        <input type="number" value={unitQtys[mat.id] || ''}
+                                                            onChange={e => setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                            placeholder="Qtd" className="w-full px-1 py-0.5 text-center text-[11px] border border-emerald-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none" />
+                                                    </td>
+                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-emerald-700 text-[11px] pr-4">
+                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        } else {
+                                            const lengthCm = parseFloat(linearLengths[mat.id]) || 0;
+                                            const cost = (lengthCm / 100) * mat.price;
+                                            return (
+                                                <tr key={mat.id} className="hover:bg-amber-50/30 transition-colors">
+                                                    <td className="px-3 py-1 text-[11px] font-bold text-amber-700 bg-amber-50/30">
+                                                        {mat.name} <span className="text-[9px] font-normal text-amber-500 ml-1">(m linear)</span>
+                                                    </td>
+                                                    <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
+                                                        <input type="number" value={linearLengths[mat.id] || ''}
+                                                            onChange={e => setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                            placeholder="Comp(cm)" className="w-full px-1 py-0.5 text-center text-[11px] border border-amber-200 rounded focus:ring-1 focus:ring-amber-400 outline-none" />
+                                                    </td>
+                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-amber-700 text-[11px] pr-4">
+                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+                                    })}
+                                    {colMaterials.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" className="px-3 py-6 text-[11px] text-center text-gray-400 italic">
+                                                Nenhum material localizado.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    ))}
+                </div>
 
-                            {/* ── Por Metro Linear ── */}
-                            {linearMaterials.map(mat => {
-                                const lengthCm = parseFloat(linearLengths[mat.id]) || 0;
-                                const cost = (lengthCm / 100) * mat.price;
-                                return (
-                                    <tr key={mat.id} className="hover:bg-amber-50/30 transition-colors">
-                                        <td className="px-3 py-1 text-[11px] font-bold text-amber-700 bg-amber-50/30">
-                                            {mat.name} <span className="text-[9px] font-normal text-amber-500 ml-1">(m linear)</span>
-                                        </td>
-                                        <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
-                                            <input type="number" value={linearLengths[mat.id] || ''}
-                                                onChange={e => setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value }))}
-                                                placeholder="Comprimento (cm)" className="w-full px-1 py-0.5 text-center text-[11px] border border-amber-200 rounded focus:ring-1 focus:ring-amber-400 outline-none" />
-                                        </td>
-                                        <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-amber-700 text-[11px] pr-8">
-                                            {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-
-                            {sheetMaterials.length === 0 && unitMaterials.length === 0 && linearMaterials.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" className="px-3 py-6 text-[11px] text-center text-gray-400 italic">
-                                        Cadastre materiais para começar o cálculo.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                        <tfoot>
-                            <tr className="bg-gray-100 border-t-2 border-gray-200">
-                                <td colSpan="3" className="px-3 py-2 text-[10px] font-black text-gray-500 uppercase text-right">Total Por Unidade</td>
-                                <td className="px-3 py-2 text-right font-black text-indigo-700 pr-8 text-sm">
-                                    {costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div className="mt-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 flex justify-between items-center shadow-sm">
+                    <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Total Custos Por Item (1 Unid.)</span>
+                    <span className="text-xl font-black text-indigo-700">
+                        {costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
                 </div>
 
                 {/* Results and Detail Section */}
