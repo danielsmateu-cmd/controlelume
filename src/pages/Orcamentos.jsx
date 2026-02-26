@@ -1372,16 +1372,16 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     </div>
                                     <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
                                         <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
-                                        <span className="w-1/3 text-center font-black text-indigo-700 text-sm">{(currentItemPrice / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-bold text-indigo-600">
+                                        <span className="w-1/3 text-center font-bold text-indigo-600">{(currentItemPrice / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
                                             {currentItemPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
                                     {parseFloat(discount) > 0 && (
                                         <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
                                             <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
-                                            <span className="w-1/3 text-center font-black text-green-700 text-sm">{((currentItemPrice * (1 - (parseFloat(discount) / 100))) / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                            <span className="w-1/3 text-right font-bold text-green-600">
+                                            <span className="w-1/3 text-center font-bold text-green-600">{((currentItemPrice * (1 - (parseFloat(discount) / 100))) / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
                                                 {(currentItemPrice * (1 - (parseFloat(discount) / 100))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                         </div>
@@ -1397,13 +1397,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                             min="1"
                                         />
                                     </div>
-                                    <div className="flex justify-between items-center pt-2">
-                                        <span className="text-xs font-bold text-gray-400 uppercase">Preço Final do Item:</span>
-                                        <span className="text-2xl text-indigo-600 font-black">
-                                            {currentItemPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </span>
-                                    </div>
-                                    <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-1">Simulação de Desconto</div>
+                                    <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-2 mt-2">Simulação de Desconto</div>
                                     <div className="flex justify-between items-center py-1">
                                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                             <Percent size={12} className="text-red-500" /> Desconto (%)
@@ -1415,16 +1409,6 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                             className="w-16 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-right text-xs font-bold text-gray-700 focus:ring-1 focus:ring-red-400 outline-none"
                                         />
                                     </div>
-                                    {parseFloat(discount) > 0 && (
-                                        <div className="flex justify-between items-center bg-green-50 p-2 rounded-lg py-3 animate-in zoom-in-95 duration-300">
-                                            <span className="text-[10px] font-bold text-green-600 uppercase flex items-center gap-1">
-                                                <Percent size={12} /> Valor Final c/ Desc:
-                                            </span>
-                                            <span className="text-xl font-black text-green-600">
-                                                {(currentItemPrice * (1 - (parseFloat(discount) / 100))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         )}
