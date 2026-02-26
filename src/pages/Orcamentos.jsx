@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -152,6 +152,58 @@ const Orcamentos = ({ materials, setMaterials }) => {
     // Quantities for unit and linear materials in the budget calculator
     const [unitQtys, setUnitQtys] = useState({});     // { [id]: qty }
     const [linearLengths, setLinearLengths] = useState({}); // { [id]: cm }
+
+    // Editable Materials
+    const [editingMaterialId, setEditingMaterialId] = useState(null);
+    const [editMaterialData, setEditMaterialData] = useState({});
+
+    const handleEditMaterial = (m) => {
+        setEditingMaterialId(m.id);
+        setEditMaterialData({
+            name: m.name,
+            width: m.width,
+            height: m.height,
+            price: m.price,
+            pricePerM2: m.pricePerM2
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingMaterialId(null);
+        setEditMaterialData({});
+    };
+
+    const handleSaveEdit = async (m) => {
+        try {
+            const payload = {
+                name: editMaterialData.name,
+                price: parseFloat(editMaterialData.price) || 0
+            };
+            if (m.type === 'unit') {
+                payload.width = 0;
+                payload.height = 0;
+            } else if (m.type === 'linear') {
+                payload.width = 0;
+                payload.height = 1;
+            } else {
+                payload.width = parseFloat(editMaterialData.width) || 0;
+                payload.height = parseFloat(editMaterialData.height) || 0;
+                payload.pricePerM2 = (payload.price / ((payload.width * payload.height) / 10000)) || 0;
+            }
+
+            const updated = await api.updateMaterial(m.id, payload);
+            if (updated) {
+                setMaterials(prev => prev.map(item => item.id === m.id ? updated : item));
+                setEditingMaterialId(null);
+                setEditMaterialData({});
+            } else {
+                alert('Erro ao atualizar material no banco de dados.');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            alert('Erro ao atualizar material.');
+        }
+    };
 
     // Client Data
     const [clientData, setClientData] = useState({
@@ -565,18 +617,45 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                 <tbody className="divide-y divide-gray-100">
                                     {sheetMaterials.map(m => (
                                         <tr key={m.id} className="hover:bg-gray-50/50 group">
-                                            <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
-                                            <td className="px-6 py-4 text-center text-sm text-gray-500">{m.width}x{m.height}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-indigo-600">
-                                                {m.pricePerM2.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-1">
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-indigo-600" title="Subir"><ChevronUp size={18} /></button>
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-indigo-600" title="Descer"><ChevronDown size={18} /></button>
-                                                    <button type="button" onClick={() => handleDeleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
+                                            {editingMaterialId === m.id ? (
+                                                <>
+                                                    <td className="px-4 py-2">
+                                                        <input type="text" value={editMaterialData.name} onChange={e => setEditMaterialData({ ...editMaterialData, name: e.target.value })} className="w-full px-2 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold text-gray-700" />
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex gap-1 justify-center items-center">
+                                                            <input type="number" value={editMaterialData.width} onChange={e => setEditMaterialData({ ...editMaterialData, width: e.target.value })} className="w-12 px-1 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm text-center" />
+                                                            <span className="text-gray-400">x</span>
+                                                            <input type="number" value={editMaterialData.height} onChange={e => setEditMaterialData({ ...editMaterialData, height: e.target.value })} className="w-12 px-1 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm text-center" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-20 px-2 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold text-indigo-600 text-right" />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleSaveEdit(m)} className="p-1 text-emerald-500 hover:text-emerald-700 transition-colors" title="Salvar"><CheckCircle size={18} /></button>
+                                                            <button type="button" onClick={handleCancelEdit} className="p-1 text-red-400 hover:text-red-500 transition-colors" title="Cancelar"><XCircle size={18} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
+                                                    <td className="px-6 py-4 text-center text-sm text-gray-500">{m.width}x{m.height}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-indigo-600">
+                                                        {m.pricePerM2.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-indigo-600" title="Subir"><ChevronUp size={18} /></button>
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-indigo-600" title="Descer"><ChevronDown size={18} /></button>
+                                                            <button type="button" onClick={() => handleEditMaterial(m)} className="p-1 text-gray-400 hover:text-indigo-600" title="Editar"><Pencil size={16} /></button>
+                                                            <button type="button" onClick={() => handleDeleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Excluir"><Trash2 size={16} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                     {sheetMaterials.length === 0 && (
@@ -634,17 +713,37 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                 <tbody className="divide-y divide-gray-100">
                                     {unitMaterials.map(m => (
                                         <tr key={m.id} className="hover:bg-gray-50/50 group">
-                                            <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-emerald-600">
-                                                {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-1">
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-emerald-600" title="Subir"><ChevronUp size={18} /></button>
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-emerald-600" title="Descer"><ChevronDown size={18} /></button>
-                                                    <button type="button" onClick={() => handleDeleteUnitMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
+                                            {editingMaterialId === m.id ? (
+                                                <>
+                                                    <td className="px-4 py-2">
+                                                        <input type="text" value={editMaterialData.name} onChange={e => setEditMaterialData({ ...editMaterialData, name: e.target.value })} className="w-full px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 text-sm font-bold text-gray-700" />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-right">
+                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 text-sm font-bold text-emerald-600 text-right" />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleSaveEdit(m)} className="p-1 text-emerald-500 hover:text-emerald-700 transition-colors" title="Salvar"><CheckCircle size={18} /></button>
+                                                            <button type="button" onClick={handleCancelEdit} className="p-1 text-red-400 hover:text-red-500 transition-colors" title="Cancelar"><XCircle size={18} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600">
+                                                        {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-emerald-600" title="Subir"><ChevronUp size={18} /></button>
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-emerald-600" title="Descer"><ChevronDown size={18} /></button>
+                                                            <button type="button" onClick={() => handleEditMaterial(m)} className="p-1 text-gray-400 hover:text-emerald-600" title="Editar"><Pencil size={16} /></button>
+                                                            <button type="button" onClick={() => handleDeleteUnitMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                     {unitMaterials.length === 0 && (
@@ -702,17 +801,37 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                 <tbody className="divide-y divide-gray-100">
                                     {linearMaterials.map(m => (
                                         <tr key={m.id} className="hover:bg-gray-50/50 group">
-                                            <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-amber-600">
-                                                {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/m
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-1">
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-amber-600" title="Subir"><ChevronUp size={18} /></button>
-                                                    <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-amber-600" title="Descer"><ChevronDown size={18} /></button>
-                                                    <button type="button" onClick={() => handleDeleteLinearMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
+                                            {editingMaterialId === m.id ? (
+                                                <>
+                                                    <td className="px-4 py-2">
+                                                        <input type="text" value={editMaterialData.name} onChange={e => setEditMaterialData({ ...editMaterialData, name: e.target.value })} className="w-full px-2 py-1 border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm font-bold text-gray-700" />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-right">
+                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm font-bold text-amber-600 text-right" />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleSaveEdit(m)} className="p-1 text-emerald-500 hover:text-emerald-700 transition-colors" title="Salvar"><CheckCircle size={18} /></button>
+                                                            <button type="button" onClick={handleCancelEdit} className="p-1 text-red-400 hover:text-red-500 transition-colors" title="Cancelar"><XCircle size={18} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="px-6 py-4 font-bold text-gray-700">{m.name}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-amber-600">
+                                                        {m.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/m
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex justify-center gap-1">
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-amber-600" title="Subir"><ChevronUp size={18} /></button>
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-amber-600" title="Descer"><ChevronDown size={18} /></button>
+                                                            <button type="button" onClick={() => handleEditMaterial(m)} className="p-1 text-gray-400 hover:text-amber-600" title="Editar"><Pencil size={16} /></button>
+                                                            <button type="button" onClick={() => handleDeleteLinearMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                     {linearMaterials.length === 0 && (

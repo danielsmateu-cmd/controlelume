@@ -58,6 +58,31 @@ export const api = {
         }
     },
 
+    async updateMaterial(id, updates) {
+        try {
+            const { data, error } = await supabase
+                .from('materials')
+                .update(updates)
+                .eq('id', id)
+                .select();
+
+            if (error) throw error;
+            const saved = data[0];
+            let type = 'sheet';
+            if (saved.width === 0 && saved.height === 0) type = 'unit';
+            else if (saved.width === 0 && saved.height === 1) type = 'linear';
+
+            return {
+                ...saved,
+                type,
+                pricePerM2: saved.price_per_m2
+            };
+        } catch (err) {
+            console.error('Supabase updateMaterial:', err);
+            return null;
+        }
+    },
+
     async deleteMaterial(id) {
         try {
             const { error } = await supabase
