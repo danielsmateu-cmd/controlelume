@@ -397,6 +397,12 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
     // 4. Adicionais
     const nfValue = subtotal * (parseFloat(nfPercentage) / 100);
+    const taxValue = subtotal * (parseFloat(taxPercentage) / 100);
+
+    // 5. Valor Final do Item Atual
+    const currentItemPrice = subtotal + nfValue + taxValue;
+    const baseUnitFinal = currentItemPrice / (parseFloat(globalQty) || 1);
+
     // O desconto em R$ abate do unitário final (afeta o carrinho e a base do %)
     const discountVal = parseFloat(discountValue) || 0;
     const finalUnitWithValueDiscount = Math.max(0, baseUnitFinal - discountVal);
