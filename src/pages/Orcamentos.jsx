@@ -397,14 +397,15 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
     // 4. Adicionais
     const nfValue = subtotal * (parseFloat(nfPercentage) / 100);
-    const taxValue = subtotal * (parseFloat(taxPercentage) / 100);
-    // 5. Valor Final do Item Atual
-    const currentItemPrice = subtotal + nfValue + taxValue;
-    const baseUnitFinal = currentItemPrice / (parseFloat(globalQty) || 1);
-
-    // O desconto em R$ abate do unitário e vai pro carrinho
+    // O desconto em R$ abate do unitário final (afeta o carrinho e a base do %)
     const discountVal = parseFloat(discountValue) || 0;
-    const finalUnitWithDiscountVal = Math.max(0, baseUnitFinal - discountVal);
+    const finalUnitWithValueDiscount = Math.max(0, baseUnitFinal - discountVal);
+    const finalTotalWithDiscount = finalUnitWithValueDiscount * (parseFloat(globalQty) || 1);
+
+    // O desconto em % é apenas simulação visual sobre o unitário já com desconto em R$
+    const discountPerc = parseFloat(discount) || 0;
+    const visualUnitWithPercDiscount = Math.max(0, finalUnitWithValueDiscount * (1 - (discountPerc / 100)));
+    const visualTotalWithPercDiscount = visualUnitWithPercDiscount * (parseFloat(globalQty) || 1);
 
     // 6. Cálculos do Projeto (Múltiplos Itens)
     const projectSubtotal = budgetItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
@@ -430,7 +431,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         const newItem = {
             id: Date.now(),
             name: itemName,
-            unitPrice: finalUnitWithDiscountVal,
+            unitPrice: finalUnitWithValueDiscount,
             unitNfValue: nfValue / (parseFloat(globalQty) || 1),
             unitTaxValue: taxValue / (parseFloat(globalQty) || 1),
             unitMaterialCost: costPerPiece,
@@ -1405,25 +1406,19 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     </div>
                                     <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
                                         <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
-                                        <span className="w-1/3 text-center font-bold text-indigo-600">{baseUnitFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-center font-bold text-indigo-600">{finalUnitWithValueDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                         <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
-                                            {currentItemPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
-                                    {(parseFloat(discount) > 0 || parseFloat(discountValue) > 0) && (
+                                    {parseFloat(discount) > 0 && (
                                         <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
-                                            <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
+                                            <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">SIMULAÇÃO ({discount}%):</span>
                                             <span className="w-1/3 text-center font-bold text-green-600">
-                                                {parseFloat(discountValue) > 0 ?
-                                                    finalUnitWithDiscountVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                    : ((baseUnitFinal * (1 - (parseFloat(discount) / 100)))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                }
+                                                {visualUnitWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                             <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
-                                                {parseFloat(discountValue) > 0 ?
-                                                    (finalUnitWithDiscountVal * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                    : ((currentItemPrice * (1 - (parseFloat(discount) / 100)))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                }
+                                                {visualTotalWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                         </div>
                                     )}
