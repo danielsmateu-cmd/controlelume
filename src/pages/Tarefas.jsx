@@ -181,7 +181,36 @@ const Tarefas = () => {
 
     useEffect(() => {
         const load = async () => {
-            const data = await api.getTarefas();
+            let data = await api.getTarefas();
+
+            // Migrar tarefas perdidas no localStorage para o Supabase
+            const oldLocal = localStorage.getItem('tarefas');
+            if (oldLocal) {
+                try {
+                    const parsedLocal = JSON.parse(oldLocal);
+                    if (Array.isArray(parsedLocal) && parsedLocal.length > 0) {
+                        for (const t of parsedLocal) {
+                            // Ignora se estiver repetida (simples check de descrição)
+                            if (!data.some(d => d.descricao === t.descricao)) {
+                                const payload = {
+                                    cliente: t.cliente || '',
+                                    descricao: t.descricao || '',
+                                    dataFinal: t.dataFinal || ''
+                                };
+                                const result = await api.addTarefa(payload, t.pessoa_id || 'bruno');
+                                if (result && t.concluida) {
+                                    await api.updateTarefa(result.id, { concluida: true });
+                                }
+                            }
+                        }
+                    }
+                    localStorage.removeItem('tarefas');
+                    data = await api.getTarefas(); // Recarrega com os migrados
+                } catch (e) {
+                    console.error("Erro na migração de tarefas:", e);
+                }
+            }
+
             setTarefas(data);
             setLoading(false);
         };
