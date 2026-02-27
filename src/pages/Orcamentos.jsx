@@ -81,6 +81,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
     const [discountValue, setDiscountValue] = useState('0');
     const [itemName, setItemName] = useState('');
     const [budgetItems, setBudgetItems] = useState([]);
+    const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
 
     const handleSaveBudget = async () => {
@@ -435,17 +436,27 @@ const Orcamentos = ({ materials, setMaterials }) => {
         }
 
         const newItem = {
-            id: Date.now(),
+            id: editingItemId || Date.now(),
             name: itemName,
             unitPrice: finalUnitWithValueDiscount,
             unitNfValue: nfValue / (parseFloat(globalQty) || 1),
             unitTaxValue: taxValue / (parseFloat(globalQty) || 1),
             unitMaterialCost: costPerPiece,
             quantity: parseFloat(globalQty) || 1,
-            originalSubtotal: subtotal + nfValue + taxValue
+            originalSubtotal: subtotal + nfValue + taxValue,
+            measurements: { ...measurements },
+            unitQtys: { ...unitQtys },
+            linearLengths: { ...linearLengths },
+            discount: discount,
+            discountValue: discountValue
         };
 
-        setBudgetItems([...budgetItems, newItem]);
+        if (editingItemId) {
+            setBudgetItems(prev => prev.map(item => item.id === editingItemId ? newItem : item));
+            setEditingItemId(null);
+        } else {
+            setBudgetItems([...budgetItems, newItem]);
+        }
 
         // Reset builder fields
         setMeasurements({});
@@ -455,6 +466,19 @@ const Orcamentos = ({ materials, setMaterials }) => {
         setGlobalQty('1');
         setDiscount('10');
         setDiscountValue('0');
+    };
+
+    const handleEditItem = (item) => {
+        setItemName(item.name);
+        setGlobalQty(item.quantity.toString());
+        setMeasurements(item.measurements || {});
+        setUnitQtys(item.unitQtys || {});
+        setLinearLengths(item.linearLengths || {});
+        setDiscount(item.discount || '10');
+        setDiscountValue(item.discountValue || '0');
+        setEditingItemId(item.id);
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleRemoveItem = (id) => {
@@ -1475,7 +1499,8 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                 onClick={handleAddItem}
                                 className="w-full md:w-2/3 lg:w-1/2 py-5 bg-indigo-600 text-white rounded-2xl text-lg font-black shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 transform hover:scale-[1.02] border-2 border-indigo-500/20"
                             >
-                                <Plus size={24} /> ADICIONAR AO ORÇAMENTO
+                                {editingItemId ? <Save size={24} /> : <Plus size={24} />}
+                                {editingItemId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR AO ORÇAMENTO'}
                             </button>
                             <button
                                 onClick={() => {
@@ -1486,6 +1511,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     setItemName('');
                                     setDiscount('10');
                                     setDiscountValue('0');
+                                    setEditingItemId(null);
                                     setBudgetItems([]);
                                 }}
                                 className="w-full md:w-2/3 lg:w-1/2 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-bold transition-colors text-center shadow-sm hover:shadow-md"
@@ -1519,9 +1545,9 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {budgetItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                                                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => handleEditItem(item)}>
                                                     <td className="px-6 py-4 font-bold text-gray-700">{item.name}</td>
-                                                    <td className="px-6 py-4 text-center">
+                                                    <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
                                                         <input
                                                             type="number"
                                                             value={item.quantity}
@@ -1535,10 +1561,18 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                     <td className="px-6 py-4 text-right font-black text-indigo-600 text-lg">
                                                         {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                     </td>
-                                                    <td className="px-6 py-4 text-center">
+                                                    <td className="px-6 py-4 text-center flex justify-center items-center gap-2">
                                                         <button
-                                                            onClick={() => handleRemoveItem(item.id)}
+                                                            onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
+                                                            className="p-2 text-gray-300 hover:text-indigo-500 transition-colors"
+                                                            title="Editar item"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleRemoveItem(item.id); }}
                                                             className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                                            title="Remover item"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
