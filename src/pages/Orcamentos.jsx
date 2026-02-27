@@ -77,7 +77,8 @@ const Orcamentos = ({ materials, setMaterials }) => {
         alert('Configurações Globais salvas e sincronizadas com sucesso!');
     };
 
-    const [discount, setDiscount] = useState('10');
+    const [discount, setDiscount] = useState('0');
+    const [discountValue, setDiscountValue] = useState('0');
     const [itemName, setItemName] = useState('');
     const [budgetItems, setBudgetItems] = useState([]);
     const [savedBudgets, setSavedBudgets] = useState([]);
@@ -399,6 +400,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
     const taxValue = subtotal * (parseFloat(taxPercentage) / 100);
     // 5. Valor Final do Item Atual
     const currentItemPrice = subtotal + nfValue + taxValue;
+    const baseUnitFinal = currentItemPrice / (parseFloat(globalQty) || 1);
+    const discountPerc = parseFloat(discount) || 0;
+    const discountVal = parseFloat(discountValue) || 0;
+    const finalUnitWithDiscount = Math.max(0, (baseUnitFinal * (1 - (discountPerc / 100))) - discountVal);
+    const finalTotalWithDiscount = finalUnitWithDiscount * (parseFloat(globalQty) || 1);
 
     // 6. Cálculos do Projeto (Múltiplos Itens)
     const projectSubtotal = budgetItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
@@ -424,7 +430,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         const newItem = {
             id: Date.now(),
             name: itemName,
-            unitPrice: unitPrice + (unitPrice * (parseFloat(nfPercentage) / 100)) + (unitPrice * (parseFloat(taxPercentage) / 100)),
+            unitPrice: finalUnitWithDiscount,
             unitNfValue: nfValue / (parseFloat(globalQty) || 1),
             unitTaxValue: taxValue / (parseFloat(globalQty) || 1),
             unitMaterialCost: costPerPiece,
@@ -440,7 +446,8 @@ const Orcamentos = ({ materials, setMaterials }) => {
         setLinearLengths({});
         setItemName('');
         setGlobalQty('1');
-        setDiscount('10');
+        setDiscount('0');
+        setDiscountValue('0');
     };
 
     const handleRemoveItem = (id) => {
@@ -1398,17 +1405,17 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     </div>
                                     <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
                                         <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
-                                        <span className="w-1/3 text-center font-bold text-indigo-600">{(currentItemPrice / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        <span className="w-1/3 text-center font-bold text-indigo-600">{baseUnitFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                         <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
                                             {currentItemPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
-                                    {parseFloat(discount) > 0 && (
+                                    {(parseFloat(discount) > 0 || parseFloat(discountValue) > 0) && (
                                         <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
                                             <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
-                                            <span className="w-1/3 text-center font-bold text-green-600">{((currentItemPrice * (1 - (parseFloat(discount) / 100))) / (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-center font-bold text-green-600">{finalUnitWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                             <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
-                                                {(currentItemPrice * (1 - (parseFloat(discount) / 100))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                         </div>
                                     )}
@@ -1423,17 +1430,32 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                             min="1"
                                         />
                                     </div>
-                                    <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-2 mt-2">Simulação de Desconto</div>
-                                    <div className="flex justify-between items-center py-1">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                            <Percent size={12} className="text-red-500" /> Desconto (%)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={discount}
-                                            onChange={e => setDiscount(e.target.value)}
-                                            className="w-16 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-right text-xs font-bold text-gray-700 focus:ring-1 focus:ring-red-400 outline-none"
-                                        />
+                                    <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-2 mt-2">Aplicação de Desconto</div>
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                                <Percent size={12} className="text-red-500" /> Desconto (%)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={discount}
+                                                onChange={e => setDiscount(e.target.value)}
+                                                className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
+                                            />
+                                        </div>
+                                        <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                                <DollarSign size={12} className="text-red-500" /> Desconto (R$)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={discountValue}
+                                                step="0.01"
+                                                onChange={e => setDiscountValue(e.target.value)}
+                                                className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
+                                                placeholder="0,00"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1453,7 +1475,8 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     setLinearLengths({});
                                     setGlobalQty('1');
                                     setItemName('');
-                                    setDiscount('10');
+                                    setDiscount('0');
+                                    setDiscountValue('0');
                                     setBudgetItems([]);
                                 }}
                                 className="w-full md:w-2/3 lg:w-1/2 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-bold transition-colors text-center shadow-sm hover:shadow-md"
