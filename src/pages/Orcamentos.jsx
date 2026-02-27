@@ -23,36 +23,64 @@ const Orcamentos = ({ materials, setMaterials }) => {
     const [view, setView] = useState('budget'); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
     const [globalQty, setGlobalQty] = useState('1');
-    const [nfPercentage, setNfPercentage] = useState(() => {
-        const saved = localStorage.getItem('lume_global_settings');
-        return saved ? JSON.parse(saved).nfPercentage : '6';
-    });
-    const [taxPercentage, setTaxPercentage] = useState(() => {
-        const saved = localStorage.getItem('lume_global_settings');
-        return saved ? JSON.parse(saved).taxPercentage : '11';
-    });
+    const [nfPercentage, setNfPercentage] = useState('6');
+    const [taxPercentage, setTaxPercentage] = useState('11');
 
-    const saveGlobalSettings = () => {
-        localStorage.setItem('lume_global_settings', JSON.stringify({ nfPercentage, taxPercentage }));
-        alert('Configurações salvas!');
-    };
-    const [discount, setDiscount] = useState('10');
-    const [itemName, setItemName] = useState('');
-    const [budgetItems, setBudgetItems] = useState([]);
-
-    // State for Saved Budgets
-    const [savedBudgets, setSavedBudgets] = useState([]);
-
-    // Carregar materiais e orçamentos do servidor ao iniciar
+    // Carregar materiais, configurações e orçamentos do servidor ao iniciar
     useEffect(() => {
+        api.getSettings('lume_global_settings').then(settings => {
+            if (settings) {
+                if (settings.nfPercentage) setNfPercentage(settings.nfPercentage);
+                if (settings.taxPercentage) setTaxPercentage(settings.taxPercentage);
+            } else {
+                // Fallback from old local storage
+                const saved = localStorage.getItem('lume_global_settings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    setNfPercentage(parsed.nfPercentage || '6');
+                    setTaxPercentage(parsed.taxPercentage || '11');
+                }
+            }
+        });
+
+        // As materiais e orçamentos já são iniciados em App.jsx,
+        // mas as vezes as chamadas de refresh ficam espalhadas
         api.getMaterials().then(data => {
-            if (data && data.length > 0) setMaterials(data);
+            if (data && data.length > 0) {
+                // Ao carregar pela primeira vez, migrar ordem antiga se necessário
+                const oldOrderStr = localStorage.getItem('materialsOrder');
+                if (oldOrderStr) {
+                    const oldOrder = JSON.parse(oldOrderStr);
+                    // Se a maioria dos materiais estiver com sort_index = 0 ou nulo, aplica e limpa localStorage
+                    const hasSortIndex = data.some(m => m.sortIndex > 0);
+                    if (!hasSortIndex && oldOrder.length > 0) {
+                        const migrated = data.map(m => {
+                            const idx = oldOrder.indexOf(m.id);
+                            return { ...m, sortIndex: idx !== -1 ? idx : 999999 };
+                        });
+                        api.updateMaterialsOrder(oldOrder.map(id => ({ id })));
+                        setMaterials(migrated);
+                        localStorage.removeItem('materialsOrder');
+                        return;
+                    }
+                }
+                setMaterials(data);
+            }
         });
         api.getBudgets().then(data => {
             if (data) setSavedBudgets(data);
         });
     }, []);
 
+    const saveGlobalSettings = async () => {
+        await api.saveSettings('lume_global_settings', { nfPercentage, taxPercentage });
+        alert('Configurações Globais salvas e sincronizadas com sucesso!');
+    };
+
+    const [discount, setDiscount] = useState('10');
+    const [itemName, setItemName] = useState('');
+    const [budgetItems, setBudgetItems] = useState([]);
+    const [savedBudgets, setSavedBudgets] = useState([]);
 
     const handleSaveBudget = async () => {
         if (budgetItems.length === 0) {
@@ -68,7 +96,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
             date: new Date().toISOString(),
             clientData: { ...clientData },
             items: [...budgetItems],
-            total: projectSubtotal, // Valor sem o desconto
+            total: projectSubtotal,
             status: 'Aguardando'
         };
 
@@ -77,12 +105,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
             setSavedBudgets([saved, ...savedBudgets]);
             alert("Orçamento salvo com sucesso!");
         } else {
-            // Fallback localStorage
+            // Fallback
             const fallback = { ...newBudget, id: Date.now() };
             const updated = [fallback, ...savedBudgets];
             setSavedBudgets(updated);
-            localStorage.setItem('savedBudgets', JSON.stringify(updated));
-            alert("Orçamento salvo localmente (servidor offline).");
+            alert("Erro ao salvar no servidor.");
         }
     };
 
@@ -103,52 +130,51 @@ const Orcamentos = ({ materials, setMaterials }) => {
         setBudgetItems(budget.items);
         setView('budget');
     };
-    const [measurements, setMeasurements] = useState({}); // { [materialId]: { x: '', y: '' } }
+    const [measurements, setMeasurements] = useState({});
 
-    // Form for material registration (Chapas)
     const [newMaterial, setNewMaterial] = useState({
-        name: '',
-        width: '',
-        height: '',
-        price: ''
+        name: '', width: '', height: '', price: ''
     });
 
-    // Derived collections from materials prop
-    const [materialsOrder, setMaterialsOrder] = useState(() => {
-        const saved = localStorage.getItem('materialsOrder');
-        return saved ? JSON.parse(saved) : [];
+    const baseOrderedMaterials = [...materials].sort((a, b) => {
+        const idxA = a.sortIndex ?? 999999;
+        const idxB = b.sortIndex ?? 999999;
+        // fallback por created_at se indices iguais
+        if (idxA === idxB) {
+            if (a.created_at && b.created_at) {
+                return new Date(a.created_at) - new Date(b.created_at);
+            }
+            return 0;
+        }
+        return idxA - idxB;
     });
 
-    const handleMoveMaterial = (id, direction) => {
-        const currentOrder = [...materialsOrder];
-        materials.forEach(m => {
-            if (!currentOrder.includes(m.id)) currentOrder.push(m.id);
-        });
-
-        const index = currentOrder.indexOf(id);
+    const handleMoveMaterial = async (id, direction) => {
+        const currentOrderMap = baseOrderedMaterials.map(m => m.id);
+        const index = currentOrderMap.indexOf(id);
         if (index === -1) return;
 
         if (direction === 'up' && index > 0) {
-            const temp = currentOrder[index - 1];
-            currentOrder[index - 1] = currentOrder[index];
-            currentOrder[index] = temp;
-        } else if (direction === 'down' && index < currentOrder.length - 1) {
-            const temp = currentOrder[index + 1];
-            currentOrder[index + 1] = currentOrder[index];
-            currentOrder[index] = temp;
+            const temp = currentOrderMap[index - 1];
+            currentOrderMap[index - 1] = currentOrderMap[index];
+            currentOrderMap[index] = temp;
+        } else if (direction === 'down' && index < currentOrderMap.length - 1) {
+            const temp = currentOrderMap[index + 1];
+            currentOrderMap[index + 1] = currentOrderMap[index];
+            currentOrderMap[index] = temp;
         }
 
-        setMaterialsOrder(currentOrder);
-        localStorage.setItem('materialsOrder', JSON.stringify(currentOrder));
-    };
+        // Apply internally for immediate rendering
+        const ordered = materials.map(m => {
+            const idx = currentOrderMap.indexOf(m.id);
+            return { ...m, sortIndex: idx !== -1 ? idx : 999999 };
+        });
 
-    const baseOrderedMaterials = [...materials].sort((a, b) => {
-        let idxA = materialsOrder.indexOf(a.id);
-        let idxB = materialsOrder.indexOf(b.id);
-        if (idxA === -1) idxA = 999999;
-        if (idxB === -1) idxB = 999999;
-        return idxA - idxB;
-    });
+        setMaterials(ordered);
+
+        // Async save
+        await api.updateMaterialsOrder(currentOrderMap.map(mId => ({ id: mId })));
+    };
 
     const sheetMaterials = baseOrderedMaterials.filter(m => !m.type || m.type === 'sheet');
     const linearMaterials = baseOrderedMaterials.filter(m => m.type === 'linear');

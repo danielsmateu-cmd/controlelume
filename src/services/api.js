@@ -7,6 +7,7 @@ export const api = {
             const { data, error } = await supabase
                 .from('materials')
                 .select('*')
+                .order('sort_index', { ascending: true })
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -18,13 +19,32 @@ export const api = {
                 return {
                     ...m,
                     type,
-                    pricePerM2: m.price_per_m2
+                    pricePerM2: m.price_per_m2,
+                    sortIndex: m.sort_index
                 };
             });
         } catch (err) {
             console.error('Supabase getMaterials:', err);
             const saved = localStorage.getItem('materials');
             return saved ? JSON.parse(saved) : [];
+        }
+    },
+
+    async updateMaterialsOrder(materialsList) {
+        try {
+            for (let i = 0; i < materialsList.length; i++) {
+                const { error } = await supabase
+                    .from('materials')
+                    .update({ sort_index: i })
+                    .eq('id', materialsList[i].id);
+                if (error) {
+                    console.error('Error updating sort_index for material', materialsList[i].id, error);
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error('Supabase updateMaterialsOrder:', err);
+            return false;
         }
     },
 
@@ -37,7 +57,8 @@ export const api = {
                     width: material.type === 'unit' ? 0 : (material.type === 'linear' ? 0 : material.width || 0),
                     height: material.type === 'unit' ? 0 : (material.type === 'linear' ? 1 : material.height || 0),
                     price: material.price || 0,
-                    price_per_m2: material.pricePerM2 || 0
+                    price_per_m2: material.pricePerM2 || 0,
+                    sort_index: material.sortIndex || 0
                 }])
                 .select();
 
@@ -50,7 +71,8 @@ export const api = {
             return {
                 ...saved,
                 type,
-                pricePerM2: saved.price_per_m2
+                pricePerM2: saved.price_per_m2,
+                sortIndex: saved.sort_index
             };
         } catch (err) {
             console.error('Supabase addMaterial:', err);
@@ -75,7 +97,8 @@ export const api = {
             return {
                 ...saved,
                 type,
-                pricePerM2: saved.price_per_m2
+                pricePerM2: saved.price_per_m2,
+                sortIndex: saved.sort_index
             };
         } catch (err) {
             console.error('Supabase updateMaterial:', err);
@@ -94,6 +117,35 @@ export const api = {
             return true;
         } catch (err) {
             console.error('Supabase deleteMaterial:', err);
+            return false;
+        }
+    },
+
+    // ==================== SETTINGS ====================
+    async getSettings(id) {
+        try {
+            const { data, error } = await supabase
+                .from('settings')
+                .select('value')
+                .eq('id', id)
+                .single();
+            if (error && error.code !== 'PGRST116') throw error;
+            return data ? data.value : null;
+        } catch (err) {
+            console.error('Supabase getSettings:', err);
+            return null;
+        }
+    },
+
+    async saveSettings(id, value) {
+        try {
+            const { error } = await supabase
+                .from('settings')
+                .upsert({ id, value, updated_at: new Date().toISOString() });
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase saveSettings:', err);
             return false;
         }
     },
@@ -422,6 +474,106 @@ export const api = {
             return true;
         } catch (err) {
             console.error('Supabase saveNotes:', err);
+            return false;
+        }
+    },
+
+    // ==================== TAREFAS ====================
+    async getTarefas() {
+        try {
+            const { data, error } = await supabase
+                .from('tarefas')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data.map(t => ({
+                id: t.id,
+                pessoa_id: t.pessoa_id,
+                cliente: t.cliente,
+                descricao: t.descricao,
+                dataFinal: t.data_final,
+                concluida: t.concluida
+            }));
+        } catch (err) {
+            console.error('Supabase getTarefas:', err);
+            // Fallback para tarefas locais (migração)
+            const saved = localStorage.getItem('tarefas_data');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    let flat = [];
+                    for (const p in parsed) {
+                        flat = flat.concat(parsed[p].map(t => ({ ...t, pessoa_id: p })));
+                    }
+                    return flat;
+                } catch (e) { }
+            }
+            return [];
+        }
+    },
+
+    async addTarefa(tarefa, pessoaId) {
+        try {
+            const { data, error } = await supabase
+                .from('tarefas')
+                .insert([{
+                    pessoa_id: pessoaId,
+                    cliente: tarefa.cliente,
+                    descricao: tarefa.descricao,
+                    data_final: tarefa.dataFinal || null,
+                    concluida: tarefa.concluida || false
+                }])
+                .select();
+
+            if (error) throw error;
+            const t = data[0];
+            return {
+                id: t.id,
+                pessoa_id: t.pessoa_id,
+                cliente: t.cliente,
+                descricao: t.descricao,
+                dataFinal: t.data_final,
+                concluida: t.concluida
+            };
+        } catch (err) {
+            console.error('Supabase addTarefa:', err);
+            return null;
+        }
+    },
+
+    async updateTarefa(id, updates) {
+        try {
+            const dbUpdates = {};
+            if (updates.concluida !== undefined) dbUpdates.concluida = updates.concluida;
+            if (updates.cliente !== undefined) dbUpdates.cliente = updates.cliente;
+            if (updates.descricao !== undefined) dbUpdates.descricao = updates.descricao;
+            if (updates.dataFinal !== undefined) dbUpdates.data_final = updates.dataFinal || null;
+
+            const { error } = await supabase
+                .from('tarefas')
+                .update(dbUpdates)
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase updateTarefa:', err);
+            return false;
+        }
+    },
+
+    async deleteTarefa(id) {
+        try {
+            const { error } = await supabase
+                .from('tarefas')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteTarefa:', err);
             return false;
         }
     }

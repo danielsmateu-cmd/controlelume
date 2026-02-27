@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Plus, Trash2, Calendar, User, AlignLeft, CheckCircle2, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
+import { api } from '../services/api';
 
 const PESSOAS = [
     { id: 'juliana', label: 'Juliana', accent: 'bg-pink-500' },
@@ -8,12 +9,11 @@ const PESSOAS = [
     { id: 'bruno', label: 'Bruno', accent: 'bg-amber-500' },
 ];
 
-const STORAGE_KEY = 'tarefas_data';
-
 const getPrazoInfo = (dataFinal) => {
     if (!dataFinal) return null;
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const prazo = new Date(dataFinal + 'T00:00:00');
+    const partes = dataFinal.split('-');
+    const prazo = new Date(partes[0], partes[1] - 1, partes[2]);
     const diff = Math.ceil((prazo - hoje) / 86400000);
     if (diff < 0) return { label: 'Atrasada', color: 'text-red-500', icon: AlertTriangle };
     if (diff === 0) return { label: 'Vence hoje', color: 'text-amber-500', icon: AlertTriangle };
@@ -23,33 +23,20 @@ const getPrazoInfo = (dataFinal) => {
 
 const EMPTY_FORM = { cliente: '', descricao: '', dataFinal: '' };
 
-const PessoaPanel = ({ pessoa }) => {
+const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }) => {
     const [open, setOpen] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
-    const [tarefas, setTarefas] = useState([]);
 
-    useEffect(() => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        setTarefas(all[pessoa.id] || []);
-    }, [pessoa.id]);
-
-    const persist = (lista) => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        all[pessoa.id] = lista;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-        setTarefas(lista);
-    };
-
-    const handleAdd = () => {
+    const handleAdd = async () => {
         if (!form.cliente.trim() && !form.descricao.trim()) return;
-        persist([...tarefas, { id: Date.now(), ...form, concluida: false }]);
+        await onAdd(form);
         setForm(EMPTY_FORM);
         setShowForm(false);
     };
 
-    const toggle = (id) => persist(tarefas.map(t => t.id === id ? { ...t, concluida: !t.concluida } : t));
-    const remove = (id) => persist(tarefas.filter(t => t.id !== id));
+    const toggle = (id, concluida) => onToggle(id, concluida);
+    const remove = (id) => onRemove(id);
 
     const pendentes = tarefas.filter(t => !t.concluida);
     const concluidas = tarefas.filter(t => t.concluida);
@@ -85,6 +72,7 @@ const PessoaPanel = ({ pessoa }) => {
                                 value={form.cliente}
                                 onChange={e => setForm(f => ({ ...f, cliente: e.target.value }))}
                                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                disabled={loadingSave}
                             />
                             <textarea
                                 placeholder="Descrição da tarefa"
@@ -92,18 +80,20 @@ const PessoaPanel = ({ pessoa }) => {
                                 onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
                                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
                                 rows={2}
+                                disabled={loadingSave}
                             />
                             <input
                                 type="date"
                                 value={form.dataFinal}
                                 onChange={e => setForm(f => ({ ...f, dataFinal: e.target.value }))}
                                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                disabled={loadingSave}
                             />
                             <div className="flex gap-2">
-                                <button onClick={handleAdd} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                                <button disabled={loadingSave} onClick={handleAdd} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50">
                                     Adicionar
                                 </button>
-                                <button onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} className="px-4 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-100 transition-colors">
+                                <button disabled={loadingSave} onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} className="px-4 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-100 transition-colors disabled:opacity-50">
                                     Cancelar
                                 </button>
                             </div>
@@ -129,23 +119,26 @@ const PessoaPanel = ({ pessoa }) => {
                             {pendentes.map(t => {
                                 const prazo = getPrazoInfo(t.dataFinal);
                                 const PrazoIcon = prazo?.icon;
+                                const dataFormatted = t.dataFinal ? new Date(t.dataFinal + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+
                                 return (
                                     <div key={t.id} className="px-5 py-3.5 flex gap-3 items-start group hover:bg-gray-50 transition-colors">
                                         <button
-                                            onClick={() => toggle(t.id)}
-                                            className="mt-0.5 flex-shrink-0 w-4.5 h-4.5 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-indigo-500 transition-colors"
+                                            onClick={() => toggle(t.id, t.concluida)}
+                                            disabled={loadingSave}
+                                            className="mt-0.5 flex-shrink-0 w-4.5 h-4.5 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-indigo-500 transition-colors disabled:opacity-50"
                                         />
                                         <div className="flex-1 min-w-0">
                                             {t.cliente && <p className="text-xs font-semibold text-gray-400 mb-0.5">{t.cliente}</p>}
-                                            <p className="text-sm text-gray-800 leading-snug">{t.descricao}</p>
+                                            <p className="text-sm text-gray-800 leading-snug break-words whitespace-pre-wrap">{t.descricao}</p>
                                             {prazo && (
                                                 <div className={clsx("flex items-center gap-1 text-[11px] mt-1 font-medium", prazo.color)}>
                                                     <PrazoIcon size={11} />
-                                                    {new Date(t.dataFinal + 'T00:00:00').toLocaleDateString('pt-BR')} · {prazo.label}
+                                                    {dataFormatted} · {prazo.label}
                                                 </div>
                                             )}
                                         </div>
-                                        <button onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0">
+                                        <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
@@ -159,14 +152,14 @@ const PessoaPanel = ({ pessoa }) => {
                                     </div>
                                     {concluidas.map(t => (
                                         <div key={t.id} className="px-5 py-3 flex gap-3 items-start group hover:bg-gray-50 transition-colors opacity-40">
-                                            <button onClick={() => toggle(t.id)} className="mt-0.5 w-5 h-5 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
+                                            <button disabled={loadingSave} onClick={() => toggle(t.id, t.concluida)} className="mt-0.5 w-5 h-5 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0 disabled:opacity-50">
                                                 <CheckCircle2 size={12} className="text-white" />
                                             </button>
                                             <div className="flex-1 min-w-0">
                                                 {t.cliente && <p className="text-xs text-gray-400 mb-0.5">{t.cliente}</p>}
-                                                <p className="text-sm text-gray-500 line-through">{t.descricao}</p>
+                                                <p className="text-sm text-gray-500 line-through break-words whitespace-pre-wrap">{t.descricao}</p>
                                             </div>
-                                            <button onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0">
+                                            <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -181,19 +174,81 @@ const PessoaPanel = ({ pessoa }) => {
     );
 };
 
-const Tarefas = () => (
-    <div className="space-y-3">
-        <div>
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <ClipboardList className="text-indigo-600" size={24} />
-                Tarefas
-            </h2>
-            <p className="text-sm text-gray-500 mt-0.5">Toque no nome para ver as tarefas</p>
-        </div>
+const Tarefas = () => {
+    const [tarefas, setTarefas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadingSave, setLoadingSave] = useState(false);
+
+    useEffect(() => {
+        const load = async () => {
+            const data = await api.getTarefas();
+            setTarefas(data);
+            setLoading(false);
+        };
+        load();
+    }, []);
+
+    const handleAddTarefa = async (novaTarefa, pessoaId) => {
+        setLoadingSave(true);
+        const result = await api.addTarefa(novaTarefa, pessoaId);
+        if (result) {
+            setTarefas(prev => [...prev, result]);
+        }
+        setLoadingSave(false);
+    };
+
+    const handleToggleTarefa = async (id, isConcluida) => {
+        setLoadingSave(true);
+        const success = await api.updateTarefa(id, { concluida: !isConcluida });
+        if (success) {
+            setTarefas(prev => prev.map(t => t.id === id ? { ...t, concluida: !isConcluida } : t));
+        }
+        setLoadingSave(false);
+    };
+
+    const handleRemoveTarefa = async (id) => {
+        if (!window.confirm("Deseja realmente excluir esta tarefa?")) return;
+        setLoadingSave(true);
+        const success = await api.deleteTarefa(id);
+        if (success) {
+            setTarefas(prev => prev.filter(t => t.id !== id));
+        }
+        setLoadingSave(false);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32">
+                <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                <p className="mt-4 text-sm text-gray-500 font-medium animate-pulse">Carregando tarefas...</p>
+            </div>
+        );
+    }
+
+    return (
         <div className="space-y-3">
-            {PESSOAS.map(p => <PessoaPanel key={p.id} pessoa={p} />)}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <ClipboardList className="text-indigo-600" size={24} />
+                    Tarefas
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">Toque no nome para ver as tarefas</p>
+            </div>
+            <div className="space-y-3">
+                {PESSOAS.map(p => (
+                    <PessoaPanel
+                        key={p.id}
+                        pessoa={p}
+                        tarefas={tarefas.filter(t => t.pessoa_id === p.id)}
+                        onAdd={(t) => handleAddTarefa(t, p.id)}
+                        onToggle={handleToggleTarefa}
+                        onRemove={handleRemoveTarefa}
+                        loadingSave={loadingSave}
+                    />
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export default Tarefas;
