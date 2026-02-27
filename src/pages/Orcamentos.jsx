@@ -77,7 +77,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         alert('Configurações Globais salvas e sincronizadas com sucesso!');
     };
 
-    const [discount, setDiscount] = useState('0');
+    const [discount, setDiscount] = useState('10');
     const [discountValue, setDiscountValue] = useState('0');
     const [itemName, setItemName] = useState('');
     const [budgetItems, setBudgetItems] = useState([]);
@@ -401,10 +401,10 @@ const Orcamentos = ({ materials, setMaterials }) => {
     // 5. Valor Final do Item Atual
     const currentItemPrice = subtotal + nfValue + taxValue;
     const baseUnitFinal = currentItemPrice / (parseFloat(globalQty) || 1);
-    const discountPerc = parseFloat(discount) || 0;
+
+    // O desconto em R$ abate do unitário e vai pro carrinho
     const discountVal = parseFloat(discountValue) || 0;
-    const finalUnitWithDiscount = Math.max(0, (baseUnitFinal * (1 - (discountPerc / 100))) - discountVal);
-    const finalTotalWithDiscount = finalUnitWithDiscount * (parseFloat(globalQty) || 1);
+    const finalUnitWithDiscountVal = Math.max(0, baseUnitFinal - discountVal);
 
     // 6. Cálculos do Projeto (Múltiplos Itens)
     const projectSubtotal = budgetItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
@@ -430,7 +430,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         const newItem = {
             id: Date.now(),
             name: itemName,
-            unitPrice: finalUnitWithDiscount,
+            unitPrice: finalUnitWithDiscountVal,
             unitNfValue: nfValue / (parseFloat(globalQty) || 1),
             unitTaxValue: taxValue / (parseFloat(globalQty) || 1),
             unitMaterialCost: costPerPiece,
@@ -446,7 +446,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         setLinearLengths({});
         setItemName('');
         setGlobalQty('1');
-        setDiscount('0');
+        setDiscount('10');
         setDiscountValue('0');
     };
 
@@ -1413,9 +1413,17 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     {(parseFloat(discount) > 0 || parseFloat(discountValue) > 0) && (
                                         <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
                                             <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO C/ DESC:</span>
-                                            <span className="w-1/3 text-center font-bold text-green-600">{finalUnitWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-center font-bold text-green-600">
+                                                {parseFloat(discountValue) > 0 ?
+                                                    finalUnitWithDiscountVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                                    : ((baseUnitFinal * (1 - (parseFloat(discount) / 100)))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                                }
+                                            </span>
                                             <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
-                                                {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {parseFloat(discountValue) > 0 ?
+                                                    (finalUnitWithDiscountVal * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                                    : ((currentItemPrice * (1 - (parseFloat(discount) / 100)))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                                }
                                             </span>
                                         </div>
                                     )}
@@ -1475,7 +1483,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     setLinearLengths({});
                                     setGlobalQty('1');
                                     setItemName('');
-                                    setDiscount('0');
+                                    setDiscount('10');
                                     setDiscountValue('0');
                                     setBudgetItems([]);
                                 }}
