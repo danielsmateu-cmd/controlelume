@@ -169,7 +169,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         const installmentValue = totalValue / numInstallments;
 
         const newExpenses = fornecedoresForm.installmentDates.map((date, index) => {
-            const installmentDate = new Date(date);
+            const installmentDate = new Date(date + 'T00:00:00');
             const monthIndex = installmentDate.getUTCMonth();
 
             return {
@@ -613,7 +613,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 <h3 className="text-sm font-semibold text-gray-800 mb-4">Adicionar Pagamento a Fornecedor</h3>
                                 <form onSubmit={handleAddFornecedores} className="space-y-2">
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                        <div className="md:col-span-4">
+                                        <div className="md:col-span-3">
                                             <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição/Fornecedor</label>
                                             <input
                                                 type="text" required
@@ -623,12 +623,33 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 placeholder="Ex: Tecidos Ltda"
                                             />
                                         </div>
-                                        <div className="md:col-span-3">
+                                        <div className="md:col-span-2">
                                             <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor Total (R$)</label>
                                             <input
                                                 type="number" step="0.01" required
                                                 value={fornecedoresForm.value}
                                                 onChange={(e) => setFornecedoresForm({ ...fornecedoresForm, value: e.target.value })}
+                                                className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            />
+                                        </div>
+                                        <div className="md:col-span-3">
+                                            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                            <input
+                                                type="date" required
+                                                value={fornecedoresForm.date}
+                                                onChange={(e) => {
+                                                    const dateVal = e.target.value;
+                                                    const n = fornecedoresForm.installments;
+                                                    const baseDate = new Date(dateVal + 'T00:00:00');
+                                                    const dates = Array.from({ length: n }, (_, i) => {
+                                                        const d = new Date(baseDate);
+                                                        const targetMonth = d.getUTCMonth() + i;
+                                                        d.setUTCMonth(targetMonth);
+                                                        if (d.getUTCMonth() !== (targetMonth % 12)) d.setUTCDate(0);
+                                                        return d.toISOString().split('T')[0];
+                                                    });
+                                                    setFornecedoresForm({ ...fornecedoresForm, date: dateVal, installmentDates: dates });
+                                                }}
                                                 className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                                             />
                                         </div>
@@ -638,7 +659,16 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 value={fornecedoresForm.installments}
                                                 onChange={(e) => {
                                                     const n = parseInt(e.target.value);
-                                                    const dates = Array(n).fill(fornecedoresForm.date);
+                                                    const baseDate = new Date(fornecedoresForm.date + 'T00:00:00');
+                                                    const dates = Array.from({ length: n }, (_, i) => {
+                                                        const d = new Date(baseDate);
+                                                        const targetMonth = d.getUTCMonth() + i;
+                                                        d.setUTCMonth(targetMonth);
+                                                        if (d.getUTCMonth() !== (targetMonth % 12)) {
+                                                            d.setUTCDate(0);
+                                                        }
+                                                        return d.toISOString().split('T')[0];
+                                                    });
                                                     setFornecedoresForm({ ...fornecedoresForm, installments: n, installmentDates: dates });
                                                 }}
                                                 className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -648,9 +678,9 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <div className="md:col-span-3">
+                                        <div className="md:col-span-2">
                                             <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
-                                                <Plus size={16} /> Adicionar Pagamento
+                                                <Plus size={16} /> Adicionar
                                             </button>
                                         </div>
                                     </div>

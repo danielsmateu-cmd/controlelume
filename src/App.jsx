@@ -98,73 +98,96 @@ function AppContent() {
         localStorage.setItem('materials', JSON.stringify(materials));
     }, [materials, isLoading]);
 
-    const handleExportBackup = () => {
-        const data = { expenses, orders, notes, materials };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `backup_controle_web_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+    const handleExportBackup = async () => {
+        try {
+            const budgets = await api.getBudgets();
+            const data = { expenses, orders, notes, materials, budgets };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `backup_controle_web_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Erro ao exportar backup:', err);
+            alert('Falha ao exportar backup. Tente novamente.');
+        }
     };
 
-    const handleExportExcel = () => {
-        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const handleExportExcel = async () => {
+        try {
+            const budgets = await api.getBudgets();
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-        // Aba Despesas
-        const despesasData = expenses.map(e => ({
-            'Tipo': e.type === 'fixos' ? 'Fixo' : 'Variável',
-            'Categoria': e.category,
-            'Descrição': e.description,
-            'Mês': months[e.month] || '',
-            'Ano': e.year,
-            'Valor (R$)': e.amount || 0,
-            'Data': e.date || '',
-            'Vencimento': e.dueDate || '',
-            'Pago': e.paid ? 'Sim' : 'Não',
-            'Pessoas': e.people || ''
-        }));
+            // Aba Despesas
+            const despesasData = expenses.map(e => ({
+                'Tipo': e.type === 'fixos' ? 'Fixo' : 'Variável',
+                'Categoria': e.category,
+                'Descrição': e.description,
+                'Mês': months[e.month] || '',
+                'Ano': e.year,
+                'Valor (R$)': e.amount || 0,
+                'Data': e.date || '',
+                'Vencimento': e.dueDate || '',
+                'Pago': e.paid ? 'Sim' : 'Não',
+                'Pessoas': e.people || ''
+            }));
 
-        // Aba Vendas
-        const vendasData = orders.map(o => ({
-            'Cliente': o.clientName,
-            'Descrição': o.description,
-            'Data Pedido': o.orderDate || '',
-            'Ano': o.year,
-            'Valor (R$)': o.value || 0,
-            'Forma Pagamento': o.paymentMethod || '',
-            'Data Pagamento': o.paymentDate || '',
-            'Pago': o.isPaid ? 'Sim' : 'Não'
-        }));
+            // Aba Vendas
+            const vendasData = orders.map(o => ({
+                'Cliente': o.clientName,
+                'Descrição': o.description,
+                'Data Pedido': o.orderDate || '',
+                'Ano': o.year,
+                'Valor (R$)': o.value || 0,
+                'Forma Pagamento': o.paymentMethod || '',
+                'Data Pagamento': o.paymentDate || '',
+                'Pago': o.isPaid ? 'Sim' : 'Não'
+            }));
 
-        // Aba Anotações
-        const anotacoesData = notes.map(n => ({
-            'Descrição': n.description,
-            'Valor (R$)': n.value || 0,
-            'Data': n.date || ''
-        }));
+            // Aba Anotações
+            const anotacoesData = notes.map(n => ({
+                'Descrição': n.description,
+                'Valor (R$)': n.value || 0,
+                'Data': n.date || ''
+            }));
 
-        // Aba Materiais
-        const materiaisData = materials.map(m => ({
-            'Nome': m.name,
-            'Tipo': m.type === 'unit' ? 'Unidade' : m.type === 'linear' ? 'Linear' : 'Chapa',
-            'Largura (cm)': m.width || '',
-            'Altura (cm)': m.height || '',
-            'Preço Unitário (R$)': m.price || 0,
-            'Preço/m² (R$)': m.pricePerM2 || 0
-        }));
+            // Aba Materiais
+            const materiaisData = materials.map(m => ({
+                'Nome': m.name,
+                'Tipo': m.type === 'unit' ? 'Unidade' : m.type === 'linear' ? 'Linear' : 'Chapa',
+                'Largura (cm)': m.width || '',
+                'Altura (cm)': m.height || '',
+                'Preço Unitário (R$)': m.price || 0,
+                'Preço/m² (R$)': m.pricePerM2 || 0
+            }));
 
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(despesasData.length ? despesasData : [{}]), 'Despesas');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendasData.length ? vendasData : [{}]), 'Vendas');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anotacoesData.length ? anotacoesData : [{}]), 'Anotações');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(materiaisData.length ? materiaisData : [{}]), 'Materiais');
+            // Aba Orçamentos
+            const orcamentosData = budgets.map(b => ({
+                'Data': b.date ? new Date(b.date).toLocaleDateString('pt-BR') : '',
+                'Cliente': b.clientData?.name || '',
+                'Telefone': b.clientData?.phone || '',
+                'Qtd Itens': b.items ? b.items.length : 0,
+                'Valor Total (R$)': b.total || 0,
+                'Status': b.status === 'aprovado' ? 'Aprovado' : b.status === 'reprovado' ? 'Reprovado' : 'Pendente'
+            }));
 
-        const date = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `controle_antigravity_${date}.xlsx`);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(despesasData.length ? despesasData : [{}]), 'Despesas');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendasData.length ? vendasData : [{}]), 'Vendas');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anotacoesData.length ? anotacoesData : [{}]), 'Anotações');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(materiaisData.length ? materiaisData : [{}]), 'Materiais');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcamentosData.length ? orcamentosData : [{}]), 'Orçamentos');
+
+            const date = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `controle_antigravity_${date}.xlsx`);
+        } catch (err) {
+            console.error('Erro ao exportar planilha:', err);
+            alert('Falha ao exportar planilha. Tente novamente.');
+        }
     };
 
     const handleImportBackup = (event) => {

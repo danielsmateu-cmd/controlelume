@@ -46,13 +46,29 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        if (name === 'installments') {
-            const n = parseInt(value);
-            const dates = Array(n).fill(new Date().toISOString().split('T')[0]);
-            setFormData(prev => ({ ...prev, installments: n, installmentDates: dates }));
-            return;
+
+        let newFormData = { ...formData, [name]: type === 'checkbox' ? checked : value };
+
+        if (name === 'orderDate' || name === 'installments') {
+            const n = name === 'installments' ? parseInt(value) : formData.installments;
+            const baseDateStr = name === 'orderDate' ? value : formData.orderDate;
+            const baseDate = new Date(baseDateStr + 'T00:00:00');
+
+            const dates = Array.from({ length: n }, (_, i) => {
+                const d = new Date(baseDate);
+                const targetMonth = d.getUTCMonth() + i;
+                d.setUTCMonth(targetMonth);
+                if (d.getUTCMonth() !== (targetMonth % 12)) {
+                    d.setUTCDate(0);
+                }
+                return d.toISOString().split('T')[0];
+            });
+
+            newFormData.installments = n;
+            newFormData.installmentDates = dates;
         }
-        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+
+        setFormData(newFormData);
     };
 
     const handleInstallmentDateChange = (index, value) => {
@@ -93,14 +109,14 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             description: numInstallments > 1
                 ? `${formData.description} (${index + 1}/${numInstallments})`
                 : formData.description,
-            orderDate: formData.orderDate,
+            orderDate: date,
             value: installmentValue,
             paymentDate: null,
             isPaid: false,
             paymentMethod: formData.paymentMethod,
             nfNumber: formData.nfNumber,
             boletoNumber: formData.paymentMethod === 'Boleto' ? formData.boletoNumber : '',
-            year: new Date(formData.orderDate + 'T00:00:00').getUTCFullYear()
+            year: new Date(date + 'T00:00:00').getUTCFullYear()
         }));
 
         try {
@@ -402,7 +418,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             {/* Lista agrupada por mês */}
             <div className="space-y-3">
                 {Object.entries(filteredOrders.reduce((acc, order) => {
-                    const monthYear = new Date(order.orderDate).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                    const monthYear = new Date(order.orderDate + 'T00:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
                     const key = capitalize(monthYear);
                     if (!acc[key]) acc[key] = [];
@@ -455,7 +471,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                         Pago em: {new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-red-400 font-medium">Aguardando pagamento</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-red-400 font-medium">Aguardando pagamento</span>
+                                                        <span className="text-[10px] text-gray-400 mt-0.5">
+                                                            Data prevista: {new Date(order.orderDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
 
