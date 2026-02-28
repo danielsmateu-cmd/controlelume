@@ -421,93 +421,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             ))}
                         </div>
 
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos e Extras - {months[selectedMonth]}</h3>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length >= fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length} Pagos
-                                </span>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 border-b border-gray-200">
-                                        <tr>
-                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Categoria</th>
-                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
-                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Valor (R$)</th>
-                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-center">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear).map(expense => (
-                                            <tr key={expense.id} className="hover:bg-gray-50">
-                                                <td className="px-4 py-2 text-sm font-medium text-indigo-600">
-                                                    {expense.category || expense.description}
-                                                    {expense.type === 'fixos_extra' && <span className="ml-2 text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5">Extra</span>}
-                                                </td>
-                                                <td className="px-4 py-2">
-                                                    <input
-                                                        type="date"
-                                                        value={expense.dueDate || ''}
-                                                        onChange={(e) => !readOnly && updateExpenseField(expense.id, 'dueDate', e.target.value)}
-                                                        readOnly={readOnly}
-                                                        disabled={readOnly}
-                                                        className={`p-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-medium ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'} ${readOnly ? 'cursor-default' : ''}`}
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-2">
-                                                    <input
-                                                        type="number" step="0.01"
-                                                        value={expense.amount || ''}
-                                                        onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                                                        readOnly={readOnly}
-                                                        disabled={readOnly}
-                                                        className="w-full max-w-[120px] p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                                        placeholder="0,00"
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-2 text-center">
-                                                    {confirmingId === expense.id ? (
-                                                        <div className="flex items-center justify-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm mx-auto w-fit">
-                                                            <input
-                                                                type="text" autoFocus onFocus={e => e.target.select()}
-                                                                value={paymentDateStr} onChange={handlePaymentDateChange}
-                                                                onBlur={handlePaymentDateBlur} onKeyDown={(e) => handleDateKeyDown(e, expense.id)}
-                                                                className="w-[66px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
-                                                                placeholder="DD/MM/AAAA"
-                                                            />
-                                                            <button onClick={() => finalizePayment(expense.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar"><Check size={14} /></button>
-                                                            <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar"><X size={14} /></button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <button
-                                                                onClick={() => !readOnly && startPaymentConfirmation(expense)}
-                                                                disabled={readOnly}
-                                                                className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
-                                                                    ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
-                                                                    : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
-                                                                    }`}
-                                                            >
-                                                                {expense.paid ? 'PAGO' : 'NÃO PAGO'}
-                                                            </button>
-                                                            {expense.type === 'fixos_extra' && !readOnly && (
-                                                                <button onClick={() => handleDelete(expense.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Excluir Extra">
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
                         {!readOnly && (
-                            <div className="border-t pt-4">
+                            <div className="mb-6">
                                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Gasto Extra</h3>
                                 <form onSubmit={handleAddExtra} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                     <div className="md:col-span-4">
@@ -555,6 +470,100 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 </form>
                             </div>
                         )}
+
+                        <div>
+                            <div className="flex items-center justify-between mb-3 border-t pt-4">
+                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos e Extras - {months[selectedMonth]}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length >= fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length} Pagos
+                                </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Categoria</th>
+                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
+                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Valor (R$)</th>
+                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {expenses
+                                            .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear)
+                                            .sort((a, b) => {
+                                                const nameA = (a.category || a.description || '').toLowerCase();
+                                                const nameB = (b.category || b.description || '').toLowerCase();
+                                                return nameA.localeCompare(nameB);
+                                            })
+                                            .map(expense => (
+                                                <tr key={expense.id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-2 text-sm font-medium text-indigo-600">
+                                                        {expense.category || expense.description}
+                                                        {expense.type === 'fixos_extra' && <span className="ml-2 text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5">Extra</span>}
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <input
+                                                            type="date"
+                                                            value={expense.dueDate || ''}
+                                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'dueDate', e.target.value)}
+                                                            readOnly={readOnly}
+                                                            disabled={readOnly}
+                                                            className={`p-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-medium ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'} ${readOnly ? 'cursor-default' : ''}`}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <input
+                                                            type="number" step="0.01"
+                                                            value={expense.amount || ''}
+                                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                            readOnly={readOnly}
+                                                            disabled={readOnly}
+                                                            className="w-full max-w-[120px] p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                                            placeholder="0,00"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        {confirmingId === expense.id ? (
+                                                            <div className="flex items-center justify-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm mx-auto w-fit">
+                                                                <input
+                                                                    type="text" autoFocus onFocus={e => e.target.select()}
+                                                                    value={paymentDateStr} onChange={handlePaymentDateChange}
+                                                                    onBlur={handlePaymentDateBlur} onKeyDown={(e) => handleDateKeyDown(e, expense.id)}
+                                                                    className="w-[66px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
+                                                                    placeholder="DD/MM/AAAA"
+                                                                />
+                                                                <button onClick={() => finalizePayment(expense.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar"><Check size={14} /></button>
+                                                                <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar"><X size={14} /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <button
+                                                                    onClick={() => !readOnly && startPaymentConfirmation(expense)}
+                                                                    disabled={readOnly}
+                                                                    className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
+                                                                        ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
+                                                                        : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
+                                                                        }`}
+                                                                >
+                                                                    {expense.paid ? 'PAGO' : 'NÃO PAGO'}
+                                                                </button>
+                                                                {expense.type === 'fixos_extra' && !readOnly && (
+                                                                    <button onClick={() => handleDelete(expense.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Excluir Extra">
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+
                     </div>
                 )}
 
