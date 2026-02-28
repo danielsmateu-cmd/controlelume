@@ -47,26 +47,40 @@ const Resumo = ({ expenses, orders }) => {
             .reduce((sum, o) => sum + o.value, 0);
 
         // EXPENSES Breakdown
-        const fixos = expenses
-            .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === monthIndex && e.year === year)
+        const monthExpenses = expenses.filter(e => {
+            if (e.type === 'fixos' || e.type === 'fixos_extra' || e.type === 'fornecedores') {
+                return e.month === monthIndex && e.year === year;
+            } else {
+                if (!e.date) return false;
+                const d = new Date(e.date + 'T00:00:00');
+                return d.getUTCMonth() === monthIndex && d.getUTCFullYear() === year;
+            }
+        });
+
+        const fixos = monthExpenses
+            .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.paid)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const mercado = expenses
-            .filter(e => e.type === 'mercado' && new Date(e.date + 'T00:00:00').getUTCMonth() === monthIndex && new Date(e.date + 'T00:00:00').getUTCFullYear() === year)
+        const mercado = monthExpenses
+            .filter(e => e.type === 'mercado' && e.paid)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const fornecedores = expenses
-            .filter(e => e.type === 'fornecedores' && e.month === monthIndex && e.year === year)
+        const fornecedores = monthExpenses
+            .filter(e => e.type === 'fornecedores' && e.paid)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const retirada = expenses
-            .filter(e => e.type === 'retirada' && new Date(e.date + 'T00:00:00').getUTCMonth() === monthIndex && new Date(e.date + 'T00:00:00').getUTCFullYear() === year)
+        const retirada = monthExpenses
+            .filter(e => e.type === 'retirada' && e.paid)
+            .reduce((sum, e) => sum + e.amount, 0);
+
+        const saidasPendentes = monthExpenses
+            .filter(e => !e.paid)
             .reduce((sum, e) => sum + e.amount, 0);
 
         const totalSaidas = fixos + mercado + fornecedores + retirada;
         const saldo = entradas - totalSaidas;
 
-        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, totalSaidas, saldo };
+        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo };
     };
 
     // Calcular totais anuais
@@ -75,9 +89,10 @@ const Resumo = ({ expenses, orders }) => {
         acc.entradas += data.entradas;
         acc.entradasPendentes += data.entradasPendentes;
         acc.totalSaidas += data.totalSaidas;
+        acc.saidasPendentes += data.saidasPendentes;
         acc.saldo += data.saldo;
         return acc;
-    }, { entradas: 0, entradasPendentes: 0, totalSaidas: 0, saldo: 0 });
+    }, { entradas: 0, entradasPendentes: 0, totalSaidas: 0, saidasPendentes: 0, saldo: 0 });
 
     return (
         <div className="space-y-3">
@@ -94,7 +109,7 @@ const Resumo = ({ expenses, orders }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <StatCard
                     title={`Total Entradas (Pagas) - Ano ${selectedYear}`}
                     value={annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -106,9 +121,14 @@ const Resumo = ({ expenses, orders }) => {
                     type="warning"
                 />
                 <StatCard
-                    title={`Total Saídas - Ano ${selectedYear}`}
+                    title={`Total Saídas (Pagas) - Ano ${selectedYear}`}
                     value={annualTotals.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     type="negative"
+                />
+                <StatCard
+                    title={`Saídas Pendentes - Ano ${selectedYear}`}
+                    value={annualTotals.saidasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    type="warning"
                 />
                 <StatCard
                     title={`Saldo Geral - Ano ${selectedYear}`}
@@ -137,6 +157,7 @@ const Resumo = ({ expenses, orders }) => {
                                 <th className="px-6 py-4 text-right">Fornecedores</th>
                                 <th className="px-6 py-4 text-right">Retirada</th>
                                 <th className="px-6 py-4 text-right font-bold text-red-600 border-l border-gray-100 bg-red-50/10">Total Saídas (-)</th>
+                                <th className="px-6 py-4 text-right font-bold text-orange-500 bg-orange-50/10">Saídas Pendentes</th>
                                 <th className="px-6 py-4 text-right font-bold border-l border-gray-100">Saldo Final</th>
                             </tr>
                         </thead>
@@ -168,6 +189,9 @@ const Resumo = ({ expenses, orders }) => {
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-red-600 border-l border-gray-100 bg-red-50/30">
                                             {data.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold text-orange-500 bg-orange-50/30">
+                                            {data.saidasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className={clsx(
                                             "px-6 py-4 text-right font-bold border-l border-gray-100",
