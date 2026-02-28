@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Check, X } from 'lucide-react';
+import { Plus, Check, X, Trash2 } from 'lucide-react';
 import { api } from '../services/api';
 
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
@@ -14,7 +14,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
 
     // Form States
-    const [extrasForm, setExtrasForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+    const [extrasForm, setExtrasForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0], allMonths: false });
     const [mercadoForm, setMercadoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
     const [fornecedoresForm, setFornecedoresForm] = useState({
         description: '',
@@ -135,17 +135,42 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
     const handleAddExtra = (e) => {
         e.preventDefault();
-        const newExpense = {
-            id: Date.now(),
-            type: 'fixos_extra',
-            month: selectedMonth,
-            year: selectedYear,
-            description: extrasForm.description,
-            amount: parseFloat(extrasForm.value),
-            date: extrasForm.date
-        };
-        setExpenses([newExpense, ...expenses]);
-        setExtrasForm({ ...extrasForm, description: '', value: '' });
+
+        const newExpenses = [];
+
+        if (extrasForm.allMonths) {
+            for (let i = 0; i < 12; i++) {
+                const extraDate = new Date(extrasForm.date + 'T00:00:00');
+                extraDate.setUTCMonth(i);
+
+                newExpenses.push({
+                    id: Date.now() + i, // prevent duplicate keys
+                    type: 'fixos_extra',
+                    month: i,
+                    year: selectedYear,
+                    description: extrasForm.description,
+                    amount: parseFloat(extrasForm.value),
+                    date: extraDate.toISOString().split('T')[0],
+                    dueDate: extraDate.toISOString().split('T')[0],
+                    paid: false
+                });
+            }
+        } else {
+            newExpenses.push({
+                id: Date.now(),
+                type: 'fixos_extra',
+                month: selectedMonth,
+                year: selectedYear,
+                description: extrasForm.description,
+                amount: parseFloat(extrasForm.value),
+                date: extrasForm.date,
+                dueDate: extrasForm.date,
+                paid: false
+            });
+        }
+
+        setExpenses([...newExpenses, ...expenses]);
+        setExtrasForm({ ...extrasForm, description: '', value: '', allMonths: false });
     };
 
     const handleAddMercado = (e) => {
@@ -398,9 +423,9 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos - {months[selectedMonth]}</h3>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => e.type === 'fixos' && e.month === selectedMonth && e.paid).length === fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {expenses.filter(e => e.type === 'fixos' && e.month === selectedMonth && e.paid).length}/{fixedCategories.length} Pagos
+                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos e Extras - {months[selectedMonth]}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length >= fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length} Pagos
                                 </span>
                             </div>
                             <div className="overflow-x-auto">
@@ -414,9 +439,12 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {expenses.filter(e => e.type === 'fixos' && e.month === selectedMonth).map(expense => (
+                                        {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear).map(expense => (
                                             <tr key={expense.id} className="hover:bg-gray-50">
-                                                <td className="px-4 py-2 text-sm font-medium text-indigo-600">{expense.category}</td>
+                                                <td className="px-4 py-2 text-sm font-medium text-indigo-600">
+                                                    {expense.category || expense.description}
+                                                    {expense.type === 'fixos_extra' && <span className="ml-2 text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5">Extra</span>}
+                                                </td>
                                                 <td className="px-4 py-2">
                                                     <input
                                                         type="date"
@@ -452,16 +480,23 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                             <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar"><X size={14} /></button>
                                                         </div>
                                                     ) : (
-                                                        <button
-                                                            onClick={() => !readOnly && startPaymentConfirmation(expense)}
-                                                            disabled={readOnly}
-                                                            className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
-                                                                ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
-                                                                : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
-                                                                }`}
-                                                        >
-                                                            {expense.paid ? 'PAGO' : 'NÃO PAGO'}
-                                                        </button>
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button
+                                                                onClick={() => !readOnly && startPaymentConfirmation(expense)}
+                                                                disabled={readOnly}
+                                                                className={`px-3 py-0.5 rounded-full text-[10px] font-bold transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer shadow-sm'} ${expense.paid
+                                                                    ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
+                                                                    : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
+                                                                    }`}
+                                                            >
+                                                                {expense.paid ? 'PAGO' : 'NÃO PAGO'}
+                                                            </button>
+                                                            {expense.type === 'fixos_extra' && !readOnly && (
+                                                                <button onClick={() => handleDelete(expense.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Excluir Extra">
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -474,8 +509,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         {!readOnly && (
                             <div className="border-t pt-4">
                                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Gasto Extra</h3>
-                                <form onSubmit={handleAddExtra} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                                    <div className="md:col-span-1">
+                                <form onSubmit={handleAddExtra} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                    <div className="md:col-span-4">
                                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição</label>
                                         <input
                                             type="text" required
@@ -485,7 +520,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             placeholder="Ex: Manutenção Ar"
                                         />
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div className="md:col-span-2">
                                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
                                         <input
                                             type="number" step="0.01" required
@@ -494,8 +529,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                                         />
                                     </div>
-                                    <div className="md:col-span-1">
-                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                    <div className="md:col-span-3">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data Inicial</label>
                                         <input
                                             type="date" required
                                             value={extrasForm.date}
@@ -503,7 +538,16 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                                         />
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div className="md:col-span-3 flex flex-col justify-end gap-1">
+                                        <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-700 cursor-pointer w-full mb-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={extrasForm.allMonths}
+                                                onChange={(e) => setExtrasForm({ ...extrasForm, allMonths: e.target.checked })}
+                                                className="w-3.5 h-3.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                            />
+                                            <span className="leading-tight">Repetir no ano inteiro?</span>
+                                        </label>
                                         <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
                                             <Plus size={16} /> Adicionar Extra
                                         </button>
@@ -768,7 +812,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             </div>
 
             {/* EXPENSE LIST */}
-            <ExpenseList />
+            {activeTab !== 'fixos' && <ExpenseList />}
         </div>
     );
 };
