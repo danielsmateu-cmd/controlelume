@@ -149,7 +149,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                     month: i,
                     year: selectedYear,
                     description: extrasForm.description,
-                    amount: parseFloat(extrasForm.value),
+                    amount: parseFloat(extrasForm.value) || 0,
                     date: extraDate.toISOString().split('T')[0],
                     dueDate: extraDate.toISOString().split('T')[0],
                     paid: false
@@ -162,7 +162,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 month: selectedMonth,
                 year: selectedYear,
                 description: extrasForm.description,
-                amount: parseFloat(extrasForm.value),
+                amount: parseFloat(extrasForm.value) || 0,
                 date: extrasForm.date,
                 dueDate: extrasForm.date,
                 paid: false
@@ -181,7 +181,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             description: mercadoForm.description,
             amount: parseFloat(mercadoForm.value),
             date: mercadoForm.date,
-            year: new Date(mercadoForm.date + 'T00:00:00').getUTCFullYear()
+            year: new Date(mercadoForm.date + 'T00:00:00').getUTCFullYear(),
+            paid: true
         };
         setExpenses([newExpense, ...expenses]);
         setMercadoForm({ ...mercadoForm, description: '', value: '' });
@@ -191,7 +192,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         e.preventDefault();
         const totalValue = parseFloat(fornecedoresForm.value);
         const numInstallments = parseInt(fornecedoresForm.installments);
-        const installmentValue = totalValue / numInstallments;
+        const installmentValue = totalValue; // O valor inserido é o da parcela individual
 
         const newExpenses = fornecedoresForm.installmentDates.map((date, index) => {
             const installmentDate = new Date(date + 'T00:00:00');
@@ -236,11 +237,12 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             amount: parseFloat(retiradaForm.value),
             date: retiradaForm.date,
             year: new Date(retiradaForm.date + 'T00:00:00').getUTCFullYear(),
-            people: [person]
+            people: [person],
+            paid: true
         }));
 
         setExpenses([...newExpenses, ...expenses]);
-        setRetiradaForm({ ...retiradaForm, value: '', people: [] });
+        setRetiradaForm({ ...retiradaForm, value: '', date: new Date().toISOString().split('T')[0], people: [] });
     };
 
     const toggleRetiradaPerson = (person) => {
@@ -272,8 +274,11 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         if (activeTab === 'fornecedores') {
             return e.type === 'fornecedores' && e.month === selectedMonth && e.year === selectedYear;
         }
-        if (activeTab === 'mercado' || activeTab === 'retirada') {
-            return e.type === activeTab && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear;
+        if (activeTab === 'mercado') {
+            return e.type === activeTab && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear;
+        }
+        if (activeTab === 'retirada') {
+            return e.type === activeTab && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear;
         }
         return e.type === activeTab;
     });
@@ -379,10 +384,27 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 </div>
             </div>
 
+            {/* GLOBAL MONTH TABS */}
+            <div className="flex space-x-1 overflow-x-auto pb-4 scrollbar-hide">
+                {months.map((month, index) => (
+                    <button
+                        key={month}
+                        onClick={() => setSelectedMonth(index)}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${selectedMonth === index
+                            ? 'bg-indigo-600 text-white shadow-md transform scale-105'
+                            : 'text-gray-600 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                    >
+                        {month}
+                    </button>
+                ))}
+            </div>
+
+            {/* CATEGORY TABS */}
             <div className="flex space-x-2 border-b border-gray-200 pb-1 overflow-x-auto">
                 {[
                     { id: 'fixos', label: 'Gastos Fixos' },
-                    { id: 'mercado', label: 'Mercado' },
+                    { id: 'mercado', label: 'Gastos Extras' },
                     { id: 'fornecedores', label: 'Fornecedores' },
                     { id: 'retirada', label: 'Retirada' }
                 ].map(tab => (
@@ -405,22 +427,6 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 {/* GASTOS FIXOS */}
                 {activeTab === 'fixos' && (
                     <div className="space-y-3">
-                        {/* MONTH TABS */}
-                        <div className="flex space-x-1 overflow-x-auto pb-2 border-b border-gray-100 scrollbar-hide">
-                            {months.map((month, index) => (
-                                <button
-                                    key={month}
-                                    onClick={() => setSelectedMonth(index)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all whitespace-nowrap ${selectedMonth === index
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
-                                        }`}
-                                >
-                                    {month}
-                                </button>
-                            ))}
-                        </div>
-
                         {!readOnly && (
                             <div className="mb-6">
                                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Gasto Extra</h3>
@@ -438,7 +444,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                     <div className="md:col-span-2">
                                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
                                         <input
-                                            type="number" step="0.01" required
+                                            type="number" step="0.01"
                                             value={extrasForm.value}
                                             onChange={(e) => setExtrasForm({ ...extrasForm, value: e.target.value })}
                                             className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -498,9 +504,19 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             })
                                             .map(expense => (
                                                 <tr key={expense.id} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-2 text-sm font-medium text-indigo-600">
-                                                        {expense.category || expense.description}
-                                                        {expense.type === 'fixos_extra' && <span className="ml-2 text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5">Extra</span>}
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={expense.category || expense.description || ''}
+                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, expense.category !== undefined ? 'category' : 'description', e.target.value)}
+                                                                readOnly={readOnly}
+                                                                disabled={readOnly}
+                                                                className={`w-full max-w-[160px] p-1 border border-transparent hover:border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-300 bg-transparent text-sm font-medium text-indigo-600 outline-none transition-colors ${readOnly ? 'cursor-default' : ''}`}
+                                                                placeholder="Nome do Gasto"
+                                                            />
+                                                            {expense.type === 'fixos_extra' && <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5 shrink-0">Extra</span>}
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <input
@@ -567,69 +583,60 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                     </div>
                 )}
 
-                {/* MERCADO */}
+                {/* MERCADO -> GASTOS EXTRAS */}
                 {activeTab === 'mercado' && (
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Gasto de Mercado</h3>
-                        {!readOnly && (
-                            <form onSubmit={handleAddMercado} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                                <div className="md:col-span-1">
-                                    <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição</label>
-                                    <input
-                                        type="text" required
-                                        value={mercadoForm.description}
-                                        onChange={(e) => setMercadoForm({ ...mercadoForm, description: e.target.value })}
-                                        className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                        placeholder="Ex: Compras Atacadão"
-                                    />
-                                </div>
-                                <div className="md:col-span-1">
-                                    <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
-                                    <input
-                                        type="number" step="0.01" required
-                                        value={mercadoForm.value}
-                                        onChange={(e) => setMercadoForm({ ...mercadoForm, value: e.target.value })}
-                                        className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                    />
-                                </div>
-                                <div className="md:col-span-1">
-                                    <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
-                                    <input
-                                        type="date" required
-                                        value={mercadoForm.date}
-                                        onChange={(e) => setMercadoForm({ ...mercadoForm, date: e.target.value })}
-                                        className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                    />
-                                </div>
-                                <div className="md:col-span-1">
-                                    <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
-                                        <Plus size={16} /> Adicionar
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                    <div className="space-y-3">
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-semibold text-gray-800">Adicionar Gasto Extra (Avulso)</h3>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                    {months[selectedMonth]}
+                                </span>
+                            </div>
+                            {!readOnly && (
+                                <form onSubmit={handleAddMercado} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição</label>
+                                        <input
+                                            type="text" required
+                                            value={mercadoForm.description}
+                                            onChange={(e) => setMercadoForm({ ...mercadoForm, description: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            placeholder="Ex: Compras Atacadão"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
+                                        <input
+                                            type="number" step="0.01" required
+                                            value={mercadoForm.value}
+                                            onChange={(e) => setMercadoForm({ ...mercadoForm, value: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                        <input
+                                            type="date" required
+                                            value={mercadoForm.date}
+                                            onChange={(e) => setMercadoForm({ ...mercadoForm, date: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
+                                            <Plus size={16} /> Adicionar
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {/* FORNECEDORES */}
                 {activeTab === 'fornecedores' && (
                     <div className="space-y-3">
-                        {/* MONTH TABS */}
-                        <div className="flex space-x-1 overflow-x-auto pb-2 border-b border-gray-100 scrollbar-hide">
-                            {months.map((month, index) => (
-                                <button
-                                    key={month}
-                                    onClick={() => setSelectedMonth(index)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all whitespace-nowrap ${selectedMonth === index
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
-                                        }`}
-                                >
-                                    {month}
-                                </button>
-                            ))}
-                        </div>
-
                         {/* TOTALS SUMMARY */}
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
@@ -821,7 +828,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             </div>
 
             {/* EXPENSE LIST */}
-            {activeTab !== 'fixos' && <ExpenseList />}
+            {activeTab !== 'fixos' && ExpenseList()}
         </div>
     );
 };

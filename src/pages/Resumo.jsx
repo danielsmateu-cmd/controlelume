@@ -62,7 +62,7 @@ const Resumo = ({ expenses, orders }) => {
             .reduce((sum, e) => sum + e.amount, 0);
 
         const mercado = monthExpenses
-            .filter(e => e.type === 'mercado' && e.paid)
+            .filter(e => e.type === 'mercado' && e.paid !== false) // Any added before fix lacked 'paid'
             .reduce((sum, e) => sum + e.amount, 0);
 
         const fornecedores = monthExpenses
@@ -70,11 +70,11 @@ const Resumo = ({ expenses, orders }) => {
             .reduce((sum, e) => sum + e.amount, 0);
 
         const retirada = monthExpenses
-            .filter(e => e.type === 'retirada' && e.paid)
+            .filter(e => e.type === 'retirada' && e.paid !== false) // Any added before fix lacked 'paid'
             .reduce((sum, e) => sum + e.amount, 0);
 
         const saidasPendentes = monthExpenses
-            .filter(e => !e.paid)
+            .filter(e => e.paid === false)
             .reduce((sum, e) => sum + e.amount, 0);
 
         const totalSaidas = fixos + mercado + fornecedores + retirada;
@@ -153,7 +153,7 @@ const Resumo = ({ expenses, orders }) => {
                                 <th className="px-6 py-4 text-right text-green-600">Entradas (+)</th>
                                 <th className="px-6 py-4 text-right text-orange-500">Entradas Pendentes</th>
                                 <th className="px-6 py-4 text-right">Fixo/Extra</th>
-                                <th className="px-6 py-4 text-right">Mercado</th>
+                                <th className="px-6 py-4 text-right">Extras (Avulso)</th>
                                 <th className="px-6 py-4 text-right">Fornecedores</th>
                                 <th className="px-6 py-4 text-right">Retirada</th>
                                 <th className="px-6 py-4 text-right font-bold text-red-600 border-l border-gray-100 bg-red-50/10">Total Saídas (-)</th>
@@ -165,10 +165,24 @@ const Resumo = ({ expenses, orders }) => {
                             {months.map((monthName, index) => {
                                 const data = getMonthlyData(index, selectedYear);
                                 const isPositive = data.saldo >= 0;
+                                const isCurrentMonth = index === new Date().getMonth() && selectedYear === new Date().getFullYear();
 
                                 return (
-                                    <tr key={monthName} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-semibold text-gray-700">{monthName}</td>
+                                    <tr key={monthName} className={clsx(
+                                        "transition-colors",
+                                        isCurrentMonth ? "bg-indigo-50/40 hover:bg-indigo-50/80" : "hover:bg-gray-50"
+                                    )}>
+                                        <td className={clsx(
+                                            "px-6 py-4 font-semibold flex items-center gap-2",
+                                            isCurrentMonth ? "text-indigo-700" : "text-gray-700"
+                                        )}>
+                                            {monthName}
+                                            {isCurrentMonth && (
+                                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">
+                                                    Atual
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-right text-green-600 font-medium">
                                             {data.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>

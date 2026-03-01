@@ -331,7 +331,9 @@ export const api = {
                 orderDate: o.order_date,
                 paymentDate: o.payment_date,
                 isPaid: o.is_paid,
-                paymentMethod: o.payment_method
+                paymentMethod: o.payment_method,
+                boletoNumber: o.boleto_number,
+                nfNumber: o.nf_number
             }));
         } catch (err) {
             console.error('Supabase getOrders:', err);
@@ -364,7 +366,9 @@ export const api = {
                 payment_date: o.paymentDate,
                 is_paid: Boolean(o.isPaid),
                 payment_method: o.paymentMethod,
-                year: o.year
+                year: o.year,
+                boleto_number: o.boletoNumber,
+                nf_number: o.nfNumber
             });
 
             const { data, error } = await supabase
@@ -379,7 +383,9 @@ export const api = {
                 orderDate: o.order_date,
                 paymentDate: o.payment_date,
                 isPaid: o.is_paid,
-                paymentMethod: o.payment_method
+                paymentMethod: o.payment_method,
+                boletoNumber: o.boleto_number,
+                nfNumber: o.nf_number
             }));
         } catch (err) {
             console.error('Supabase addOrders:', err);
@@ -393,6 +399,13 @@ export const api = {
             if (updates.isPaid !== undefined) dbUpdates.is_paid = updates.isPaid;
             if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
             if (updates.clientName !== undefined) dbUpdates.client_name = updates.clientName;
+            if (updates.description !== undefined) dbUpdates.description = updates.description;
+            if (updates.value !== undefined) dbUpdates.value = updates.value;
+            if (updates.orderDate !== undefined) dbUpdates.order_date = updates.orderDate;
+            if (updates.paymentMethod !== undefined) dbUpdates.payment_method = updates.paymentMethod;
+            if (updates.year !== undefined) dbUpdates.year = updates.year;
+            if (updates.boletoNumber !== undefined) dbUpdates.boleto_number = updates.boletoNumber;
+            if (updates.nfNumber !== undefined) dbUpdates.nf_number = updates.nfNumber;
 
             const { error } = await supabase
                 .from('orders')

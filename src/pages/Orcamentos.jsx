@@ -80,6 +80,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
     const [discount, setDiscount] = useState('10');
     const [discountValue, setDiscountValue] = useState('0');
     const [itemName, setItemName] = useState('');
+    const [itemDescription, setItemDescription] = useState('');
     const [budgetItems, setBudgetItems] = useState([]);
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
@@ -438,6 +439,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         const newItem = {
             id: editingItemId || Date.now(),
             name: itemName,
+            description: itemDescription,
             unitPrice: finalUnitWithValueDiscount,
             unitNfValue: nfValue / (parseFloat(globalQty) || 1),
             unitTaxValue: taxValue / (parseFloat(globalQty) || 1),
@@ -463,6 +465,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
         setUnitQtys({});
         setLinearLengths({});
         setItemName('');
+        setItemDescription('');
         setGlobalQty('1');
         setDiscount('10');
         setDiscountValue('0');
@@ -470,6 +473,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
 
     const handleEditItem = (item) => {
         setItemName(item.name);
+        setItemDescription(item.description || '');
         setGlobalQty(item.quantity.toString());
         setMeasurements(item.measurements || {});
         setUnitQtys(item.unitQtys || {});
@@ -971,8 +975,11 @@ const Orcamentos = ({ materials, setMaterials }) => {
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                             margin: 0;
-                            background-color: white;
+                            background-color: white !important;
                             color: #334155;
+                        }
+                        #root {
+                            background-color: transparent !important;
                         }
                         .print-container {
                             padding: 15mm 15mm;
@@ -1066,10 +1073,15 @@ const Orcamentos = ({ materials, setMaterials }) => {
                         <tbody className="text-slate-600">
                             {budgetItems.map(item => (
                                 <tr key={item.id}>
-                                    <td className="text-center font-bold">{item.quantity}</td>
-                                    <td className="uppercase px-2 text-slate-800 font-bold">{item.name}</td>
-                                    <td className="text-right text-slate-800">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td className="text-right font-black text-slate-900">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className="text-center font-bold align-top pt-2">{item.quantity}</td>
+                                    <td className="px-2 text-slate-800 align-top pt-2">
+                                        <div className="font-bold uppercase">{item.name}</div>
+                                        {item.description && (
+                                            <div className="text-[9px] font-normal text-slate-600 mt-1 whitespace-pre-wrap leading-tight">{item.description}</div>
+                                        )}
+                                    </td>
+                                    <td className="text-right text-slate-800 align-top pt-2">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className="text-right font-black text-slate-900 align-top pt-2">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 </tr>
                             ))}
                             {/* Fill Empty Rows */}
@@ -1263,17 +1275,24 @@ const Orcamentos = ({ materials, setMaterials }) => {
                 </div>
 
                 {/* Global Settings Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2 md:col-span-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <Package size={14} className="text-indigo-500" /> Nome do Item
+                            <Package size={14} className="text-indigo-500" /> Nome e Descrição do Item
                         </label>
                         <input
                             type="text"
                             placeholder="Ex: Medalha"
                             value={itemName}
                             onChange={e => setItemName(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700 mb-2"
+                        />
+                        <textarea
+                            placeholder="Descrição:&#10;- Em acrílico 2mm&#10;- Medida de 10x10cm"
+                            value={itemDescription}
+                            onChange={e => setItemDescription(e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-gray-600 resize-y"
                         />
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
@@ -1509,6 +1528,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     setLinearLengths({});
                                     setGlobalQty('1');
                                     setItemName('');
+                                    setItemDescription('');
                                     setDiscount('10');
                                     setDiscountValue('0');
                                     setEditingItemId(null);

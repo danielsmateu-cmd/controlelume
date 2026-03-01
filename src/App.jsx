@@ -50,11 +50,10 @@ function AppContent() {
         ];
     });
 
-    // Set default active tab based on role when user first logs in
+    // Set default active tab when user first logs in
     useEffect(() => {
         if (currentUser) {
-            if (canView('resumo')) setActiveTab('resumo');
-            else setActiveTab('orcamentos');
+            setActiveTab('home');
         }
     }, [currentUser?.id]);
 
@@ -214,6 +213,14 @@ function AppContent() {
     };
 
     const renderContent = () => {
+        if (activeTab === 'home') {
+            return (
+                <div className="flex h-full w-full items-center justify-center">
+                    <img src="/Logo LUME.png" alt="Controle Lume Logo" className="w-[400px] h-auto" />
+                </div>
+            );
+        }
+
         switch (activeTab) {
             case 'resumo':
                 return <Resumo expenses={expenses} orders={orders} />;
@@ -228,9 +235,11 @@ function AppContent() {
             case 'tarefas':
                 return <Tarefas />;
             default:
-                return canView('resumo')
-                    ? <Resumo expenses={expenses} orders={orders} />
-                    : <Orcamentos materials={materials} setMaterials={setMaterials} />;
+                return (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <img src="/Logo LUME.png" alt="Controle Lume Logo" className="w-[400px] h-auto" />
+                    </div>
+                );
         }
     };
 
@@ -239,7 +248,7 @@ function AppContent() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-100 print:bg-white">
             <Sidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -247,7 +256,7 @@ function AppContent() {
                 onImportBackup={handleImportBackup}
                 onExportExcel={handleExportExcel}
             />
-            <main className="flex-1 overflow-y-auto p-8">
+            <main className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible">
                 {renderContent()}
             </main>
         </div>

@@ -27,7 +27,10 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
 
     return (
         <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
-            <div className="p-6">
+            <div
+                className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setActiveTab('home')}
+            >
                 <h1 className="text-xl font-bold text-indigo-600">Controle Lume</h1>
             </div>
 

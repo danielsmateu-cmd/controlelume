@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, Check, X } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -43,6 +43,9 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const [formData, setFormData] = useState(emptyForm);
     const [confirmingId, setConfirmingId] = useState(null);
     const [paymentDateStr, setPaymentDateStr] = useState('');
+
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState(null);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -240,6 +243,45 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
     };
 
+    const startEditing = (order) => {
+        setEditingId(order.id);
+        const orderDateStr = order.orderDate.split('T')[0]; // Ensure it's just YYYY-MM-DD
+        setEditForm({
+            clientName: order.clientName || '',
+            description: order.description || '',
+            value: order.value || 0,
+            orderDate: orderDateStr,
+            paymentMethod: order.paymentMethod || 'Pix/Transferência',
+            nfNumber: order.nfNumber || '',
+            boletoNumber: order.boletoNumber || ''
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editForm.clientName || !editForm.value || !editForm.orderDate) {
+            alert('Preencha os campos obrigatórios (Nome, Valor, Data).');
+            return;
+        }
+
+        const dateYear = new Date(editForm.orderDate + 'T00:00:00').getUTCFullYear();
+        const updatedData = {
+            ...editForm,
+            value: parseFloat(editForm.value),
+            year: dateYear
+        };
+
+        try {
+            const success = await api.updateOrder(editingId, updatedData);
+            if (!success) throw new Error('Falha ao atualizar no banco de dados');
+            setOrders(orders.map(o => o.id === editingId ? { ...o, ...updatedData } : o));
+            setEditingId(null);
+            setEditForm(null);
+        } catch (err) {
+            console.error('Erro ao atualizar entrada:', err);
+            alert('Erro ao salvar edição. Verifique o console ou a conexão.');
+        }
+    };
+
     const filteredOrders = orders.filter(order => {
         const orderYear = order.year || new Date(order.orderDate + 'T00:00:00').getUTCFullYear();
         return orderYear === selectedYear;
@@ -416,7 +458,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             )}
 
             {/* Lista agrupada por mês */}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(filteredOrders.reduce((acc, order) => {
                     const monthYear = new Date(order.orderDate + 'T00:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -430,105 +472,162 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const totalPending = totalValue - totalPaid;
 
                     return (
-                        <div key={month} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="bg-gray-50 px-6 py-2 border-b border-gray-100 flex justify-between items-center">
-                                <h3 className="font-semibold text-gray-800 capitalize">{month}</h3>
-                                <div className="flex gap-2 text-sm">
-                                    <span className="text-gray-600">Total: <span className="font-semibold">{fmt(totalValue)}</span></span>
-                                    <span className="text-green-600">Pago: <span className="font-semibold">{fmt(totalPaid)}</span></span>
-                                    <span className="text-red-600">Pendente: <span className="font-semibold">{fmt(totalPending)}</span></span>
+                        <div key={month} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                            <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex justify-between items-center shrink-0">
+                                <h3 className="font-semibold text-gray-800 capitalize text-sm">{month}</h3>
+                                <div className="flex flex-col items-end text-[10px] leading-tight mt-0.5">
+                                    <span className="text-gray-600 font-semibold">{fmt(totalValue)}</span>
+                                    <span className="text-green-600 font-medium">Pg: {fmt(totalPaid)}</span>
+                                    {totalPending > 0 && <span className="text-red-600 font-medium">Pd: {fmt(totalPending)}</span>}
                                 </div>
                             </div>
-                            <div className="divide-y divide-gray-100">
-                                {monthOrders.map((order) => (
-                                    <div key={order.id} className="p-2 flex items-center justify-between hover:bg-gray-50 transition-colors gap-2">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <div className="w-48 flex-shrink-0">
-                                                <p className="font-semibold text-gray-800 truncate text-sm" title={order.clientName}>{order.clientName}</p>
-                                                <div className="flex flex-wrap gap-1 mt-0.5">
-                                                    {order.paymentMethod && (
-                                                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter">{order.paymentMethod}</span>
-                                                    )}
-                                                    {order.nfNumber && (
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">NF: {order.nfNumber}</span>
-                                                    )}
-                                                    {order.boletoNumber && (
-                                                        <span className="text-[9px] font-bold text-orange-400 uppercase tracking-tighter">Boleto: {order.boletoNumber}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-gray-600 truncate text-sm" title={order.description}>{order.description}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                            {/* Datas: pedido + pagamento (só se pago) */}
-                                            <div className="text-xs text-gray-500 w-40 text-center flex flex-col">
-                                                <span>Pedido: {new Date(order.orderDate).toLocaleDateString('pt-BR')}</span>
-                                                {order.isPaid && order.paymentDate ? (
-                                                    <span className="font-medium text-green-600">
-                                                        Pago em: {new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                                    </span>
-                                                ) : (
-                                                    <div className="flex flex-col">
-                                                        <span className="text-red-400 font-medium">Aguardando pagamento</span>
-                                                        <span className="text-[10px] text-gray-400 mt-0.5">
-                                                            Data prevista: {new Date(order.orderDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                                        </span>
+                            <div className="divide-y divide-gray-100 overflow-y-auto max-h-[500px]">
+                                {[...monthOrders].sort((a, b) => (a.isPaid === b.isPaid ? 0 : a.isPaid ? 1 : -1)).map((order) => (
+                                    <div key={order.id} className={clsx("py-1 px-2 flex hover:bg-gray-50 transition-colors gap-1", editingId === order.id ? "flex-col items-stretch" : "items-center justify-between")}>
+                                        {editingId === order.id ? (
+                                            <div className="flex flex-col gap-1.5 p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
+                                                <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5">
+                                                    <div className="md:col-span-4">
+                                                        <input type="text" value={editForm.clientName} onChange={(e) => setEditForm({ ...editForm, clientName: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm" placeholder="Nome do Cliente" />
                                                     </div>
-                                                )}
-                                            </div>
-
-                                            <div className="w-32 font-medium text-right text-gray-800 text-sm">
-                                                {fmt(order.value)}
-                                            </div>
-
-                                            {confirmingId === order.id ? (
-                                                <div className="flex items-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm">
-                                                    <input
-                                                        type="text"
-                                                        autoFocus
-                                                        onFocus={e => e.target.select()}
-                                                        value={paymentDateStr}
-                                                        onChange={handlePaymentDateChange}
-                                                        onBlur={handlePaymentDateBlur}
-                                                        onKeyDown={(e) => handleDateKeyDown(e, order.id)}
-                                                        className="w-[72px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
-                                                        placeholder="DD/MM/AAAA"
-                                                    />
-                                                    <button onClick={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
-                                                        <Check size={14} />
-                                                    </button>
-                                                    <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
-                                                        <X size={14} />
-                                                    </button>
+                                                    <div className="md:col-span-2">
+                                                        <input type="number" step="0.01" value={editForm.value} onChange={(e) => setEditForm({ ...editForm, value: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm" placeholder="Valor" />
+                                                    </div>
+                                                    <div className="md:col-span-6">
+                                                        <input type="text" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm" placeholder="Descrição" />
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        onClick={() => !readOnly && startPaymentConfirmation(order)}
-                                                        disabled={readOnly}
-                                                        className={clsx(
-                                                            "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center",
-                                                            readOnly ? "cursor-default" : "cursor-pointer",
-                                                            order.isPaid
-                                                                ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                                                                : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
-                                                        )}
-                                                    >
-                                                        {order.isPaid ? 'PAGO' : 'PENDENTE'}
-                                                    </button>
-
-                                                    {!readOnly && (
-                                                        <button onClick={() => handleDelete(order.id)}
-                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Excluir">
-                                                            <Trash2 size={16} />
-                                                        </button>
+                                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                                                    <div className="md:col-span-3">
+                                                        <input type="date" value={editForm.orderDate} onChange={(e) => setEditForm({ ...editForm, orderDate: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm" />
+                                                    </div>
+                                                    <div className="md:col-span-3">
+                                                        <select value={editForm.paymentMethod} onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm">
+                                                            <option value="Pix/Transferência">Pix/Transferência</option>
+                                                            <option value="Link de pagamento">Link de pagamento</option>
+                                                            <option value="Boleto">Boleto</option>
+                                                            <option value="Dinheiro">Dinheiro</option>
+                                                        </select>
+                                                    </div>
+                                                    {editForm.paymentMethod === 'Boleto' && (
+                                                        <div className="md:col-span-2">
+                                                            <input type="text" value={editForm.boletoNumber} onChange={(e) => setEditForm({ ...editForm, boletoNumber: e.target.value })}
+                                                                className="w-full p-1.5 border border-gray-300 rounded text-sm" placeholder="Nº Boleto" />
+                                                        </div>
                                                     )}
-                                                </>
-                                            )}
-                                        </div>
+                                                    <div className="md:col-span-2">
+                                                        <input type="text" value={editForm.nfNumber} onChange={(e) => setEditForm({ ...editForm, nfNumber: e.target.value })}
+                                                            className="w-full p-1.5 border border-gray-300 rounded text-sm" placeholder="Nº NF" />
+                                                    </div>
+                                                    <div className="md:col-span-2 flex justify-end gap-2 items-center">
+                                                        <button onClick={handleSaveEdit} className="px-3 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700 transition flex items-center gap-1">
+                                                            <Check size={14} /> Salvar
+                                                        </button>
+                                                        <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs font-semibold hover:bg-gray-300 transition flex items-center gap-1">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-2 border-r border-gray-100">
+                                                    <div className="w-32 flex-shrink-0">
+                                                        <p className="font-semibold text-gray-800 truncate text-xs" title={order.clientName}>{order.clientName}</p>
+                                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                                            {order.paymentMethod && (
+                                                                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter">{order.paymentMethod}</span>
+                                                            )}
+                                                            {order.nfNumber && (
+                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">NF: {order.nfNumber}</span>
+                                                            )}
+                                                            {order.boletoNumber && (
+                                                                <span className="text-[9px] font-bold text-orange-400 uppercase tracking-tighter">Bol: {order.boletoNumber}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-gray-600 truncate text-[11px]" title={order.description}>{order.description}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    {/* Datas: pedido + pagamento (só se pago) */}
+                                                    <div className="text-[10px] text-gray-500 w-28 text-right flex flex-col">
+                                                        <span className="truncate">Ped: {new Date(order.orderDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        {order.isPaid && order.paymentDate ? (
+                                                            <span className="font-medium text-green-600 truncate">
+                                                                Pg: {new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                            </span>
+                                                        ) : (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-red-400 font-medium truncate">Aguardando</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="w-20 font-bold text-right text-gray-800 text-xs">
+                                                        {fmt(order.value)}
+                                                    </div>
+
+                                                    {confirmingId === order.id ? (
+                                                        <div className="flex items-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm">
+                                                            <input
+                                                                type="text"
+                                                                autoFocus
+                                                                onFocus={e => e.target.select()}
+                                                                value={paymentDateStr}
+                                                                onChange={handlePaymentDateChange}
+                                                                onBlur={handlePaymentDateBlur}
+                                                                onKeyDown={(e) => handleDateKeyDown(e, order.id)}
+                                                                className="w-[72px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
+                                                                placeholder="DD/MM/AAAA"
+                                                            />
+                                                            <button onClick={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
+                                                                <Check size={14} />
+                                                            </button>
+                                                            <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => !readOnly && startPaymentConfirmation(order)}
+                                                                disabled={readOnly}
+                                                                className={clsx(
+                                                                    "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center",
+                                                                    readOnly ? "cursor-default" : "cursor-pointer",
+                                                                    order.isPaid
+                                                                        ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                                                                        : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
+                                                                )}
+                                                            >
+                                                                {order.isPaid ? 'PAGO' : 'PENDENTE'}
+                                                            </button>
+
+                                                            {!readOnly && (
+                                                                <div className="flex flex-col gap-1 ml-1">
+                                                                    <button onClick={() => startEditing(order)}
+                                                                        className="text-gray-400 hover:text-indigo-600 transition-colors p-1 bg-gray-50 rounded" title="Editar">
+                                                                        <Edit2 size={13} />
+                                                                    </button>
+                                                                    <button onClick={() => handleDelete(order.id)}
+                                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1 bg-gray-50 rounded" title="Excluir">
+                                                                        <Trash2 size={13} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                             </div>
