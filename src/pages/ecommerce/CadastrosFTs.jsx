@@ -35,6 +35,9 @@ const CadastrosFTs = () => {
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: getNewFtCode() });
     const [isEditing, setIsEditing] = useState(false);
+    const [hasCostModel, setHasCostModel] = useState(() => {
+        return !!localStorage.getItem('ecommerce_cost_model');
+    });
 
     useEffect(() => {
         localStorage.setItem('ecommerce_fts', JSON.stringify(fts));
@@ -77,6 +80,28 @@ const CadastrosFTs = () => {
     const handleCancel = () => {
         setForm({ ...initialFormState, ftCode: getNewFtCode(fts) });
         setIsEditing(false);
+    };
+
+    const handleSaveCostModel = () => {
+        const model = {
+            directCostsRS: form.directCostsRS,
+            directCostsPercent: form.directCostsPercent
+        };
+        localStorage.setItem('ecommerce_cost_model', JSON.stringify(model));
+        setHasCostModel(true);
+        alert('Modelo de custos diretos (R$ e %) salvo com sucesso!');
+    };
+
+    const handleLoadCostModel = () => {
+        const saved = localStorage.getItem('ecommerce_cost_model');
+        if (saved) {
+            const model = JSON.parse(saved);
+            setForm({
+                ...form,
+                directCostsRS: model.directCostsRS || [],
+                directCostsPercent: model.directCostsPercent || []
+            });
+        }
     };
 
     // dynamic lists handlers
@@ -187,6 +212,28 @@ const CadastrosFTs = () => {
                             placeholder="0,00"
                             step="0.01"
                         />
+                    </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 mt-8 gap-4 border-b border-gray-100 pb-4">
+                    <h3 className="text-md font-bold text-gray-800">Composição de Custos</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {hasCostModel && (
+                            <button
+                                type="button"
+                                onClick={handleLoadCostModel}
+                                className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
+                            >
+                                Carregar Modelo
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleSaveCostModel}
+                            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                        >
+                            Salvar como Modelo
+                        </button>
                     </div>
                 </div>
 
