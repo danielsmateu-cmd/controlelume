@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Lock, User, Eye, EyeOff } from 'lucide-react';
 
@@ -9,6 +9,15 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [rememberUser, setRememberUser] = useState(false);
+
+    useEffect(() => {
+        const savedUser = localStorage.getItem('antigravity_remembered_user');
+        if (savedUser) {
+            setLoginInput(savedUser);
+            setRememberUser(true);
+        }
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -21,6 +30,12 @@ export default function Login() {
         const success = login(loginInput.trim(), password);
         if (!success) {
             setError('Login ou senha incorretos. Tente novamente.');
+        } else {
+            if (rememberUser) {
+                localStorage.setItem('antigravity_remembered_user', loginInput.trim());
+            } else {
+                localStorage.removeItem('antigravity_remembered_user');
+            }
         }
         setLoading(false);
     };
@@ -93,6 +108,22 @@ export default function Login() {
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Remember User */}
+                        <div className="flex items-center text-xs mt-2">
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                                <div className="relative flex items-center justify-center w-4 h-4 rounded border border-indigo-400 group-focus-within:ring-2 group-focus-within:ring-indigo-400 transition-all">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberUser}
+                                        onChange={(e) => setRememberUser(e.target.checked)}
+                                        className="sr-only"
+                                    />
+                                    {rememberUser && <div className="w-2.5 h-2.5 bg-indigo-400 rounded-sm" />}
+                                </div>
+                                <span className="text-indigo-200 group-hover:text-white transition-colors">Lembrar usuário</span>
+                            </label>
                         </div>
 
                         {/* Error message */}
