@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Activity } from 'lucide-react';
-import clsx from 'clsx';
+import { BarChart3, TrendingUp, DollarSign, Activity, Building2 } from 'lucide-react';
+import { clsx } from 'clsx';
 const VisaoGeral = () => {
     const currentYear = new Date().getFullYear();
     const months = Array.from({ length: 12 }, (_, i) => {
