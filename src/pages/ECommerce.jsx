@@ -11,6 +11,7 @@ import {
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';
 import IndiceFTs from './ecommerce/IndiceFTs';
+import Vendas from './ecommerce/Vendas';
 
 const ECommerce = () => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
@@ -37,7 +38,7 @@ const ECommerce = () => {
             case 'cadastros_fts':
                 return <CadastrosFTs />;
             case 'vendas':
-                return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Vendas (Em desenvolvimento)</div>;
+                return <Vendas />;
             default:
                 return null;
         }
