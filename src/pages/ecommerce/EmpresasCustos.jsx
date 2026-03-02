@@ -82,7 +82,7 @@ const EmpresasCustos = () => {
     const totalPercentRS = percentCalcEmpresa1 + percentCalcEmpresa2;
     const totalFixedRS = data.somatoria.fixedRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
 
-    const generalTotal = totalEmpresa1 + totalEmpresa2 + totalPercentRS + totalFixedRS;
+    const generalTotal = totalPercentRS + totalFixedRS;
 
     return (
         <div className="space-y-4">

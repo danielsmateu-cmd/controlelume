@@ -64,7 +64,7 @@ const VisaoGeral = () => {
         const fixedRs = data.somatoria?.fixedRS || [];
         const totalFixedRS = fixedRs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
 
-        return totalEmpresa1 + totalEmpresa2 + totalPercentRS + totalFixedRS;
+        return totalPercentRS + totalFixedRS;
     };
 
     // Função para calcular resumo do mês
