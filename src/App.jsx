@@ -8,6 +8,7 @@ import Entradas from './pages/Entradas';
 import Anotacoes from './pages/Anotacoes';
 import Orcamentos from './pages/Orcamentos';
 import Tarefas from './pages/Tarefas';
+import ECommerce from './pages/ECommerce';
 import Login from './pages/Login';
 import { api } from './services/api';
 
@@ -232,6 +233,8 @@ function AppContent() {
                 return <Anotacoes />;
             case 'orcamentos':
                 return <Orcamentos materials={materials} setMaterials={setMaterials} />;
+            case 'ecommerce':
+                return <ECommerce />;
             case 'tarefas':
                 return <Tarefas />;
             default:

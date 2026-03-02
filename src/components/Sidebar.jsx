@@ -13,6 +13,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'vendas', label: 'Entradas', icon: ShoppingCart },
         { id: 'orcamentos', label: 'Orçamentos', icon: Calculator },
         { id: 'contas', label: 'Produção', icon: Factory },
+        { id: 'ecommerce', label: 'E-Commerce', icon: ShoppingCart },
         { id: 'tarefas', label: 'Tarefas', icon: ClipboardList },
     ];
 
