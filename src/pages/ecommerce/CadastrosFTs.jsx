@@ -9,7 +9,7 @@ const CadastrosFTs = () => {
     });
 
     const getNewFtCode = (currentFts = fts) => {
-        for (let i = 0; i <= 99; i++) {
+        for (let i = 0; i <= 999; i++) {
             const code = `FT${String(i).padStart(3, '0')}`;
             if (!currentFts.some(ft => ft.ftCode === code)) {
                 return code;
@@ -131,7 +131,7 @@ const CadastrosFTs = () => {
                             }}
                             className="w-full sm:w-auto text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 font-medium py-1.5"
                         >
-                            {Array.from({ length: 100 }, (_, i) => {
+                            {Array.from({ length: 1000 }, (_, i) => {
                                 const code = `FT${String(i).padStart(3, '0')}`;
                                 const existingFt = fts.find(ft => ft.ftCode === code);
                                 return (
