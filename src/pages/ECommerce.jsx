@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';
+import IndiceFTs from './ecommerce/IndiceFTs';
 
 const ECommerce = () => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
@@ -32,7 +33,7 @@ const ECommerce = () => {
             case 'capacidade_producao':
                 return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Capacidade de Produção (Em desenvolvimento)</div>;
             case 'indice_fts':
-                return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Índice de FTs (Em desenvolvimento)</div>;
+                return <IndiceFTs />;
             case 'cadastros_fts':
                 return <CadastrosFTs />;
             case 'vendas':
