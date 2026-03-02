@@ -21,17 +21,33 @@ const Vendas = () => {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
+    const buildInitialRows = () => {
+        return fts
+            .sort((a, b) => a.ftCode.localeCompare(b.ftCode))
+            .map(ft => ({
+                id: `auto-${ft.id}`,
+                quantity: 0,
+                ftId: ft.id
+            }));
+    };
+
     // Linhas da tabela do mês atual
     const [rows, setRows] = useState([]);
 
     // Sempre que o mês muda, carrga as linhas salvas ou inicia vazio
     useEffect(() => {
         if (monthlySales[currentMonth]) {
-            setRows(monthlySales[currentMonth]);
+            // Merge saved rows with potentially new FTs
+            const savedRows = monthlySales[currentMonth];
+            const currentRows = buildInitialRows().map(defaultRow => {
+                const savedRow = savedRows.find(r => r.ftId === defaultRow.ftId);
+                return savedRow ? { ...defaultRow, quantity: savedRow.quantity } : defaultRow;
+            });
+            setRows(currentRows);
         } else {
-            setRows([]);
+            setRows(buildInitialRows());
         }
-    }, [currentMonth, monthlySales]);
+    }, [currentMonth, monthlySales, fts]);
 
     // Salvar o mês atual
     const handleSaveMonth = () => {
@@ -42,14 +58,6 @@ const Vendas = () => {
         setMonthlySales(updatedSales);
         localStorage.setItem('ecommerce_vendas', JSON.stringify(updatedSales));
         alert('Vendas do mês salvas com sucesso!');
-    };
-
-    const addRow = () => {
-        setRows([...rows, { id: Date.now().toString(), quantity: 1, ftId: '' }]);
-    };
-
-    const removeRow = (id) => {
-        setRows(rows.filter(r => r.id !== id));
     };
 
     const updateRow = (id, field, value) => {
@@ -121,8 +129,7 @@ const Vendas = () => {
                                 <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
                                 <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
                                 <th className="px-4 py-3 font-medium text-right">TP Total (min)</th>
-                                <th className="px-4 py-3 font-medium text-right rounded-tr-lg">Valor Total</th>
-                                <th className="px-4 py-3 font-medium text-center">Ações</th>
+                                <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Valor Total</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -138,29 +145,18 @@ const Vendas = () => {
                                 const totalValue = unitPrice * qty;
 
                                 return (
-                                    <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <tr key={row.id} className={clsx("transition-colors", qty > 0 ? "bg-indigo-50/30 hover:bg-indigo-50/50" : "hover:bg-gray-50/50")}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 value={row.quantity}
                                                 onChange={(e) => updateRow(row.id, 'quantity', e.target.value)}
-                                                className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2"
+                                                className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 font-bold text-center"
                                             />
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <select
-                                                value={row.ftId}
-                                                onChange={(e) => updateRow(row.id, 'ftId', e.target.value)}
-                                                className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 bg-white"
-                                            >
-                                                <option value="" disabled>Selecione a FT...</option>
-                                                {fts.map(ftOption => (
-                                                    <option key={ftOption.id} value={ftOption.id}>
-                                                        {ftOption.ftCode} - {ftOption.name} {ftOption.variation ? `(${ftOption.variation})` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                        <td className="px-4 py-3 font-medium text-gray-800">
+                                            {ft ? `${ft.ftCode} - ${ft.name} ${ft.variation ? `(${ft.variation})` : ''}` : 'FT Excluída'}
                                         </td>
                                         <td className="px-4 py-3 text-right text-gray-700 font-medium">
                                             R$ {unitPrice.toFixed(2)}
@@ -179,22 +175,14 @@ const Vendas = () => {
                                         <td className="px-4 py-3 text-right font-bold text-gray-900">
                                             R$ {totalValue.toFixed(2)}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={() => removeRow(row.id)}
-                                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
                                     </tr>
                                 );
                             })}
 
                             {rows.length === 0 && (
                                 <tr>
-                                    <td colSpan="8" className="px-6 py-8 text-center text-gray-500 italic">
-                                        Nenhuma venda registrada para este mês. Clique em "Adicionar Linha" para começar.
+                                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500 italic">
+                                        Nenhuma Ficha Técnica cadastrada. Cadastre produtos no módulo de "Cadastros de FTs".
                                     </td>
                                 </tr>
                             )}
@@ -203,15 +191,7 @@ const Vendas = () => {
                 </div>
 
                 {/* Controles Inferiores */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
-                    <button
-                        onClick={addRow}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                    >
-                        <Plus size={16} />
-                        Adicionar Linha
-                    </button>
-
+                <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-500 font-medium uppercase">Total Mês (Bruto)</span>
