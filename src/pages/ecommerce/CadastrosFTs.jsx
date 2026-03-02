@@ -8,9 +8,15 @@ const CadastrosFTs = () => {
         return saved ? JSON.parse(saved) : [];
     });
 
-    const getNewFtCode = () => {
-        const lastFt = fts[fts.length - 1];
-        if (!lastFt) return 'FT001';
+    const getNewFtCode = (currentFts = fts) => {
+        for (let i = 0; i <= 99; i++) {
+            const code = `FT${String(i).padStart(3, '0')}`;
+            if (!currentFts.some(ft => ft.ftCode === code)) {
+                return code;
+            }
+        }
+        const lastFt = currentFts[currentFts.length - 1];
+        if (!lastFt) return 'FT100';
         const num = parseInt(lastFt.ftCode.replace('FT', ''), 10);
         return `FT${String(num + 1).padStart(3, '0')}`;
     };
@@ -40,13 +46,16 @@ const CadastrosFTs = () => {
             return;
         }
 
+        let updatedFts;
         if (isEditing) {
-            setFts(fts.map(ft => ft.id === form.id ? form : ft));
+            updatedFts = fts.map(ft => ft.id === form.id ? form : ft);
+            setFts(updatedFts);
             setIsEditing(false);
         } else {
-            setFts([...fts, { ...form, id: Date.now().toString() }]);
+            updatedFts = [...fts, { ...form, id: Date.now().toString() }];
+            setFts(updatedFts);
         }
-        setForm({ ...initialFormState, ftCode: getNewFtCode() });
+        setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
     };
 
     const handleEdit = (ft) => {
@@ -56,16 +65,17 @@ const CadastrosFTs = () => {
 
     const handleDelete = (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta FT?')) {
-            setFts(fts.filter(ft => ft.id !== id));
+            const updatedFts = fts.filter(ft => ft.id !== id);
+            setFts(updatedFts);
             if (isEditing && form.id === id) {
-                setForm({ ...initialFormState, ftCode: getNewFtCode() });
+                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
                 setIsEditing(false);
             }
         }
     };
 
     const handleCancel = () => {
-        setForm({ ...initialFormState, ftCode: getNewFtCode() });
+        setForm({ ...initialFormState, ftCode: getNewFtCode(fts) });
         setIsEditing(false);
     };
 
@@ -99,12 +109,39 @@ const CadastrosFTs = () => {
     return (
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                         <FileText className="w-5 h-5 text-indigo-600" />
-                        {isEditing ? `Editar ${form.ftCode}` : 'Nova Ficha Técnica (FT)'}
+                        {isEditing ? `Editar Ficha Técnica` : 'Nova Ficha Técnica (FT)'}
                     </h2>
-                    {!isEditing && <span className="text-sm font-semibold text-gray-500">Próxima: {form.ftCode}</span>}
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <label className="text-sm font-semibold text-gray-600 whitespace-nowrap hidden sm:block">Selecionar FT:</label>
+                        <select
+                            value={form.ftCode}
+                            onChange={(e) => {
+                                const selectedCode = e.target.value;
+                                const existingFt = fts.find(ft => ft.ftCode === selectedCode);
+                                if (existingFt) {
+                                    setForm(existingFt);
+                                    setIsEditing(true);
+                                } else {
+                                    setForm({ ...initialFormState, ftCode: selectedCode });
+                                    setIsEditing(false);
+                                }
+                            }}
+                            className="w-full sm:w-auto text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 font-medium py-1.5"
+                        >
+                            {Array.from({ length: 100 }, (_, i) => {
+                                const code = `FT${String(i).padStart(3, '0')}`;
+                                const existingFt = fts.find(ft => ft.ftCode === code);
+                                return (
+                                    <option key={code} value={code}>
+                                        {existingFt ? `${code} - ${existingFt.name}` : `${code} - Limpa`}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    </div>
                 </div>
 
                 {/* Info Básica */}
