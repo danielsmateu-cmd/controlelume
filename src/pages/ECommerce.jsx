@@ -9,6 +9,8 @@ import {
     ShoppingCart
 } from 'lucide-react';
 
+import CadastrosFTs from './ecommerce/CadastrosFTs';
+
 const ECommerce = () => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
 
@@ -32,7 +34,7 @@ const ECommerce = () => {
             case 'indice_fts':
                 return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Índice de FTs (Em desenvolvimento)</div>;
             case 'cadastros_fts':
-                return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Cadastros de FTs (Em desenvolvimento)</div>;
+                return <CadastrosFTs />;
             case 'vendas':
                 return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Vendas (Em desenvolvimento)</div>;
             default:
