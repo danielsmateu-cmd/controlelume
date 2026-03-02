@@ -12,6 +12,7 @@ import {
 import CadastrosFTs from './ecommerce/CadastrosFTs';
 import IndiceFTs from './ecommerce/IndiceFTs';
 import Vendas from './ecommerce/Vendas';
+import EmpresasCustos from './ecommerce/EmpresasCustos';
 
 const ECommerce = () => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
@@ -30,7 +31,7 @@ const ECommerce = () => {
             case 'visao_geral':
                 return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Visão Geral (Em desenvolvimento)</div>;
             case 'empresas_custos':
-                return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Empresas e Custos (Em desenvolvimento)</div>;
+                return <EmpresasCustos />;
             case 'capacidade_producao':
                 return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Capacidade de Produção (Em desenvolvimento)</div>;
             case 'indice_fts':
