@@ -71,7 +71,9 @@ const IndiceFTs = () => {
                                 return (
                                     <tr key={ft.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 font-semibold text-gray-900">{ft.ftCode}</td>
-                                        <td className="px-6 py-4 text-gray-700 font-medium">{ft.name}</td>
+                                        <td className="px-6 py-4 text-gray-700 font-medium">
+                                            {ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}
+                                        </td>
                                         <td className="px-6 py-4 text-right font-medium text-gray-900">
                                             R$ {parseFloat(ft.salePrice).toFixed(2)}
                                         </td>

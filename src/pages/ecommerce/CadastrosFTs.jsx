@@ -19,6 +19,7 @@ const CadastrosFTs = () => {
         id: '',
         ftCode: '',
         name: '',
+        variation: '',
         salePrice: 0,
         materials: [],
         directCostsRS: [],
@@ -106,7 +107,7 @@ const CadastrosFTs = () => {
                 </div>
 
                 {/* Info Básica */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Nome do Produto</label>
                         <input
@@ -115,6 +116,16 @@ const CadastrosFTs = () => {
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
                             className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="Ex: Luminária X"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Variação / Subcategoria <span className="text-gray-400 font-normal">(Opcional)</span></label>
+                        <input
+                            type="text"
+                            value={form.variation}
+                            onChange={(e) => setForm({ ...form, variation: e.target.value })}
+                            className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Ex: Preto"
                         />
                     </div>
                     <div>
@@ -323,7 +334,9 @@ const CadastrosFTs = () => {
                                     return (
                                         <tr key={ft.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-900">{ft.name}</div>
+                                                <div className="font-semibold text-gray-900">
+                                                    {ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{ft.ftCode}</div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-medium text-gray-900">
