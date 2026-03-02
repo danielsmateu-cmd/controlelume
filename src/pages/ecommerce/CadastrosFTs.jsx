@@ -35,13 +35,23 @@ const CadastrosFTs = () => {
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: getNewFtCode() });
     const [isEditing, setIsEditing] = useState(false);
-    const [hasCostModel, setHasCostModel] = useState(() => {
-        return !!localStorage.getItem('ecommerce_cost_model');
+    const [costModels, setCostModels] = useState(() => {
+        const saved = localStorage.getItem('ecommerce_cost_models');
+        const oldModel = localStorage.getItem('ecommerce_cost_model');
+        let models = saved ? JSON.parse(saved) : [];
+        if (oldModel && models.length === 0) {
+            models = [{ id: 'default', name: 'Modelo Padrão', ...JSON.parse(oldModel) }];
+        }
+        return models;
     });
 
     useEffect(() => {
         localStorage.setItem('ecommerce_fts', JSON.stringify(fts));
     }, [fts]);
+
+    useEffect(() => {
+        localStorage.setItem('ecommerce_cost_models', JSON.stringify(costModels));
+    }, [costModels]);
 
     const handleSave = () => {
         if (!form.name || form.salePrice <= 0) {
@@ -83,25 +93,33 @@ const CadastrosFTs = () => {
     };
 
     const handleSaveCostModel = () => {
-        const model = {
+        const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
+        if (!name || name.trim() === '') return;
+
+        const newModel = {
+            id: Date.now().toString(),
+            name: name.trim(),
             directCostsRS: form.directCostsRS,
             directCostsPercent: form.directCostsPercent
         };
-        localStorage.setItem('ecommerce_cost_model', JSON.stringify(model));
-        setHasCostModel(true);
-        alert('Modelo de custos diretos (R$ e %) salvo com sucesso!');
+        setCostModels([...costModels, newModel]);
+        alert(`Modelo "${name.trim()}" salvo com sucesso!`);
     };
 
-    const handleLoadCostModel = () => {
-        const saved = localStorage.getItem('ecommerce_cost_model');
-        if (saved) {
-            const model = JSON.parse(saved);
-            setForm({
-                ...form,
-                directCostsRS: model.directCostsRS || [],
-                directCostsPercent: model.directCostsPercent || []
-            });
+    const handleLoadCostModel = (e) => {
+        const id = e.target.value;
+        if (!id) return;
+        const model = costModels.find(m => m.id === id);
+        if (model) {
+            if (window.confirm(`Deseja carregar o modelo "${model.name}"? Isso substituirá os custos R$ e % atuais.`)) {
+                setForm({
+                    ...form,
+                    directCostsRS: model.directCostsRS || [],
+                    directCostsPercent: model.directCostsPercent || []
+                });
+            }
         }
+        e.target.value = ''; // reset select
     };
 
     // dynamic lists handlers
@@ -217,15 +235,18 @@ const CadastrosFTs = () => {
 
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 mt-8 gap-4 border-b border-gray-100 pb-4">
                     <h3 className="text-md font-bold text-gray-800">Composição de Custos</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {hasCostModel && (
-                            <button
-                                type="button"
-                                onClick={handleLoadCostModel}
-                                className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
+                    <div className="flex flex-wrap items-center gap-3">
+                        {costModels.length > 0 && (
+                            <select
+                                onChange={handleLoadCostModel}
+                                defaultValue=""
+                                className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
                             >
-                                Carregar Modelo
-                            </button>
+                                <option value="" disabled>Carregar Modelo...</option>
+                                {costModels.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
                         )}
                         <button
                             type="button"
