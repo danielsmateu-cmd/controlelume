@@ -13,6 +13,7 @@ import CadastrosFTs from './ecommerce/CadastrosFTs';
 import IndiceFTs from './ecommerce/IndiceFTs';
 import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
+import VisaoGeral from './ecommerce/VisaoGeral';
 
 const ECommerce = () => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
@@ -29,7 +30,7 @@ const ECommerce = () => {
     const renderSubContent = () => {
         switch (activeSubTab) {
             case 'visao_geral':
-                return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">Conteúdo de Visão Geral (Em desenvolvimento)</div>;
+                return <VisaoGeral />;
             case 'empresas_custos':
                 return <EmpresasCustos />;
             case 'capacidade_producao':
