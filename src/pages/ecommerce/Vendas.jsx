@@ -102,6 +102,21 @@ const Vendas = () => {
         return acc + ((ft && ft.productionTime ? parseFloat(ft.productionTime) : 0) * (parseInt(row.quantity) || 0));
     }, 0);
 
+    // Calcular % de Ocupação do Mês (Seg a Sex, 7 horas/dia)
+    const [yearStr, monthStr] = currentMonth.split('-');
+    const yearNum = parseInt(yearStr);
+    const monthNum = parseInt(monthStr);
+
+    let workDays = 0;
+    const dateIter = new Date(yearNum, monthNum - 1, 1);
+    while (dateIter.getMonth() === monthNum - 1) {
+        if (dateIter.getDay() !== 0 && dateIter.getDay() !== 6) workDays++;
+        dateIter.setDate(dateIter.getDate() + 1);
+    }
+
+    const totalWorkMinutesMonth = workDays * 7 * 60;
+    const tpPercentage = totalWorkMinutesMonth > 0 ? (overallTotalTP / totalWorkMinutesMonth) * 100 : 0;
+
     return (
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -153,7 +168,19 @@ const Vendas = () => {
                                             Media: {monthMarginPercent.toFixed(1)}%
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-right">{overallTotalTP > 0 ? `${overallTotalTP}` : '-'}</td>
+                                    <td className="px-4 py-3 text-right">
+                                        {overallTotalTP > 0 ? (
+                                            <div className="flex flex-col items-end leading-tight">
+                                                <span>{overallTotalTP}</span>
+                                                <span
+                                                    className="text-[10px] text-indigo-200 font-medium tracking-wide mt-1"
+                                                    title={`Base: ${workDays} dias úteis (${totalWorkMinutesMonth} min)`}
+                                                >
+                                                    {tpPercentage.toFixed(1)}% DO MÊS
+                                                </span>
+                                            </div>
+                                        ) : '-'}
+                                    </td>
                                     <td className="px-4 py-3 text-right text-lg">R$ {totalMonthSales.toFixed(2)}</td>
                                 </tr>
                             )}
