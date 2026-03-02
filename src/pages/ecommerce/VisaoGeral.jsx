@@ -211,7 +211,7 @@ const VisaoGeral = () => {
                                     <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
                                         <div className="flex items-center gap-2 text-emerald-600 mb-2">
                                             <Wallet size={16} />
-                                            <span className="text-xs font-bold uppercase">Lucro Bruto</span>
+                                            <span className="text-xs font-bold uppercase">Lucro</span>
                                         </div>
                                         <div className="text-xl font-bold text-emerald-700">{formatCurrency(sum.lucroBruto)}</div>
                                     </div>
