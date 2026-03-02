@@ -96,6 +96,12 @@ const Vendas = () => {
     const monthMargin = totalMonthSales - totalMonthCosts;
     const monthMarginPercent = totalMonthSales > 0 ? (monthMargin / totalMonthSales) * 100 : 0;
 
+    const totalQtd = rows.reduce((acc, row) => acc + (parseInt(row.quantity) || 0), 0);
+    const overallTotalTP = rows.reduce((acc, row) => {
+        const ft = getFtDetails(row.ftId);
+        return acc + ((ft && ft.productionTime ? parseFloat(ft.productionTime) : 0) * (parseInt(row.quantity) || 0));
+    }, 0);
+
     return (
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -127,18 +133,37 @@ const Vendas = () => {
                                 <th className="px-4 py-3 font-medium min-w-[250px]">Ficha Técnica (FT)</th>
                                 <th className="px-4 py-3 font-medium text-right">Preço de Venda</th>
                                 <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
+                                <th className="px-4 py-3 font-medium text-right">Custo Total</th>
                                 <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
                                 <th className="px-4 py-3 font-medium text-right">TP Total (min)</th>
-                                <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Valor Total</th>
+                                <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Valor Total Vendas</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
+                            {/* Linha de Totais Gerais */}
+                            {rows.length > 0 && (
+                                <tr className="bg-indigo-600 text-white font-bold sticky top-0 z-10 shadow-sm shadow-indigo-200">
+                                    <td className="px-4 py-3 text-center text-lg">{totalQtd > 0 ? totalQtd : '-'}</td>
+                                    <td className="px-4 py-3">TOTAIS DO MÊS</td>
+                                    <td className="px-4 py-3 text-right">-</td>
+                                    <td className="px-4 py-3 text-right">-</td>
+                                    <td className="px-4 py-3 text-right">R$ {totalMonthCosts.toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-right">
+                                        <span className={clsx("px-2 py-0.5 rounded text-sm", monthMarginPercent >= 0 ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
+                                            Media: {monthMarginPercent.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">{overallTotalTP > 0 ? `${overallTotalTP}` : '-'}</td>
+                                    <td className="px-4 py-3 text-right text-lg">R$ {totalMonthSales.toFixed(2)}</td>
+                                </tr>
+                            )}
                             {rows.map(row => {
                                 const ft = getFtDetails(row.ftId);
                                 const qty = parseInt(row.quantity) || 0;
 
                                 const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
                                 const unitCost = calculateCost(ft);
+                                const totalCost = unitCost * qty;
                                 const unitMarginRS = unitPrice - unitCost;
                                 const unitMarginPercent = unitPrice > 0 ? (unitMarginRS / unitPrice) * 100 : 0;
                                 const totalTP = ft && ft.productionTime ? (parseFloat(ft.productionTime) * qty) : 0;
@@ -163,6 +188,9 @@ const Vendas = () => {
                                         </td>
                                         <td className="px-4 py-3 text-right text-gray-500">
                                             R$ {unitCost.toFixed(2)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-gray-600 font-medium">
+                                            R$ {totalCost.toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <span className={clsx("font-semibold", unitMarginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
