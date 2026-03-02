@@ -10,20 +10,35 @@ const VisaoGeral = () => {
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
 
-    // Carregar dados de vendas e custos
+    const [ftsData, setFtsData] = useState([]);
+
+    // Carregar dados de vendas, custos e fts
     useEffect(() => {
         const loadDados = () => {
             const savedVendas = localStorage.getItem('ecommerce_vendas');
             const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
+            const savedFts = localStorage.getItem('ecommerce_fts');
 
             if (savedVendas) setVendasData(JSON.parse(savedVendas));
             if (savedCustos) setCustosData(JSON.parse(savedCustos));
+            if (savedFts) setFtsData(JSON.parse(savedFts));
         };
 
         loadDados();
         window.addEventListener('storage', loadDados);
         return () => window.removeEventListener('storage', loadDados);
     }, []);
+
+    // Função auxiliar para calcular custo da FT
+    const calculateCost = (ft) => {
+        if (!ft) return 0;
+        const totalMat = ft.materials?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+        const totalDir = ft.directCostsRS?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+        const totalPerc = ft.directCostsPercent?.reduce((acc, curr) => {
+            return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(ft.salePrice) || 0));
+        }, 0) || 0;
+        return totalMat + totalDir + totalPerc;
+    };
 
     // Função para calcular os totais de custo inevitável do mês
     const getCustoInevitalel = (month) => {
@@ -58,27 +73,20 @@ const VisaoGeral = () => {
 
         let faturamento = 0;
         let custoTotalProdutos = 0;
-        let margemSum = 0;
-        let qtdComMargem = 0;
 
-        vendas.forEach(venda => {
-            const qtd = parseFloat(venda.qtd) || 0;
-            const preco = parseFloat(venda.preco) || 0;
-            const custoUnitario = parseFloat(venda.custoUnitario) || 0;
+        vendas.forEach(row => {
+            const ft = ftsData.find(f => f.id === row.ftId);
+            if (ft) {
+                const qtd = parseInt(row.quantity) || 0;
+                const preco = parseFloat(ft.salePrice) || 0;
+                const custoUnitario = calculateCost(ft);
 
-            faturamento += qtd * preco;
-            custoTotalProdutos += qtd * custoUnitario;
-
-            if (qtd > 0) {
-                const lucro = (preco - custoUnitario) * qtd;
-                const faturamentoItem = preco * qtd;
-                const margemPerc = faturamentoItem > 0 ? (lucro / faturamentoItem) * 100 : 0;
-                margemSum += margemPerc;
-                qtdComMargem++;
+                faturamento += preco * qtd;
+                custoTotalProdutos += custoUnitario * qtd;
             }
         });
 
-        const margemMedia = qtdComMargem > 0 ? margemSum / qtdComMargem : 0;
+        const margemMedia = faturamento > 0 ? ((faturamento - custoTotalProdutos) / faturamento) * 100 : 0;
         const custoInevitavel = getCustoInevitalel(month);
         const pontoEquilibrio = faturamento - custoTotalProdutos - custoInevitavel;
 
