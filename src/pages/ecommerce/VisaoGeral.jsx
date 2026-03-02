@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Activity, Building2 } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Activity, Building2, ShoppingCart, Wallet } from 'lucide-react';
 import { clsx } from 'clsx';
 const VisaoGeral = () => {
     const currentYear = new Date().getFullYear();
@@ -73,11 +73,14 @@ const VisaoGeral = () => {
 
         let faturamento = 0;
         let custoTotalProdutos = 0;
+        let qtdItensVendidos = 0;
 
         vendas.forEach(row => {
             const ft = ftsData.find(f => f.id === row.ftId);
             if (ft) {
                 const qtd = parseInt(row.quantity) || 0;
+                qtdItensVendidos += qtd;
+
                 const preco = parseFloat(ft.salePrice) || 0;
                 const custoUnitario = calculateCost(ft);
 
@@ -86,16 +89,19 @@ const VisaoGeral = () => {
             }
         });
 
-        const margemMedia = faturamento > 0 ? ((faturamento - custoTotalProdutos) / faturamento) * 100 : 0;
+        const lucroBruto = faturamento - custoTotalProdutos;
+        const margemMedia = faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0;
         const custoInevitavel = getCustoInevitalel(month);
-        const pontoEquilibrio = faturamento - custoTotalProdutos - custoInevitavel;
+        const pontoEquilibrio = lucroBruto - custoInevitavel;
 
         return {
             faturamento,
             custoTotalProdutos,
             custoInevitavel,
             pontoEquilibrio,
-            margemMedia
+            margemMedia,
+            qtdItensVendidos,
+            lucroBruto
         };
     };
 
@@ -194,20 +200,28 @@ const VisaoGeral = () => {
                                         <div className="text-xl font-bold text-gray-800">{formatPercent(sum.margemMedia)}</div>
                                     </div>
 
-                                    <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                                        <div className="flex items-center gap-2 text-red-500 mb-2">
-                                            <Building2 size={16} />
-                                            <span className="text-xs font-bold uppercase">Custo Inevitável</span>
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                        <div className="flex items-center gap-2 text-blue-500 mb-2">
+                                            <ShoppingCart size={16} />
+                                            <span className="text-xs font-bold uppercase">Itens Vendidos</span>
                                         </div>
-                                        <div className="text-xl font-bold text-red-700">{formatCurrency(sum.custoInevitavel)}</div>
+                                        <div className="text-xl font-bold text-blue-800">{sum.qtdItensVendidos} un</div>
                                     </div>
 
-                                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 col-span-2">
+                                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
                                         <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                                            <DollarSign size={16} />
-                                            <span className="text-xs font-bold uppercase">Faturamento (Total Vendas)</span>
+                                            <Wallet size={16} />
+                                            <span className="text-xs font-bold uppercase">Lucro Bruto</span>
                                         </div>
-                                        <div className="text-2xl font-bold text-emerald-700">{formatCurrency(sum.faturamento)}</div>
+                                        <div className="text-xl font-bold text-emerald-700">{formatCurrency(sum.lucroBruto)}</div>
+                                    </div>
+
+                                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                                        <div className="flex items-center gap-2 text-indigo-600 mb-2">
+                                            <DollarSign size={16} />
+                                            <span className="text-xs font-bold uppercase">Faturamento Total</span>
+                                        </div>
+                                        <div className="text-xl font-bold text-indigo-700">{formatCurrency(sum.faturamento)}</div>
                                     </div>
                                 </div>
 
