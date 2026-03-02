@@ -9,11 +9,7 @@ const EmpresasCustos = () => {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
-    // All monthly data
-    const [monthlyData, setMonthlyData] = useState(() => {
-        const saved = localStorage.getItem('ecommerce_empresas_custos_mensal');
-        return saved ? JSON.parse(saved) : {};
-    });
+    // All monthly data is now fetched directly inside effects to avoid stale states.
 
     const initData = {
         empresa1: {
@@ -44,45 +40,29 @@ const EmpresasCustos = () => {
     };
 
     const [data, setData] = useState(initData);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     useEffect(() => {
-        if (monthlyData[currentMonth]) {
-            setData(monthlyData[currentMonth]);
+        const savedStr = localStorage.getItem('ecommerce_empresas_custos_mensal');
+        const savedMonthly = savedStr ? JSON.parse(savedStr) : {};
+        if (savedMonthly[currentMonth]) {
+            setData(savedMonthly[currentMonth]);
         } else {
             setData(initData);
         }
-        setHasUnsavedChanges(false);
-    }, [currentMonth, monthlyData]);
-
-    // Handle beforeunload
-    useEffect(() => {
-        const handleBeforeUnload = (e) => {
-            if (hasUnsavedChanges) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [hasUnsavedChanges]);
-
-    const handleSave = () => {
-        if (window.confirm(`Deseja salvar os dados no mês: ${currentMonth}?`)) {
-            const updated = { ...monthlyData, [currentMonth]: data };
-            setMonthlyData(updated);
-            localStorage.setItem('ecommerce_empresas_custos_mensal', JSON.stringify(updated));
-            setHasUnsavedChanges(false);
-            alert('Salvo com sucesso!');
-        }
-    };
+    }, [currentMonth]);
 
     const mutateData = (updater) => {
         setData((prev) => {
             const next = updater(prev);
+
+            // Salvar automaticamente a cada alteração
+            const savedStr = localStorage.getItem('ecommerce_empresas_custos_mensal');
+            const savedMonthly = savedStr ? JSON.parse(savedStr) : {};
+            const updatedMonthly = { ...savedMonthly, [currentMonth]: next };
+            localStorage.setItem('ecommerce_empresas_custos_mensal', JSON.stringify(updatedMonthly));
+
             return next;
         });
-        setHasUnsavedChanges(true);
     };
 
     // Calculate totals
@@ -124,18 +104,8 @@ const EmpresasCustos = () => {
                                 className="text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1"
                             />
                         </div>
-                        <button
-                            onClick={handleSave}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-                        >
-                            <Save size={16} />
-                            Salvar Mês
-                        </button>
                     </div>
                 </div>
-                {hasUnsavedChanges && (
-                    <p className="text-xs text-orange-500 mt-2 font-semibold">⚠️ Você tem alterações não salvas neste mês.</p>
-                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
