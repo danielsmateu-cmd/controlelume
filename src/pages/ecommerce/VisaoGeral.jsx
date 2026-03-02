@@ -144,28 +144,28 @@ const VisaoGeral = () => {
             </div>
 
             {/* RESUMO DO ANO */}
-            <div className="bg-gradient-to-br from-indigo-900 to-indigo-700 rounded-xl p-6 text-white shadow-lg overflow-hidden relative">
-                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-10">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-xl p-6 text-white shadow-md overflow-hidden relative">
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-5">
                     <Activity className="w-48 h-48" />
                 </div>
-                <h3 className="text-lg font-bold mb-4 opacity-90 uppercase tracking-wider">Resumo do Ano ({currentYear})</h3>
+                <h3 className="text-lg font-bold mb-4 opacity-90 uppercase tracking-wider text-slate-200">Resumo do Ano ({currentYear})</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
                     <div>
-                        <div className="text-indigo-200 text-sm font-semibold mb-1 uppercase">Faturamento Anual</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Faturamento Anual</div>
                         <div className="text-3xl font-bold">{formatCurrency(yearSummary.faturamento)}</div>
                     </div>
                     <div>
-                        <div className="text-indigo-200 text-sm font-semibold mb-1 uppercase">Custos Inevitáveis</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Custos Inevitáveis</div>
                         <div className="text-3xl font-bold text-red-300">{formatCurrency(yearSummary.custoInevitavel)}</div>
                     </div>
                     <div>
-                        <div className="text-indigo-200 text-sm font-semibold mb-1 uppercase">Resultado Líquido (Equilíbrio)</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Resultado Líquido (Equilíbrio)</div>
                         <div className={clsx("text-3xl font-bold", yearSummary.pontoEquilibrio >= 0 ? "text-emerald-400" : "text-red-400")}>
                             {formatCurrency(yearSummary.pontoEquilibrio)}
                         </div>
                     </div>
                     <div>
-                        <div className="text-indigo-200 text-sm font-semibold mb-1 uppercase">Margem Média</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Margem Média</div>
                         <div className="text-3xl font-bold text-blue-300">{formatPercent(margemMediaAno)}</div>
                     </div>
                 </div>
@@ -178,13 +178,13 @@ const VisaoGeral = () => {
                     const isCurrent = month === currentMonthStr;
 
                     return (
-                        <div key={month} className={clsx("bg-white rounded-xl shadow-sm border overflow-hidden", isCurrent ? "border-indigo-300 ring-4 ring-indigo-50" : "border-gray-200")}>
+                        <div key={month} className={clsx("bg-white rounded-xl overflow-hidden", isCurrent ? "border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl shadow-indigo-100/50 transform scale-[1.01] transition-all" : "border border-gray-200 shadow-sm")}>
 
                             {/* Cabeçalho do Mês */}
-                            <div className={clsx("p-4 border-b flex justify-between items-center", isCurrent ? "bg-indigo-50 border-indigo-100" : "bg-gray-50 border-gray-100")}>
+                            <div className={clsx("p-4 border-b flex justify-between items-center", isCurrent ? "bg-indigo-600 border-indigo-700" : "bg-gray-50 border-gray-100")}>
                                 <div className="flex items-center gap-3">
-                                    {isCurrent && <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] uppercase font-bold rounded">Mês Atual</span>}
-                                    <h4 className={clsx("font-bold text-lg", isCurrent ? "text-indigo-900" : "text-gray-700")}>{formatMonthName(month)}</h4>
+                                    {isCurrent && <span className="px-2 py-0.5 bg-yellow-400 text-indigo-900 text-[10px] uppercase font-bold rounded shadow-sm">Mês Atual</span>}
+                                    <h4 className={clsx("font-bold text-lg", isCurrent ? "text-white tracking-wide" : "text-gray-700")}>{formatMonthName(month)}</h4>
                                 </div>
                             </div>
 
