@@ -350,6 +350,22 @@ const CadastrosFTs = () => {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setForm({
+                                                                ...ft,
+                                                                id: '',
+                                                                ftCode: getNewFtCode(),
+                                                                variation: ''
+                                                            });
+                                                            setIsEditing(false);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                                        title="Criar Variação / Duplicar"
+                                                    >
+                                                        <Plus size={16} />
+                                                    </button>
                                                     <button onClick={() => handleEdit(ft)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Editar">
                                                         <Edit size={16} />
                                                     </button>
