@@ -30,26 +30,31 @@ const VisaoGeral = () => {
         const data = custosData[month];
         if (!data) return 0;
 
-        const totalEmpresa1 = data.empresa1?.expenses.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-        const totalEmpresa2 = data.empresa2?.expenses.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+        const expenses1 = data.empresa1?.expenses || [];
+        const totalEmpresa1 = expenses1.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+
+        const expenses2 = data.empresa2?.expenses || [];
+        const totalEmpresa2 = expenses2.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
 
         let percentCalcEmpresa1 = 0;
         let percentCalcEmpresa2 = 0;
-        data.somatoria?.percent.forEach(p => {
+        const percents = data.somatoria?.percent || [];
+        percents.forEach(p => {
             const perc = parseFloat(p.percent) || 0;
             percentCalcEmpresa1 += totalEmpresa1 * (perc / 100);
             percentCalcEmpresa2 += totalEmpresa2 * (perc / 100);
         });
 
         const totalPercentRS = percentCalcEmpresa1 + percentCalcEmpresa2;
-        const totalFixedRS = data.somatoria?.fixedRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+        const fixedRs = data.somatoria?.fixedRS || [];
+        const totalFixedRS = fixedRs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
 
         return totalEmpresa1 + totalEmpresa2 + totalPercentRS + totalFixedRS;
     };
 
     // Função para calcular resumo do mês
     const getMonthSummary = (month) => {
-        const vendas = vendasData[month] || [];
+        const vendas = Array.isArray(vendasData[month]) ? vendasData[month] : [];
 
         let faturamento = 0;
         let custoTotalProdutos = 0;
