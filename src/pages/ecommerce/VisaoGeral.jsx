@@ -103,10 +103,13 @@ const VisaoGeral = () => {
                 const qtd = parseInt(row.quantity) || 0;
                 qtdItensVendidos += qtd;
 
-                const preco = parseFloat(ft.salePrice) || 0;
+                const precoBase = parseFloat(ft.salePrice) || 0;
+                const desconto = parseFloat(row.discountPercent) || 0;
+                const precoEfetivo = precoBase * (1 - desconto / 100);
+
                 const custoUnitario = calculateCost(ft);
 
-                faturamento += preco * qtd;
+                faturamento += precoEfetivo * qtd;
                 custoTotalProdutos += custoUnitario * qtd;
             }
         });
@@ -120,7 +123,7 @@ const VisaoGeral = () => {
             faturamento,
             custoTotalProdutos,
             custoInevitavel,
-            pontoEquilibrio,
+            lucroLiquido: pontoEquilibrio, // lucro = faturamento - custo produto - custo inevitavel
             margemMedia,
             qtdItensVendidos,
             lucroBruto
@@ -132,13 +135,13 @@ const VisaoGeral = () => {
         const summ = getMonthSummary(month);
         acc.faturamento += summ.faturamento;
         acc.custoInevitavel += summ.custoInevitavel;
-        acc.pontoEquilibrio += summ.pontoEquilibrio;
+        acc.lucroLiquido += summ.lucroLiquido;
         if (summ.faturamento > 0) {
             acc.margemSum += summ.margemMedia;
             acc.mesesComVenda++;
         }
         return acc;
-    }, { faturamento: 0, custoInevitavel: 0, pontoEquilibrio: 0, margemSum: 0, mesesComVenda: 0 });
+    }, { faturamento: 0, custoInevitavel: 0, lucroLiquido: 0, margemSum: 0, mesesComVenda: 0 });
 
     const margemMediaAno = yearSummary.mesesComVenda > 0 ? yearSummary.margemSum / yearSummary.mesesComVenda : 0;
 
