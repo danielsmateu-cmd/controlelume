@@ -23,6 +23,7 @@ const Vendas = () => {
             .map(ft => ({
                 id: `auto-${ft.id}`,
                 quantity: 0,
+                discountPercent: 0,
                 ftId: ft.id
             }));
     };
@@ -40,7 +41,7 @@ const Vendas = () => {
             const savedRows = monthlySales[currentMonth];
             const currentRows = buildInitialRows().map(defaultRow => {
                 const savedRow = savedRows.find(r => r.ftId === defaultRow.ftId);
-                return savedRow ? { ...defaultRow, quantity: savedRow.quantity } : defaultRow;
+                return savedRow ? { ...defaultRow, quantity: savedRow.quantity, discountPercent: savedRow.discountPercent || 0 } : defaultRow;
             });
             setRows(currentRows);
         } else {
@@ -131,7 +132,10 @@ const Vendas = () => {
     const totalMonthSales = rows.reduce((acc, row) => {
         const ft = getFtDetails(row.ftId);
         if (!ft) return acc;
-        return acc + ((parseFloat(ft.salePrice) || 0) * (parseInt(row.quantity) || 0));
+        const uPrice = parseFloat(ft.salePrice) || 0;
+        const discount = parseFloat(row.discountPercent) || 0;
+        const finalPrice = uPrice * (1 - discount / 100);
+        return acc + (finalPrice * (parseInt(row.quantity) || 0));
     }, 0);
 
     const totalMonthCosts = rows.reduce((acc, row) => {
@@ -209,6 +213,8 @@ const Vendas = () => {
                                         <th className="px-4 py-3 font-medium rounded-tl-lg w-24">Qtd</th>
                                         <th className="px-4 py-3 font-medium min-w-[250px]">Ficha Técnica (FT)</th>
                                         <th className="px-4 py-3 font-medium text-right">Preço de Venda</th>
+                                        <th className="px-4 py-3 font-medium text-center w-24">% Desc</th>
+                                        <th className="px-4 py-3 font-medium text-right">Preço Final</th>
                                         <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
                                         <th className="px-4 py-3 font-medium text-right">Custo Total</th>
                                         <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
@@ -222,6 +228,8 @@ const Vendas = () => {
                                         <tr className="bg-indigo-600 text-white font-bold sticky top-0 z-10 shadow-sm shadow-indigo-200">
                                             <td className="px-4 py-3 text-center text-lg">{totalQtd > 0 ? totalQtd : '-'}</td>
                                             <td className="px-4 py-3">TOTAIS DO MÊS</td>
+                                            <td className="px-4 py-3 text-right">-</td>
+                                            <td className="px-4 py-3 text-center">-</td>
                                             <td className="px-4 py-3 text-right">-</td>
                                             <td className="px-4 py-3 text-right">-</td>
                                             <td className="px-4 py-3 text-right">R$ {totalMonthCosts.toFixed(2)}</td>
@@ -249,14 +257,17 @@ const Vendas = () => {
                                     {rows.map(row => {
                                         const ft = getFtDetails(row.ftId);
                                         const qty = parseInt(row.quantity) || 0;
+                                        const discount = parseFloat(row.discountPercent) || 0;
 
                                         const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
+                                        const discountedPrice = unitPrice * (1 - discount / 100);
+
                                         const unitCost = calculateCost(ft);
                                         const totalCost = unitCost * qty;
-                                        const unitMarginRS = unitPrice - unitCost;
-                                        const unitMarginPercent = unitPrice > 0 ? (unitMarginRS / unitPrice) * 100 : 0;
+                                        const unitMarginRS = discountedPrice - unitCost;
+                                        const unitMarginPercent = discountedPrice > 0 ? (unitMarginRS / discountedPrice) * 100 : 0;
                                         const totalTP = ft && ft.productionTime ? (parseFloat(ft.productionTime) * qty) : 0;
-                                        const totalValue = unitPrice * qty;
+                                        const totalValue = discountedPrice * qty;
 
                                         return (
                                             <tr key={row.id} className={clsx("transition-colors", qty > 0 ? "bg-indigo-50/30 hover:bg-indigo-50/50" : "hover:bg-gray-50/50")}>
@@ -274,6 +285,20 @@ const Vendas = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-700 font-medium">
                                                     R$ {unitPrice.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        value={row.discountPercent === 0 ? '' : row.discountPercent}
+                                                        onChange={(e) => updateRow(row.id, 'discountPercent', parseFloat(e.target.value) || 0)}
+                                                        className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 text-center"
+                                                        placeholder="0"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-indigo-700 font-bold bg-indigo-50/50">
+                                                    R$ {discountedPrice.toFixed(2)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-500">
                                                     R$ {unitCost.toFixed(2)}
