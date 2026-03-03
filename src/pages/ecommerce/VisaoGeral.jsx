@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Activity, Building2, ShoppingCart, Wallet } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Activity, Building2, ShoppingCart, Wallet, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { api } from '../../services/api';
+
 const VisaoGeral = () => {
     const currentYear = new Date().getFullYear();
     const months = Array.from({ length: 12 }, (_, i) => {
@@ -11,22 +13,34 @@ const VisaoGeral = () => {
     const [custosData, setCustosData] = useState({});
 
     const [ftsData, setFtsData] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Carregar dados de vendas, custos e fts
     useEffect(() => {
-        const loadDados = () => {
-            const savedVendas = localStorage.getItem('ecommerce_vendas');
-            const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
-            const savedFts = localStorage.getItem('ecommerce_fts');
+        const loadDados = async () => {
+            setIsLoading(true);
+            try {
+                const savedVendas = localStorage.getItem('ecommerce_vendas');
+                const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
 
-            if (savedVendas) setVendasData(JSON.parse(savedVendas));
-            if (savedCustos) setCustosData(JSON.parse(savedCustos));
-            if (savedFts) setFtsData(JSON.parse(savedFts));
+                if (savedVendas) setVendasData(JSON.parse(savedVendas));
+                if (savedCustos) setCustosData(JSON.parse(savedCustos));
+
+                // Buscar FTs da API (Supabase)
+                const fts = await api.getFts();
+                setFtsData(fts);
+            } catch (error) {
+                console.error("Erro ao carregar dados na Visão Geral:", error);
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         loadDados();
-        window.addEventListener('storage', loadDados);
-        return () => window.removeEventListener('storage', loadDados);
+        // Nota: storage manager local não detectaria mudanças no db, 
+        // idealmente usariamos realtime do supabase aqui, mas pra simplificar vamos recarregar ao focar na janela.
+        window.addEventListener('focus', loadDados);
+        return () => window.removeEventListener('focus', loadDados);
     }, []);
 
     // Função auxiliar para calcular custo da FT
@@ -142,6 +156,13 @@ const VisaoGeral = () => {
                     <p className="text-sm text-gray-500 mt-1">Acompanhamento de faturamento, custos e margens de {currentYear}.</p>
                 </div>
             </div>
+
+            {isLoading && (
+                <div className="flex justify-center items-center h-32">
+                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                    <span className="ml-2 text-indigo-600 font-medium">Carregando dados...</span>
+                </div>
+            )}
 
             {/* RESUMO DO ANO */}
             <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-xl p-6 text-white shadow-md overflow-hidden relative">

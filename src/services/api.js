@@ -589,5 +589,149 @@ export const api = {
             console.error('Supabase deleteTarefa:', err);
             return false;
         }
+    },
+
+    // ==================== FICHAS TÉCNICAS (FTs) ====================
+    async getFts() {
+        try {
+            const { data, error } = await supabase
+                .from('fts')
+                .select(`
+                    *,
+                    ft_materials ( id, name, value ),
+                    ft_direct_costs_rs ( id, name, value ),
+                    ft_direct_costs_percent ( id, name, percentage )
+                `)
+                .order('ft_code', { ascending: true });
+
+            if (error) throw error;
+            return data.map(ft => ({
+                id: ft.id,
+                ftCode: ft.ft_code,
+                name: ft.name,
+                variation: ft.variation || '',
+                productionTime: ft.production_time || '',
+                salePrice: parseFloat(ft.sale_price) || 0,
+                materials: ft.ft_materials || [],
+                directCostsRS: ft.ft_direct_costs_rs || [],
+                directCostsPercent: ft.ft_direct_costs_percent || []
+            }));
+        } catch (err) {
+            console.error('Supabase getFts:', err);
+            return [];
+        }
+    },
+
+    async saveFt(ft) {
+        try {
+            let ftId = ft.id;
+
+            // 1. Upsert na tabela principal `fts`
+            const ftData = {
+                ft_code: ft.ftCode,
+                name: ft.name,
+                variation: ft.variation || null,
+                production_time: ft.productionTime || null,
+                sale_price: parseFloat(ft.salePrice) || 0,
+                updated_at: new Date().toISOString()
+            };
+
+            // Se for string antiga local (timestamp) ou nova com uuid, enviamos ID nulo se nao for UUID, mas upsert cuidará. 
+            // Para garantir, vamos fazer insert/update separados se parecer que não tem ID UUID valido.
+            const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(ftId);
+
+            if (!ftId || !isUUID) {
+                // Insert novo
+                const { data, error } = await supabase.from('fts').insert([ftData]).select();
+                if (error) throw error;
+                ftId = data[0].id;
+            } else {
+                // Update existente
+                const { data, error } = await supabase.from('fts').update(ftData).eq('id', ftId).select();
+                if (error) throw error;
+            }
+
+            // 2. Apagar listar filhas antigas da FT
+            await supabase.from('ft_materials').delete().eq('ft_id', ftId);
+            await supabase.from('ft_direct_costs_rs').delete().eq('ft_id', ftId);
+            await supabase.from('ft_direct_costs_percent').delete().eq('ft_id', ftId);
+
+            // 3. Inserir novas listas se houverem itens validos
+            if (ft.materials && ft.materials.length > 0) {
+                const inserts = ft.materials.map(m => ({ ft_id: ftId, name: m.name, value: parseFloat(m.value) || 0 }));
+                await supabase.from('ft_materials').insert(inserts);
+            }
+            if (ft.directCostsRS && ft.directCostsRS.length > 0) {
+                const inserts = ft.directCostsRS.map(c => ({ ft_id: ftId, name: c.name, value: parseFloat(c.value) || 0 }));
+                await supabase.from('ft_direct_costs_rs').insert(inserts);
+            }
+            if (ft.directCostsPercent && ft.directCostsPercent.length > 0) {
+                const inserts = ft.directCostsPercent.map(c => ({ ft_id: ftId, name: c.name, percentage: parseFloat(c.percentage) || 0 }));
+                await supabase.from('ft_direct_costs_percent').insert(inserts);
+            }
+
+            return { success: true, newId: ftId };
+        } catch (err) {
+            console.error('Supabase saveFt:', err);
+            return { success: false, error: err };
+        }
+    },
+
+    async deleteFt(id) {
+        try {
+            const { error } = await supabase.from('fts').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteFt:', err);
+            return false;
+        }
+    },
+
+    // ==================== COST MODELS (Fichas Técnicas) ====================
+    async getFtCostModels() {
+        try {
+            const { data, error } = await supabase
+                .from('ft_cost_models')
+                .select('*')
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data.map(m => ({
+                id: m.id,
+                name: m.name,
+                directCostsRS: m.direct_costs_rs || [],
+                directCostsPercent: m.direct_costs_percent || []
+            }));
+        } catch (err) {
+            console.error('Supabase getFtCostModels:', err);
+            return [];
+        }
+    },
+
+    async saveFtCostModel(model) {
+        try {
+            let modelId = model.id;
+            const modelData = {
+                name: model.name,
+                direct_costs_rs: model.directCostsRS || [],
+                direct_costs_percent: model.directCostsPercent || []
+            };
+
+            const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(modelId);
+
+            if (!modelId || !isUUID) {
+                const { data, error } = await supabase.from('ft_cost_models').insert([modelData]).select();
+                if (error) throw error;
+                return { success: true, data: { ...modelData, id: data[0].id } };
+            } else {
+                const { error } = await supabase.from('ft_cost_models').update(modelData).eq('id', modelId);
+                if (error) throw error;
+                return { success: true, data: { ...modelData, id: modelId } };
+            }
+        } catch (err) {
+            console.error('Supabase saveFtCostModel:', err);
+            return { success: false, error: err };
+        }
     }
 };

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Edit, FileText } from 'lucide-react';
+import { Plus, Trash2, Save, Edit, FileText, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { api } from '../../services/api';
 
 const CadastrosFTs = () => {
-    const [fts, setFts] = useState(() => {
-        const saved = localStorage.getItem('ecommerce_fts');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [fts, setFts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -33,56 +32,115 @@ const CadastrosFTs = () => {
         directCostsPercent: []
     };
 
-    const [form, setForm] = useState({ ...initialFormState, ftCode: getNewFtCode() });
+    const [form, setForm] = useState({ ...initialFormState, ftCode: 'FT000' });
     const [isEditing, setIsEditing] = useState(false);
-    const [costModels, setCostModels] = useState(() => {
-        const saved = localStorage.getItem('ecommerce_cost_models');
-        const oldModel = localStorage.getItem('ecommerce_cost_model');
-        let models = saved ? JSON.parse(saved) : [];
-        if (oldModel && models.length === 0) {
-            models = [{ id: 'default', name: 'Modelo Padrão', ...JSON.parse(oldModel) }];
+    const [isSaving, setIsSaving] = useState(false);
+    const [costModels, setCostModels] = useState([]);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [dbFts, dbModels] = await Promise.all([
+                api.getFts(),
+                api.getFtCostModels()
+            ]);
+
+            let finalFts = dbFts;
+            let finalModels = dbModels;
+
+            // --- MIGRAÇÃO DO LOCALSTORAGE PARA O SUPABASE ---
+            const localFts = localStorage.getItem('ecommerce_fts');
+            if (localFts && dbFts.length === 0) {
+                console.log("Migrando FTs do LocalStorage para Supabase...");
+                const parsedLocalFts = JSON.parse(localFts);
+                const migratedFts = [];
+                for (const ft of parsedLocalFts) {
+                    // Remover IDs antigos/falsos do localstorage
+                    const { id, ...ftWithoutId } = ft;
+                    const res = await api.saveFt({ ...ftWithoutId, id: null });
+                    if (res.success) {
+                        migratedFts.push({ ...ftWithoutId, id: res.newId });
+                    }
+                }
+                localStorage.removeItem('ecommerce_fts');
+                finalFts = migratedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+            }
+
+            const localModels = localStorage.getItem('ecommerce_cost_models');
+            if (localModels && dbModels.length === 0) {
+                console.log("Migrando Modelos de Custos do LocalStorage para Supabase...");
+                const parsedModels = JSON.parse(localModels);
+                const migratedModels = [];
+                for (const m of parsedModels) {
+                    const { id, ...mWithoutId } = m;
+                    const res = await api.saveFtCostModel({ ...mWithoutId, id: null });
+                    if (res.success) migratedModels.push(res.data);
+                }
+                localStorage.removeItem('ecommerce_cost_models');
+                localStorage.removeItem('ecommerce_cost_model');
+                finalModels = migratedModels;
+            }
+
+            setFts(finalFts);
+            setCostModels(finalModels);
+            setForm({ ...initialFormState, ftCode: getNewFtCode(finalFts) });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
         }
-        return models;
-    });
+    };
 
-    useEffect(() => {
-        localStorage.setItem('ecommerce_fts', JSON.stringify(fts));
-    }, [fts]);
-
-    useEffect(() => {
-        localStorage.setItem('ecommerce_cost_models', JSON.stringify(costModels));
-    }, [costModels]);
-
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!form.name || form.salePrice <= 0) {
             alert('Por favor, preencha o nome e o preço de venda válido.');
             return;
         }
 
-        let updatedFts;
-        if (isEditing) {
-            updatedFts = fts.map(ft => ft.id === form.id ? form : ft);
-            setFts(updatedFts);
-            setIsEditing(false);
-        } else {
-            updatedFts = [...fts, { ...form, id: Date.now().toString() }];
-            setFts(updatedFts);
+        setIsSaving(true);
+        try {
+            const res = await api.saveFt(form);
+            if (res.success) {
+                let updatedFts;
+                if (isEditing) {
+                    updatedFts = fts.map(ft => ft.id === form.id ? { ...form, id: ft.id } : ft);
+                } else {
+                    updatedFts = [...fts, { ...form, id: res.newId }];
+                }
+                updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+                setFts(updatedFts);
+                setIsEditing(false);
+                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+            } else {
+                alert("Erro ao salvar FT.");
+            }
+        } finally {
+            setIsSaving(false);
         }
-        setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
     };
 
     const handleEdit = (ft) => {
         setForm(ft);
         setIsEditing(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta FT?')) {
-            const updatedFts = fts.filter(ft => ft.id !== id);
-            setFts(updatedFts);
-            if (isEditing && form.id === id) {
-                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
-                setIsEditing(false);
+            const success = await api.deleteFt(id);
+            if (success) {
+                const updatedFts = fts.filter(ft => ft.id !== id);
+                setFts(updatedFts);
+                if (isEditing && form.id === id) {
+                    setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+                    setIsEditing(false);
+                }
+            } else {
+                alert("Erro ao excluir FT.");
             }
         }
     };
@@ -92,18 +150,27 @@ const CadastrosFTs = () => {
         setIsEditing(false);
     };
 
-    const handleSaveCostModel = () => {
+    const handleSaveCostModel = async () => {
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
         if (!name || name.trim() === '') return;
 
         const newModel = {
-            id: Date.now().toString(),
+            id: null,
             name: name.trim(),
             directCostsRS: form.directCostsRS,
             directCostsPercent: form.directCostsPercent
         };
-        setCostModels([...costModels, newModel]);
-        alert(`Modelo "${name.trim()}" salvo com sucesso!`);
+
+        setIsSaving(true);
+        const res = await api.saveFtCostModel(newModel);
+        setIsSaving(false);
+
+        if (res.success) {
+            setCostModels([...costModels, res.data]);
+            alert(`Modelo "${name.trim()}" salvo com sucesso!`);
+        } else {
+            alert("Erro ao salvar modelo na nuvem.");
+        }
     };
 
     const handleLoadCostModel = (e) => {
@@ -148,6 +215,14 @@ const CadastrosFTs = () => {
 
     const marginRS = (parseFloat(form.salePrice) || 0) - totalMaterials - totalDirectRS - totalDirectPercentValue;
     const marginPercent = parseFloat(form.salePrice) > 0 ? (marginRS / parseFloat(form.salePrice)) * 100 : 0;
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -411,9 +486,10 @@ const CadastrosFTs = () => {
                     )}
                     <button
                         onClick={handleSave}
-                        className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                     >
-                        <Save size={16} />
+                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                         {isEditing ? 'Atualizar FT' : 'Salvar nova FT'}
                     </button>
                 </div>
