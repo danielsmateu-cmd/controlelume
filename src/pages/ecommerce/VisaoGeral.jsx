@@ -202,9 +202,9 @@ const VisaoGeral = () => {
                         <div className="text-3xl font-bold text-red-300">{formatCurrency(yearSummary.custoInevitavel)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Resultado Líquido (Equilíbrio)</div>
-                        <div className={clsx("text-3xl font-bold", yearSummary.pontoEquilibrio >= 0 ? "text-emerald-400" : "text-red-400")}>
-                            {formatCurrency(yearSummary.pontoEquilibrio)}
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Lucro Líquido (Equilíbrio)</div>
+                        <div className={clsx("text-3xl font-bold", yearSummary.lucroLiquido >= 0 ? "text-emerald-400" : "text-red-400")}>
+                            {formatCurrency(yearSummary.lucroLiquido)}
                         </div>
                     </div>
                     <div>
@@ -288,14 +288,14 @@ const VisaoGeral = () => {
                                                 <span className="text-red-500">{formatCurrency(sum.custoInevitavel)}</span>
                                             </div>
                                             <div className="flex justify-between text-lg font-bold pt-2">
-                                                <span className="text-gray-800">(=) Ponto de Equilíbrio</span>
-                                                <span className={sum.pontoEquilibrio >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                                    {formatCurrency(sum.pontoEquilibrio)}
+                                                <span className="text-gray-800">(=) Lucro Líquido</span>
+                                                <span className={sum.lucroLiquido >= 0 ? "text-emerald-600" : "text-red-600"}>
+                                                    {formatCurrency(sum.lucroLiquido)}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                    {sum.pontoEquilibrio < 0 && (
+                                    {sum.lucroLiquido < 0 && (
                                         <div className="text-xs text-red-600 bg-red-100 p-2 rounded text-center font-semibold">
                                             ⚠️ O resultado do mês está negativo.
                                         </div>
