@@ -267,6 +267,20 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         }
     };
 
+    const getDaysUntilDue = (dueDate, paid) => {
+        if (!dueDate || paid) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(dueDate + 'T00:00:00');
+        due.setHours(0, 0, 0, 0);
+        const diffTime = due.getTime() - today.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 0) return <span className="text-[10px] text-amber-600 font-medium ml-2 bg-amber-50 px-1.5 py-0.5 rounded whitespace-nowrap">vence em {diffDays} dias</span>;
+        if (diffDays === 0) return <span className="text-[10px] text-orange-600 font-medium ml-2 bg-orange-50 px-1.5 py-0.5 rounded whitespace-nowrap">vence hoje</span>;
+        return <span className="text-[10px] text-red-600 font-medium ml-2 bg-red-50 px-1.5 py-0.5 rounded whitespace-nowrap">vencido há {Math.abs(diffDays)} dias</span>;
+    };
+
     const filteredExpenses = expenses.filter(e => {
         if (activeTab === 'fixos') {
             return e.type === 'fixos' ? (e.month === selectedMonth && e.year === selectedYear) : (e.type === 'fixos_extra' && e.month === selectedMonth && e.year === selectedYear);
@@ -281,6 +295,25 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             return e.type === activeTab && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear;
         }
         return e.type === activeTab;
+    }).sort((a, b) => {
+        if (activeTab === 'fornecedores') {
+            const dA = a.dueDate || a.date;
+            const dB = b.dueDate || b.date;
+            let dateDiff = 0;
+            if (dA && dB) {
+                dateDiff = new Date(dA + 'T00:00:00') - new Date(dB + 'T00:00:00');
+            } else if (dA) {
+                dateDiff = -1;
+            } else if (dB) {
+                dateDiff = 1;
+            }
+            if (dateDiff !== 0) return dateDiff;
+
+            const nameA = (a.category || a.description || '').toLowerCase();
+            const nameB = (b.category || b.description || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        }
+        return 0;
     });
 
     const ExpenseList = () => (
@@ -305,12 +338,15 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             </td>
                             <td className="px-6 py-2 text-sm text-gray-500">
                                 {activeTab === 'fornecedores' ? (
-                                    <input
-                                        type="date"
-                                        value={expense.dueDate || ''}
-                                        onChange={(e) => updateExpenseField(expense.id, 'dueDate', e.target.value)}
-                                        className={`p-1 border rounded focus:ring-1 focus:ring-indigo-500 text-xs font-medium ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'}`}
-                                    />
+                                    <div className="flex items-center">
+                                        <input
+                                            type="date"
+                                            value={expense.dueDate || ''}
+                                            onChange={(e) => updateExpenseField(expense.id, 'dueDate', e.target.value)}
+                                            className={`p-1 border rounded focus:ring-1 focus:ring-indigo-500 text-xs font-medium shrink-0 ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'}`}
+                                        />
+                                        {getDaysUntilDue(expense.dueDate, expense.paid)}
+                                    </div>
                                 ) : (
                                     expense.date ? new Date(expense.date).toLocaleDateString('pt-BR') : '-'
                                 )}
@@ -498,6 +534,18 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                         {expenses
                                             .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear)
                                             .sort((a, b) => {
+                                                const dA = a.dueDate || a.date;
+                                                const dB = b.dueDate || b.date;
+                                                let dateDiff = 0;
+                                                if (dA && dB) {
+                                                    dateDiff = new Date(dA + 'T00:00:00') - new Date(dB + 'T00:00:00');
+                                                } else if (dA) {
+                                                    dateDiff = -1;
+                                                } else if (dB) {
+                                                    dateDiff = 1;
+                                                }
+                                                if (dateDiff !== 0) return dateDiff;
+
                                                 const nameA = (a.category || a.description || '').toLowerCase();
                                                 const nameB = (b.category || b.description || '').toLowerCase();
                                                 return nameA.localeCompare(nameB);
@@ -519,14 +567,17 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-2">
-                                                        <input
-                                                            type="date"
-                                                            value={expense.dueDate || ''}
-                                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'dueDate', e.target.value)}
-                                                            readOnly={readOnly}
-                                                            disabled={readOnly}
-                                                            className={`p-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-medium ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'} ${readOnly ? 'cursor-default' : ''}`}
-                                                        />
+                                                        <div className="flex items-center">
+                                                            <input
+                                                                type="date"
+                                                                value={expense.dueDate || ''}
+                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, 'dueDate', e.target.value)}
+                                                                readOnly={readOnly}
+                                                                disabled={readOnly}
+                                                                className={`p-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-medium shrink-0 ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'} ${readOnly ? 'cursor-default' : ''}`}
+                                                            />
+                                                            {getDaysUntilDue(expense.dueDate, expense.paid)}
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <input
