@@ -79,19 +79,27 @@ const Vendas = () => {
         loadData();
     }, []);
 
-    // Salvar o mês atual
-    const handleSaveMonth = async () => {
-        const updatedSales = {
-            ...monthlySales,
-            [currentMonth]: rows
-        };
-        setMonthlySales(updatedSales);
-        await api.saveMonthlySales(currentMonth, rows);
-        alert('Vendas do mês salvas com sucesso!');
+    // Função auxiliar para formatar o mês na tela (Ex: MARÇO / 2026)
+    const formatMonthDisplay = (monthStr) => {
+        if (!monthStr) return '';
+        const [year, month] = monthStr.split('-');
+        const date = new Date(year, parseInt(month) - 1);
+        return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
     };
 
     const updateRow = (id, field, value) => {
-        setRows(rows.map(r => r.id === id ? { ...r, [field]: value } : r));
+        setRows(prevRows => {
+            const nextRows = prevRows.map(r => r.id === id ? { ...r, [field]: value } : r);
+
+            // Auto-save no estado e na API
+            setMonthlySales(prevSales => {
+                const updatedSales = { ...prevSales, [currentMonth]: nextRows };
+                return updatedSales;
+            });
+            api.saveMonthlySales(currentMonth, nextRows).catch(err => console.error("Auto-save error:", err));
+
+            return nextRows;
+        });
     };
 
     // Funcões auxiliares de cálculo
@@ -158,13 +166,21 @@ const Vendas = () => {
                         </h2>
                         <p className="text-sm text-gray-500 mt-1">Registre e acompanhe as vendas mensais</p>
                     </div>
+
+                    {/* Mês Ativo - Badge Destacado */}
+                    <div className="flex-1 flex justify-center w-full sm:w-auto mt-4 sm:mt-0">
+                        <div className="bg-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-sm shadow-indigo-200 text-center tracking-wide">
+                            {formatMonthDisplay(currentMonth)}
+                        </div>
+                    </div>
+
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <label className="text-sm font-semibold text-gray-600">Mês de Referência:</label>
+                        <label className="text-sm font-semibold text-gray-600">Referência:</label>
                         <input
                             type="month"
                             value={currentMonth}
                             onChange={(e) => setCurrentMonth(e.target.value)}
-                            className="text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2"
+                            className="text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2 cursor-pointer"
                         />
                     </div>
                 </div>
@@ -297,14 +313,6 @@ const Vendas = () => {
                                     </span>
                                 </div>
                             </div>
-
-                            <button
-                                onClick={handleSaveMonth}
-                                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm w-full md:w-auto justify-center"
-                            >
-                                <Save size={18} />
-                                Salvar Mês
-                            </button>
                         </div>
                     </>
                 )}
