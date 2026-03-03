@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, Save, ShoppingCart, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { api } from '../../services/api';
 
 const Vendas = () => {
     // Carregar opções de FTs
-    const [fts, setFts] = useState(() => {
-        const saved = localStorage.getItem('ecommerce_fts');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [fts, setFts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Estado para vendas salvas por mês
     const [monthlySales, setMonthlySales] = useState(() => {
@@ -34,8 +33,11 @@ const Vendas = () => {
     // Linhas da tabela do mês atual
     const [rows, setRows] = useState([]);
 
-    // Sempre que o mês muda, carrga as linhas salvas ou inicia vazio
+    // Sempre que o mês muda ou as FTs carregam, carrga as linhas salvas ou inicia vazio
     useEffect(() => {
+        // Se as FTs ainda não carregaram, não tenta renderizar/mergear as rows para não apagar vendas antigas.
+        if (isLoading) return;
+
         if (monthlySales[currentMonth]) {
             // Merge saved rows with potentially new FTs
             const savedRows = monthlySales[currentMonth];
@@ -47,7 +49,23 @@ const Vendas = () => {
         } else {
             setRows(buildInitialRows());
         }
-    }, [currentMonth, monthlySales, fts]);
+    }, [currentMonth, monthlySales, fts, isLoading]);
+
+    useEffect(() => {
+        const loadFts = async () => {
+            setIsLoading(true);
+            try {
+                const fetchedFts = await api.getFts();
+                setFts(fetchedFts);
+            } catch (err) {
+                console.error("Erro ao carregar FTs na tela de vendas:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadFts();
+    }, []);
 
     // Salvar o mês atual
     const handleSaveMonth = () => {
@@ -139,136 +157,145 @@ const Vendas = () => {
                     </div>
                 </div>
 
-                {/* Tabela de Vendas */}
-                <div className="overflow-x-auto border border-gray-100 rounded-lg mb-4">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-gray-500 bg-gray-50 uppercase">
-                            <tr>
-                                <th className="px-4 py-3 font-medium rounded-tl-lg w-24">Qtd</th>
-                                <th className="px-4 py-3 font-medium min-w-[250px]">Ficha Técnica (FT)</th>
-                                <th className="px-4 py-3 font-medium text-right">Preço de Venda</th>
-                                <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
-                                <th className="px-4 py-3 font-medium text-right">Custo Total</th>
-                                <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
-                                <th className="px-4 py-3 font-medium text-right">TP Total (min)</th>
-                                <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Valor Total Vendas</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {/* Linha de Totais Gerais */}
-                            {rows.length > 0 && (
-                                <tr className="bg-indigo-600 text-white font-bold sticky top-0 z-10 shadow-sm shadow-indigo-200">
-                                    <td className="px-4 py-3 text-center text-lg">{totalQtd > 0 ? totalQtd : '-'}</td>
-                                    <td className="px-4 py-3">TOTAIS DO MÊS</td>
-                                    <td className="px-4 py-3 text-right">-</td>
-                                    <td className="px-4 py-3 text-right">-</td>
-                                    <td className="px-4 py-3 text-right">R$ {totalMonthCosts.toFixed(2)}</td>
-                                    <td className="px-4 py-3 text-right">
-                                        <span className={clsx("px-2 py-0.5 rounded text-sm", monthMarginPercent >= 0 ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
-                                            Media: {monthMarginPercent.toFixed(1)}%
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {overallTotalTP > 0 ? (
-                                            <div className="flex flex-col items-end leading-tight">
-                                                <span>{overallTotalTP}</span>
-                                                <span
-                                                    className="text-[10px] text-indigo-200 font-medium tracking-wide mt-1"
-                                                    title={`Base: ${workDays} dias úteis (${totalWorkMinutesMonth} min)`}
-                                                >
-                                                    {tpPercentage.toFixed(1)}% DO MÊS
-                                                </span>
-                                            </div>
-                                        ) : '-'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-lg">R$ {totalMonthSales.toFixed(2)}</td>
-                                </tr>
-                            )}
-                            {rows.map(row => {
-                                const ft = getFtDetails(row.ftId);
-                                const qty = parseInt(row.quantity) || 0;
-
-                                const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
-                                const unitCost = calculateCost(ft);
-                                const totalCost = unitCost * qty;
-                                const unitMarginRS = unitPrice - unitCost;
-                                const unitMarginPercent = unitPrice > 0 ? (unitMarginRS / unitPrice) * 100 : 0;
-                                const totalTP = ft && ft.productionTime ? (parseFloat(ft.productionTime) * qty) : 0;
-                                const totalValue = unitPrice * qty;
-
-                                return (
-                                    <tr key={row.id} className={clsx("transition-colors", qty > 0 ? "bg-indigo-50/30 hover:bg-indigo-50/50" : "hover:bg-gray-50/50")}>
-                                        <td className="px-4 py-3">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={row.quantity}
-                                                onChange={(e) => updateRow(row.id, 'quantity', e.target.value)}
-                                                className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 font-bold text-center"
-                                            />
-                                        </td>
-                                        <td className="px-4 py-3 font-medium text-gray-800">
-                                            {ft ? `${ft.ftCode} - ${ft.name} ${ft.variation ? `(${ft.variation})` : ''}` : 'FT Excluída'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-gray-700 font-medium">
-                                            R$ {unitPrice.toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-gray-500">
-                                            R$ {unitCost.toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-gray-600 font-medium">
-                                            R$ {totalCost.toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <span className={clsx("font-semibold", unitMarginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                {unitMarginPercent.toFixed(1)}%
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-gray-600 font-medium">
-                                            {totalTP > 0 ? `${totalTP}` : '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold text-gray-900">
-                                            R$ {totalValue.toFixed(2)}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-
-                            {rows.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500 italic">
-                                        Nenhuma Ficha Técnica cadastrada. Cadastre produtos no módulo de "Cadastros de FTs".
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Controles Inferiores */}
-                <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
-                        <div className="flex flex-col">
-                            <span className="text-xs text-gray-500 font-medium uppercase">Total Mês (Bruto)</span>
-                            <span className="text-lg font-bold text-gray-900">R$ {totalMonthSales.toFixed(2)}</span>
-                        </div>
-                        <div className="hidden sm:block w-px h-8 bg-gray-300"></div>
-                        <div className="flex flex-col">
-                            <span className="text-xs text-gray-500 font-medium uppercase">Lucro Mês</span>
-                            <span className={clsx("text-lg font-bold", monthMargin >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                R$ {monthMargin.toFixed(2)} <span className="text-sm">({monthMarginPercent.toFixed(1)}%)</span>
-                            </span>
-                        </div>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                        <span className="ml-2 text-indigo-600 font-medium">Carregando Fichas Técnicas...</span>
                     </div>
+                ) : (
+                    <>
+                        {/* Tabela de Vendas */}
+                        <div className="overflow-x-auto border border-gray-100 rounded-lg mb-4">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-500 bg-gray-50 uppercase">
+                                    <tr>
+                                        <th className="px-4 py-3 font-medium rounded-tl-lg w-24">Qtd</th>
+                                        <th className="px-4 py-3 font-medium min-w-[250px]">Ficha Técnica (FT)</th>
+                                        <th className="px-4 py-3 font-medium text-right">Preço de Venda</th>
+                                        <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
+                                        <th className="px-4 py-3 font-medium text-right">Custo Total</th>
+                                        <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
+                                        <th className="px-4 py-3 font-medium text-right">TP Total (min)</th>
+                                        <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Valor Total Vendas</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {/* Linha de Totais Gerais */}
+                                    {rows.length > 0 && (
+                                        <tr className="bg-indigo-600 text-white font-bold sticky top-0 z-10 shadow-sm shadow-indigo-200">
+                                            <td className="px-4 py-3 text-center text-lg">{totalQtd > 0 ? totalQtd : '-'}</td>
+                                            <td className="px-4 py-3">TOTAIS DO MÊS</td>
+                                            <td className="px-4 py-3 text-right">-</td>
+                                            <td className="px-4 py-3 text-right">-</td>
+                                            <td className="px-4 py-3 text-right">R$ {totalMonthCosts.toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={clsx("px-2 py-0.5 rounded text-sm", monthMarginPercent >= 0 ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
+                                                    Media: {monthMarginPercent.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                {overallTotalTP > 0 ? (
+                                                    <div className="flex flex-col items-end leading-tight">
+                                                        <span>{overallTotalTP}</span>
+                                                        <span
+                                                            className="text-[10px] text-indigo-200 font-medium tracking-wide mt-1"
+                                                            title={`Base: ${workDays} dias úteis (${totalWorkMinutesMonth} min)`}
+                                                        >
+                                                            {tpPercentage.toFixed(1)}% DO MÊS
+                                                        </span>
+                                                    </div>
+                                                ) : '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-lg">R$ {totalMonthSales.toFixed(2)}</td>
+                                        </tr>
+                                    )}
+                                    {rows.map(row => {
+                                        const ft = getFtDetails(row.ftId);
+                                        const qty = parseInt(row.quantity) || 0;
 
-                    <button
-                        onClick={handleSaveMonth}
-                        className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm w-full md:w-auto justify-center"
-                    >
-                        <Save size={18} />
-                        Salvar Mês
-                    </button>
-                </div>
+                                        const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
+                                        const unitCost = calculateCost(ft);
+                                        const totalCost = unitCost * qty;
+                                        const unitMarginRS = unitPrice - unitCost;
+                                        const unitMarginPercent = unitPrice > 0 ? (unitMarginRS / unitPrice) * 100 : 0;
+                                        const totalTP = ft && ft.productionTime ? (parseFloat(ft.productionTime) * qty) : 0;
+                                        const totalValue = unitPrice * qty;
+
+                                        return (
+                                            <tr key={row.id} className={clsx("transition-colors", qty > 0 ? "bg-indigo-50/30 hover:bg-indigo-50/50" : "hover:bg-gray-50/50")}>
+                                                <td className="px-4 py-3">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={row.quantity}
+                                                        onChange={(e) => updateRow(row.id, 'quantity', e.target.value)}
+                                                        className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 font-bold text-center"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-gray-800">
+                                                    {ft ? `${ft.ftCode} - ${ft.name} ${ft.variation ? `(${ft.variation})` : ''}` : 'FT Excluída'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-700 font-medium">
+                                                    R$ {unitPrice.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-500">
+                                                    R$ {unitCost.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-600 font-medium">
+                                                    R$ {totalCost.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <span className={clsx("font-semibold", unitMarginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                                        {unitMarginPercent.toFixed(1)}%
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-600 font-medium">
+                                                    {totalTP > 0 ? `${totalTP}` : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                                    R$ {totalValue.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+
+                                    {rows.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" className="px-6 py-8 text-center text-gray-500 italic">
+                                                Nenhuma Ficha Técnica cadastrada. Cadastre produtos no módulo de "Cadastros de FTs".
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Controles Inferiores */}
+                        <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-500 font-medium uppercase">Total Mês (Bruto)</span>
+                                    <span className="text-lg font-bold text-gray-900">R$ {totalMonthSales.toFixed(2)}</span>
+                                </div>
+                                <div className="hidden sm:block w-px h-8 bg-gray-300"></div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-500 font-medium uppercase">Lucro Mês</span>
+                                    <span className={clsx("text-lg font-bold", monthMargin >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                        R$ {monthMargin.toFixed(2)} <span className="text-sm">({monthMarginPercent.toFixed(1)}%)</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleSaveMonth}
+                                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm w-full md:w-auto justify-center"
+                            >
+                                <Save size={18} />
+                                Salvar Mês
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
