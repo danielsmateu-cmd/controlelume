@@ -20,15 +20,23 @@ const VisaoGeral = () => {
         const loadDados = async () => {
             setIsLoading(true);
             try {
-                const savedVendas = localStorage.getItem('ecommerce_vendas');
-                const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
-
-                if (savedVendas) setVendasData(JSON.parse(savedVendas));
-                if (savedCustos) setCustosData(JSON.parse(savedCustos));
-
                 // Buscar FTs da API (Supabase)
                 const fts = await api.getFts();
                 setFtsData(fts);
+
+                let dbSales = await api.getMonthlySales();
+                const savedVendas = localStorage.getItem('ecommerce_vendas');
+                if (savedVendas && Object.keys(dbSales).length === 0) {
+                    dbSales = JSON.parse(savedVendas);
+                }
+                setVendasData(dbSales);
+
+                let dbCosts = await api.getMonthlyCosts();
+                const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
+                if (savedCustos && Object.keys(dbCosts).length === 0) {
+                    dbCosts = JSON.parse(savedCustos);
+                }
+                setCustosData(dbCosts);
             } catch (error) {
                 console.error("Erro ao carregar dados na Visão Geral:", error);
             } finally {

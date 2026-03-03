@@ -9,10 +9,7 @@ const Vendas = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     // Estado para vendas salvas por mês
-    const [monthlySales, setMonthlySales] = useState(() => {
-        const saved = localStorage.getItem('ecommerce_vendas');
-        return saved ? JSON.parse(saved) : {};
-    });
+    const [monthlySales, setMonthlySales] = useState({});
 
     // Mês/Ano selecionado atualmente (ex: "2026-03")
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -52,29 +49,44 @@ const Vendas = () => {
     }, [currentMonth, monthlySales, fts, isLoading]);
 
     useEffect(() => {
-        const loadFts = async () => {
+        const loadData = async () => {
             setIsLoading(true);
             try {
                 const fetchedFts = await api.getFts();
                 setFts(fetchedFts);
+
+                let dbSales = await api.getMonthlySales();
+
+                const localSalesStr = localStorage.getItem('ecommerce_vendas');
+                if (localSalesStr && Object.keys(dbSales).length === 0) {
+                    console.log("Migrando Vendas do LocalStorage para Supabase...");
+                    const parsedSales = JSON.parse(localSalesStr);
+                    for (const [m, sData] of Object.entries(parsedSales)) {
+                        await api.saveMonthlySales(m, sData);
+                    }
+                    dbSales = parsedSales;
+                    localStorage.removeItem('ecommerce_vendas');
+                }
+
+                setMonthlySales(dbSales);
             } catch (err) {
-                console.error("Erro ao carregar FTs na tela de vendas:", err);
+                console.error("Erro ao carregar dados na tela de vendas:", err);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadFts();
+        loadData();
     }, []);
 
     // Salvar o mês atual
-    const handleSaveMonth = () => {
+    const handleSaveMonth = async () => {
         const updatedSales = {
             ...monthlySales,
             [currentMonth]: rows
         };
         setMonthlySales(updatedSales);
-        localStorage.setItem('ecommerce_vendas', JSON.stringify(updatedSales));
+        await api.saveMonthlySales(currentMonth, rows);
         alert('Vendas do mês salvas com sucesso!');
     };
 

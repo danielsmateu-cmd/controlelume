@@ -733,5 +733,71 @@ export const api = {
             console.error('Supabase saveFtCostModel:', err);
             return { success: false, error: err };
         }
+    },
+
+    // ==================== CUSTOS FINANCEIROS MENSAL (Empresas) ====================
+    async getMonthlyCosts() {
+        try {
+            const { data, error } = await supabase.from('ecommerce_monthly_costs').select('*');
+            if (error) throw error;
+
+            const result = {};
+            data.forEach(row => {
+                result[row.month_id] = row.data;
+            });
+            return result;
+        } catch (err) {
+            console.error('Supabase getMonthlyCosts:', err);
+            return {};
+        }
+    },
+
+    async saveMonthlyCosts(monthId, costsData) {
+        try {
+            const { error } = await supabase.from('ecommerce_monthly_costs')
+                .upsert({
+                    month_id: monthId,
+                    data: costsData,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'month_id' });
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase saveMonthlyCosts:', err);
+            return false;
+        }
+    },
+
+    // ==================== VENDAS MENSAL (E-commerce) ====================
+    async getMonthlySales() {
+        try {
+            const { data, error } = await supabase.from('ecommerce_monthly_sales').select('*');
+            if (error) throw error;
+
+            const result = {};
+            data.forEach(row => {
+                result[row.month_id] = row.data;
+            });
+            return result;
+        } catch (err) {
+            console.error('Supabase getMonthlySales:', err);
+            return {};
+        }
+    },
+
+    async saveMonthlySales(monthId, salesData) {
+        try {
+            const { error } = await supabase.from('ecommerce_monthly_sales')
+                .upsert({
+                    month_id: monthId,
+                    data: salesData,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'month_id' });
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase saveMonthlySales:', err);
+            return false;
+        }
     }
 };
