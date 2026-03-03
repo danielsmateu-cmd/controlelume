@@ -90,7 +90,25 @@ const EmpresasCustos = () => {
             setAllCosts(curr => ({ ...curr, [currentMonth]: next }));
 
             return next;
+            return next;
         });
+    };
+
+    // Função auxiliar para formatar o mês na tela
+    const formatMonthDisplay = (monthStr) => {
+        if (!monthStr) return '';
+        const [yearStr, monthStrPart] = monthStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStrPart);
+
+        const date = new Date(year, month - 1);
+        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+
+        const prevDate = new Date(year, month - 2);
+        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
+
+        return `FECHAMENTO ${monthName} DE ${year} - CONTAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
     };
 
     // Calculate totals
@@ -115,21 +133,29 @@ const EmpresasCustos = () => {
     return (
         <div className="space-y-4">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                             <Building2 className="w-6 h-6 text-indigo-600" />
                             Empresas e Custos Inevitáveis
                         </h2>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    {/* Mês Ativo - Badge Destacado */}
+                    <div className="flex-1 flex justify-center w-full md:w-auto mt-2 md:mt-0">
+                        <div className="bg-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-sm shadow-indigo-200 text-center tracking-wide text-sm sm:text-base whitespace-nowrap">
+                            {formatMonthDisplay(currentMonth)}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 w-full md:w-auto justify-end">
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-semibold text-gray-600">Mês:</label>
+                            <label className="text-sm font-semibold text-gray-600">Referência:</label>
                             <input
                                 type="month"
                                 value={currentMonth}
                                 onChange={(e) => setCurrentMonth(e.target.value)}
-                                className="text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1"
+                                className="text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1 cursor-pointer"
                             />
                         </div>
                     </div>
