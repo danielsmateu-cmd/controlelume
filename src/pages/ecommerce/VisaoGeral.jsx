@@ -149,8 +149,19 @@ const VisaoGeral = () => {
     const formatCurrency = (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatPercent = (val) => `${val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
     const formatMonthName = (monthStr) => {
-        const date = new Date(monthStr + '-01T00:00:00');
-        return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+        if (!monthStr) return '';
+        const [yearStr, monthStrPart] = monthStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStrPart);
+
+        const date = new Date(year, month - 1);
+        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+
+        const prevDate = new Date(year, month - 2);
+        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
+
+        return `${monthName} DE ${year} - VENDAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
     };
 
     return (
