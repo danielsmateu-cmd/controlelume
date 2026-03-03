@@ -117,13 +117,17 @@ const VisaoGeral = () => {
         const lucroBruto = faturamento - custoTotalProdutos;
         const margemMedia = faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0;
         const custoInevitavel = getCustoInevitalel(month);
-        const pontoEquilibrio = lucroBruto - custoInevitavel;
+
+        // Novos cálculos segundo definição do usuário:
+        const pontoEquilibrio = custoTotalProdutos + custoInevitavel;
+        const lucroLiquido = faturamento - pontoEquilibrio;
 
         return {
             faturamento,
             custoTotalProdutos,
             custoInevitavel,
-            lucroLiquido: pontoEquilibrio, // lucro = faturamento - custo produto - custo inevitavel
+            pontoEquilibrio,
+            lucroLiquido,
             margemMedia,
             qtdItensVendidos,
             lucroBruto
@@ -135,13 +139,23 @@ const VisaoGeral = () => {
         const summ = getMonthSummary(month);
         acc.faturamento += summ.faturamento;
         acc.custoInevitavel += summ.custoInevitavel;
+        acc.custoTotalProdutos += summ.custoTotalProdutos;
+        acc.pontoEquilibrio += summ.pontoEquilibrio;
         acc.lucroLiquido += summ.lucroLiquido;
         if (summ.faturamento > 0) {
             acc.margemSum += summ.margemMedia;
             acc.mesesComVenda++;
         }
         return acc;
-    }, { faturamento: 0, custoInevitavel: 0, lucroLiquido: 0, margemSum: 0, mesesComVenda: 0 });
+    }, {
+        faturamento: 0,
+        custoInevitavel: 0,
+        custoTotalProdutos: 0,
+        pontoEquilibrio: 0,
+        lucroLiquido: 0,
+        margemSum: 0,
+        mesesComVenda: 0
+    });
 
     const margemMediaAno = yearSummary.mesesComVenda > 0 ? yearSummary.margemSum / yearSummary.mesesComVenda : 0;
 
@@ -198,11 +212,11 @@ const VisaoGeral = () => {
                         <div className="text-3xl font-bold">{formatCurrency(yearSummary.faturamento)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Custos Inevitáveis</div>
-                        <div className="text-3xl font-bold text-red-300">{formatCurrency(yearSummary.custoInevitavel)}</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Ponto de Equilíbrio (Custos)</div>
+                        <div className="text-3xl font-bold text-orange-300">{formatCurrency(yearSummary.pontoEquilibrio)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Lucro Líquido (Equilíbrio)</div>
+                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Lucro Líquido</div>
                         <div className={clsx("text-3xl font-bold", yearSummary.lucroLiquido >= 0 ? "text-emerald-400" : "text-red-400")}>
                             {formatCurrency(yearSummary.lucroLiquido)}
                         </div>
@@ -254,9 +268,11 @@ const VisaoGeral = () => {
                                     <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
                                         <div className="flex items-center gap-2 text-emerald-600 mb-2">
                                             <Wallet size={16} />
-                                            <span className="text-xs font-bold uppercase">Lucro</span>
+                                            <span className="text-xs font-bold uppercase">Lucro Líquido</span>
                                         </div>
-                                        <div className="text-xl font-bold text-emerald-700">{formatCurrency(sum.lucroBruto)}</div>
+                                        <div className={clsx("text-xl font-bold", sum.lucroLiquido >= 0 ? "text-emerald-700" : "text-red-600")}>
+                                            {formatCurrency(sum.lucroLiquido)}
+                                        </div>
                                     </div>
 
                                     <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
@@ -281,13 +297,19 @@ const VisaoGeral = () => {
                                             </div>
                                             <div className="flex justify-between text-gray-600">
                                                 <span>(-) Custo Total dos Produtos</span>
-                                                <span className="text-red-500">{formatCurrency(sum.custoTotalProdutos)}</span>
+                                                <span className="text-orange-500">{formatCurrency(sum.custoTotalProdutos)}</span>
                                             </div>
                                             <div className="flex justify-between text-gray-600 border-b border-blue-200 pb-2">
                                                 <span>(-) Custo Inevitável</span>
-                                                <span className="text-red-500">{formatCurrency(sum.custoInevitavel)}</span>
+                                                <span className="text-orange-500">{formatCurrency(sum.custoInevitavel)}</span>
                                             </div>
-                                            <div className="flex justify-between text-lg font-bold pt-2">
+                                            <div className="flex justify-between text-md font-bold pt-2 text-gray-500">
+                                                <span>(=) Ponto de Equilíbrio (Soma dos Custos)</span>
+                                                <span className="text-orange-600">
+                                                    {formatCurrency(sum.pontoEquilibrio)}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between text-lg font-bold pt-2 mt-2 border-t border-blue-300">
                                                 <span className="text-gray-800">(=) Lucro Líquido</span>
                                                 <span className={sum.lucroLiquido >= 0 ? "text-emerald-600" : "text-red-600"}>
                                                     {formatCurrency(sum.lucroLiquido)}
@@ -297,7 +319,7 @@ const VisaoGeral = () => {
                                     </div>
                                     {sum.lucroLiquido < 0 && (
                                         <div className="text-xs text-red-600 bg-red-100 p-2 rounded text-center font-semibold">
-                                            ⚠️ O resultado do mês está negativo.
+                                            ⚠️ O lucro está negativo neste mês.
                                         </div>
                                     )}
                                 </div>
