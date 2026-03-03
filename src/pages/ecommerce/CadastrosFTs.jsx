@@ -157,6 +157,7 @@ const CadastrosFTs = () => {
         const newModel = {
             id: null,
             name: name.trim(),
+            materials: form.materials.map(m => ({ id: m.id, name: m.name, value: 0 })),
             directCostsRS: form.directCostsRS,
             directCostsPercent: form.directCostsPercent
         };
@@ -178,9 +179,10 @@ const CadastrosFTs = () => {
         if (!id) return;
         const model = costModels.find(m => m.id === id);
         if (model) {
-            if (window.confirm(`Deseja carregar o modelo "${model.name}"? Isso substituirá os custos R$ e % atuais.`)) {
+            if (window.confirm(`Deseja carregar o modelo "${model.name}"? Isso substituirá os materiais, custos R$ e % atuais.`)) {
                 setForm({
                     ...form,
+                    materials: model.materials && model.materials.length > 0 ? model.materials : form.materials,
                     directCostsRS: model.directCostsRS || [],
                     directCostsPercent: model.directCostsPercent || []
                 });

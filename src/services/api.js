@@ -700,6 +700,7 @@ export const api = {
             return data.map(m => ({
                 id: m.id,
                 name: m.name,
+                materials: m.materials || [],
                 directCostsRS: m.direct_costs_rs || [],
                 directCostsPercent: m.direct_costs_percent || []
             }));
@@ -714,6 +715,7 @@ export const api = {
             let modelId = model.id;
             const modelData = {
                 name: model.name,
+                materials: model.materials || [],
                 direct_costs_rs: model.directCostsRS || [],
                 direct_costs_percent: model.directCostsPercent || []
             };
