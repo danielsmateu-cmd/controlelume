@@ -90,7 +90,6 @@ const EmpresasCustos = () => {
             setAllCosts(curr => ({ ...curr, [currentMonth]: next }));
 
             return next;
-            return next;
         });
     };
 
@@ -105,10 +104,9 @@ const EmpresasCustos = () => {
         const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
 
         const prevDate = new Date(year, month - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
-        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
 
-        return `FECHAMENTO ${monthName} DE ${year} - CONTAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
+        return `FECHAMENTO ${monthName} DE ${year} - CONTAS DE ${prevMonthName}`;
     };
 
     // Calculate totals
