@@ -35,9 +35,34 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             const confirmed = window.confirm(`Reverter pagamento de "${expense.description || expense.category}"?`);
             if (!confirmed) return;
 
-            const updatedExpense = { ...expense, paid: false, paymentDate: null };
+            // Ao reverter, devolve a despesa para o mês da data de vencimento (dueDate ou date)
+            let originalMonth = expense.month;
+            let originalYear = expense.year;
+
+            const originalDateString = expense.dueDate || expense.date;
+            if (originalDateString) {
+                const originalDate = new Date(originalDateString + 'T00:00:00');
+                if (!isNaN(originalDate.getTime())) {
+                    originalMonth = originalDate.getUTCMonth();
+                    originalYear = originalDate.getUTCFullYear();
+                }
+            }
+
+            const updatedExpense = {
+                ...expense,
+                paid: false,
+                paymentDate: null,
+                month: originalMonth,
+                year: originalYear
+            };
+
             setExpenses(expenses.map(e => e.id === expense.id ? updatedExpense : e));
-            api.updateExpense(expense.id, { paid: false, paymentDate: null }).catch(err => console.error(err));
+            api.updateExpense(expense.id, {
+                paid: false,
+                paymentDate: null,
+                month: originalMonth,
+                year: originalYear
+            }).catch(err => console.error(err));
         } else {
             setConfirmingId(expense.id);
             const today = new Date();
@@ -101,19 +126,35 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         const y = str.slice(4, 8);
         const isoDate = `${y}-${m}-${d}`;
 
-        const pDate = new Date(isoDate);
+        const pDate = new Date(isoDate + 'T00:00:00');
         if (isNaN(pDate.getTime()) || isoDate.length !== 10) {
             alert("Data inválida. Verifique o valor inserido.");
             return;
         }
 
-        const updatedExpense = { ...expense, paid: true, paymentDate: isoDate };
+        // Alterar o mês e ano para o da data de pagamento contabilizar corretamente no resumo e local
+        const newMonth = pDate.getUTCMonth();
+        const newYear = pDate.getUTCFullYear();
+
+        const updatedExpense = {
+            ...expense,
+            paid: true,
+            paymentDate: isoDate,
+            month: newMonth,
+            year: newYear
+        };
+
         setExpenses(expenses.map(e => e.id === expenseId ? updatedExpense : e));
         setConfirmingId(null);
         setPaymentDateStr('');
 
         try {
-            await api.updateExpense(expenseId, { paid: true, paymentDate: isoDate });
+            await api.updateExpense(expenseId, {
+                paid: true,
+                paymentDate: isoDate,
+                month: newMonth,
+                year: newYear
+            });
         } catch (err) {
             console.error('Erro ao salvar no Supabase:', err);
         }
@@ -352,7 +393,14 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 )}
                             </td>
                             <td className="px-6 py-2 text-sm font-medium text-red-600 text-right">
-                                - {expense.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                <div className="flex items-center justify-end gap-2">
+                                    {activeTab === 'fornecedores' && expense.paid && expense.paymentDate && (
+                                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" title="Data do Pagamento Efetivado">
+                                            Pago: {new Date(expense.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                        </span>
+                                    )}
+                                    <span>- {expense.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
                             </td>
                             <td className="px-6 py-2 text-center">
                                 {activeTab === 'fornecedores' && (
