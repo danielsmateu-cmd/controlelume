@@ -79,12 +79,21 @@ const Vendas = () => {
         loadData();
     }, []);
 
-    // Função auxiliar para formatar o mês na tela (Ex: MARÇO / 2026)
+    // Função auxiliar para formatar o mês na tela
     const formatMonthDisplay = (monthStr) => {
         if (!monthStr) return '';
-        const [year, month] = monthStr.split('-');
-        const date = new Date(year, parseInt(month) - 1);
-        return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+        const [yearStr, monthStrPart] = monthStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStrPart);
+
+        const date = new Date(year, month - 1);
+        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+
+        const prevDate = new Date(year, month - 2);
+        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
+
+        return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
     };
 
     const updateRow = (id, field, value) => {
