@@ -162,9 +162,9 @@ const Parcerias = () => {
     const getLucroLiquido = (month) => {
         const v = getVendasSummary(month);
         const c = getMonthCustoInev(month);
-        const custoTotal = v.totalMateriais + v.totalCustosDiretos + c.custosExtrasRS;
+        const custoTotal = v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + c.custosExtrasRS;
         const custoInevitavel = c.lumeRS + c.bureauRS;
-        return v.totalVendas - custoTotal - custoInevitavel;
+        return v.totalFaturamento - custoTotal - custoInevitavel;
     };
 
     const fmt = (val) => `R$ ${(val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -211,13 +211,13 @@ const Parcerias = () => {
                         const c = getMonthCustoInev(month);
                         const lucroLiquido = getLucroLiquido(month);
                         const isCurrent = month === currentMonthStr;
-                        const hasData = v.totalVendas > 0 || c.lumeRS > 0 || c.bureauRS > 0;
+                        const hasData = v.totalFaturamento > 0 || c.lumeRS > 0 || c.bureauRS > 0;
 
                         const pLume = percentConfig[month]?.percentLume || 0;
                         const pBureau = percentConfig[month]?.percentBureau || 0;
 
                         // Cálculos E-Commerce
-                        const lumeEcomm = c.lumeRS + c.custosExtrasRS + v.totalMateriais + v.totalCustosDiretos + (pLume / 100) * lucroLiquido;
+                        const lumeEcomm = c.lumeRS + c.custosExtrasRS + v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + (pLume / 100) * lucroLiquido;
                         const bureauEcomm = c.bureauRS + (pBureau / 100) * lucroLiquido;
 
                         return (
@@ -253,35 +253,45 @@ const Parcerias = () => {
                                     <div className="space-y-1.5">
                                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Dados do Mês</p>
 
-                                        {/* Total Vendas */}
+                                        {/* Total Vendas / Faturamento */}
                                         <div className="flex justify-between items-center px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
                                             <div className="flex items-center gap-1.5">
                                                 <ShoppingCart className="w-3.5 h-3.5 text-emerald-500" />
-                                                <span className="text-xs text-gray-600 font-medium">Total Vendas</span>
+                                                <span className="text-xs text-gray-600 font-medium">Faturamento</span>
                                             </div>
-                                            <span className="text-sm font-bold text-emerald-700">{fmt(v.totalVendas)}</span>
+                                            <span className="text-sm font-bold text-emerald-700">{fmt(v.totalFaturamento)}</span>
                                         </div>
 
                                         {/* Total Materiais */}
                                         <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
                                             <div className="flex items-center gap-1.5">
                                                 <Package className="w-3.5 h-3.5 text-blue-400" />
-                                                <span className="text-xs text-gray-600 font-medium">Total Materiais</span>
+                                                <span className="text-xs text-gray-600 font-medium">Custo Materiais</span>
                                             </div>
                                             <span className="text-sm font-bold text-blue-700">{fmt(v.totalMateriais)}</span>
                                         </div>
 
                                         {/* Total C. Diretos */}
                                         <div className="flex justify-between items-center px-3 py-2 bg-orange-50 rounded-lg border border-orange-100">
-                                            <span className="text-xs text-gray-600 font-medium">Total C. Diretos</span>
-                                            <span className="text-sm font-bold text-orange-600">{fmt(v.totalCustosDiretos)}</span>
+                                            <span className="text-xs text-gray-600 font-medium">Custos Diretos (R$)</span>
+                                            <span className="text-sm font-bold text-orange-600">{fmt(v.totalCustosDiretosRS)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center px-3 py-2 bg-orange-50 rounded-lg border border-orange-100">
+                                            <span className="text-xs text-gray-600 font-medium">Custos Diretos (%)</span>
+                                            <span className="text-sm font-bold text-orange-600">{fmt(v.totalCustosDiretosPerc)}</span>
+                                        </div>
+
+                                        {/* Ads+Extras */}
+                                        <div className="flex justify-between items-center px-3 py-2 bg-yellow-50 rounded-lg border border-yellow-100">
+                                            <span className="text-xs text-gray-600 font-medium">Ads+Extras</span>
+                                            <span className="text-sm font-bold text-yellow-700">{fmt(c.custosExtrasRS)}</span>
                                         </div>
 
                                         {/* LUME R$ */}
                                         <div className="flex justify-between items-center px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
                                             <div className="flex items-center gap-1.5">
                                                 <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                                                <span className="text-xs text-gray-600 font-medium">Lume (Ined. Produção)</span>
+                                                <span className="text-xs text-gray-600 font-medium">Inev. Lume</span>
                                             </div>
                                             <span className="text-sm font-bold text-indigo-700">{fmt(c.lumeRS)}</span>
                                         </div>
@@ -290,15 +300,9 @@ const Parcerias = () => {
                                         <div className="flex justify-between items-center px-3 py-2 bg-purple-50 rounded-lg border border-purple-100">
                                             <div className="flex items-center gap-1.5">
                                                 <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                                                <span className="text-xs text-gray-600 font-medium">Bureau (Ined. Rateio)</span>
+                                                <span className="text-xs text-gray-600 font-medium">Inev. Bureau</span>
                                             </div>
                                             <span className="text-sm font-bold text-purple-700">{fmt(c.bureauRS)}</span>
-                                        </div>
-
-                                        {/* Custos Extras/Ads */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-yellow-50 rounded-lg border border-yellow-100">
-                                            <span className="text-xs text-gray-600 font-medium">Ads & Extras</span>
-                                            <span className="text-sm font-bold text-yellow-700">{fmt(c.custosExtrasRS)}</span>
                                         </div>
 
                                         {/* Lucro Líquido */}
@@ -326,10 +330,11 @@ const Parcerias = () => {
                                                 <span className="text-white text-xs font-bold uppercase tracking-wide">LUME</span>
                                             </div>
                                             <div className="p-3 space-y-1.5 text-xs text-gray-500">
-                                                <div className="flex justify-between"><span>Custo Inev. (LUME)</span><span className="text-gray-700 font-medium">{fmt(c.lumeRS)}</span></div>
-                                                <div className="flex justify-between"><span>+ Custos Extras</span><span className="text-gray-700 font-medium">{fmt(c.custosExtrasRS)}</span></div>
-                                                <div className="flex justify-between"><span>+ Total Materiais</span><span className="text-gray-700 font-medium">{fmt(v.totalMateriais)}</span></div>
-                                                <div className="flex justify-between"><span>+ Total C. Diretos</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretos)}</span></div>
+                                                <div className="flex justify-between"><span>Inev. Lume</span><span className="text-gray-700 font-medium">{fmt(c.lumeRS)}</span></div>
+                                                <div className="flex justify-between"><span>+ Ads+Extras</span><span className="text-gray-700 font-medium">{fmt(c.custosExtrasRS)}</span></div>
+                                                <div className="flex justify-between"><span>+ Custo Materiais</span><span className="text-gray-700 font-medium">{fmt(v.totalMateriais)}</span></div>
+                                                <div className="flex justify-between"><span>+ Custos Diretos (R$)</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretosRS)}</span></div>
+                                                <div className="flex justify-between"><span>+ Custos Diretos (%)</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretosPerc)}</span></div>
 
                                                 {/* % Lucro Líquido LUME */}
                                                 <div className="flex justify-between items-center pt-1 border-t border-indigo-100">
@@ -362,7 +367,7 @@ const Parcerias = () => {
                                                 <span className="text-white text-xs font-bold uppercase tracking-wide">BUREAU</span>
                                             </div>
                                             <div className="p-3 space-y-1.5 text-xs text-gray-500">
-                                                <div className="flex justify-between"><span>Custo Inev. (BUREAU)</span><span className="text-gray-700 font-medium">{fmt(c.bureauRS)}</span></div>
+                                                <div className="flex justify-between"><span>Inev. Bureau</span><span className="text-gray-700 font-medium">{fmt(c.bureauRS)}</span></div>
 
                                                 {/* % Lucro Líquido BUREAU */}
                                                 <div className="flex justify-between items-center pt-1 border-t border-purple-100">
