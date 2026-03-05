@@ -34,7 +34,15 @@ const VisaoGeral = () => {
     const p = (v) => {
         if (typeof v === 'number') return v;
         if (!v) return 0;
-        const clean = String(v).replace(/[R$\s.]/g, '').replace(',', '.');
+        let clean = String(v).replace(/[R$\s]/g, ''); // Remove R$ e espaços
+        // Se tiver tanto ponto quanto vírgula (ex: 1.234,56), o ponto é milhar.
+        if (clean.includes(',') && clean.includes('.')) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else if (clean.includes(',')) {
+            // Se tiver apenas vírgula (ex: 1234,56), é o decimal.
+            clean = clean.replace(',', '.');
+        }
+        // Se só tiver ponto (ex: 1234.56), parseFloat já cuida ou não mexemos.
         return parseFloat(clean) || 0;
     };
 
