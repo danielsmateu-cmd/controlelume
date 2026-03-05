@@ -87,6 +87,13 @@ const fmtNum = (val) => {
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
 };
 
+const p = (v) => {
+    if (typeof v === 'number') return v;
+    if (!v) return 0;
+    const clean = String(v).replace(/[R$\s.]/g, '').replace(',', '.');
+    return parseFloat(clean) || 0;
+};
+
 const getWorkHoursInMonth = (monthStr) => {
     if (!monthStr) return 0;
     const [year, month] = monthStr.split('-').map(Number);
@@ -112,18 +119,19 @@ const getWorkHoursInMonth = (monthStr) => {
 const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasData, ftsData, mktFtsData }) => {
     const monthHours = getWorkHoursInMonth(currentMonth);
 
-    // Cálculo do Rateio da Empresa 2 (Bureau)
-    const emp2 = empresas.length > 1 ? empresas[1] : null; // Assume que a 2ª é o Bureau
-    let rateioEmp2PorMkt = 0;
-
-    // Contar marketplaces ativos (excluindo 'geral')
+    // Cálculo dos Rateios das Empresas (BUREAU e outras)
+    // Tudo que não é a Empresa 0 (Lume) entra no grupo de Rateio
+    let rateioRestantesPorMkt = 0;
     const mktsAtivos = MARKETPLACES.filter(m => m.id !== 'geral');
 
-    if (emp2 && mktsAtivos.length > 0) {
-        const totalEmp2 = getEmpTotal(emp2);
-        const percentualRepasse = emp2.ecommerceShare || 0;
-        const valorIrParaEcommerce = totalEmp2 * (percentualRepasse / 100);
-        rateioEmp2PorMkt = valorIrParaEcommerce / mktsAtivos.length;
+    if (empresas.length > 1 && mktsAtivos.length > 0) {
+        empresas.forEach((emp, idx) => {
+            if (idx === 0) return; // Pula Lume
+            const totalEmp = getEmpTotal(emp);
+            const percentualRepasse = emp.ecommerceShare || 0;
+            const valorIrParaEcommerce = totalEmp * (percentualRepasse / 100);
+            rateioRestantesPorMkt += valorIrParaEcommerce / mktsAtivos.length;
+        });
     }
 
     // Resumo de produção por marketplace
@@ -154,8 +162,8 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
         }
 
         const valorEmp1 = horasConsumidas * custoHoraEmp1;
-        const valorEmp2 = rateioEmp2PorMkt;
-        const emp2Name = emp2 ? (emp2.name || 'Empresa 2') : 'Empresa 2';
+        const valorEmp2 = rateioRestantesPorMkt;
+        const emp2Name = "BUREAU (Total Rateios)";
 
         const custoTotalMkt = valorEmp1 + valorEmp2;
 
@@ -594,7 +602,7 @@ const EmpresasCustos = () => {
     const ads = Array.isArray(data.ads) ? data.ads : [];
     const extras = Array.isArray(data.gastosExtras) ? data.gastosExtras : [];
 
-    const getEmpTotal = (emp) => (emp.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+    const getEmpTotal = (emp) => (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
 
     return (
         <div className="space-y-4">

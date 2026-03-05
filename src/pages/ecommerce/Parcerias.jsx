@@ -128,18 +128,20 @@ const Parcerias = () => {
         let custoHoraEmp1 = 0;
         if (empresas.length > 0) {
             const emp1 = empresas[0];
-            const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
 
-        // 2. Rateio Empresa 2 (Bureau)
-        let rateioEmp2 = 0;
-        const emp2 = empresas.length > 1 ? empresas[1] : null;
-        if (emp2) {
-            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + p(c.value), 0);
-            const perc = emp2.ecommerceShare || 0;
-            rateioEmp2 = totalEmp2 * (perc / 100);
+        // 2. Rateio das demais empresas (Bureau e outras)
+        let rateioRestantesTotal = 0;
+        if (empresas.length > 1) {
+            empresas.forEach((emp, idx) => {
+                if (idx === 0) return;
+                const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
+                const perc = emp.ecommerceShare || 0;
+                rateioRestantesTotal += totalEmp * (perc / 100);
+            });
         }
 
         // 3. Custos Extras Genéricos + Ads (agrupado aqui)
@@ -168,7 +170,7 @@ const Parcerias = () => {
         });
 
         const lumeRS = horasTotaisConsumidas * custoHoraEmp1;
-        const bureauRS = rateioEmp2;
+        const bureauRS = rateioRestantesTotal;
 
         return { lumeRS, bureauRS, custosExtrasRS };
     };

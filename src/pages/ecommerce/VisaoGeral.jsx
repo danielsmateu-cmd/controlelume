@@ -139,23 +139,26 @@ const VisaoGeral = () => {
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
 
-        const emp2 = empresas.length > 1 ? empresas[1] : null; // Empresa 2 (Bureau)
-        let rateioEmp2PorMkt = 0;
-        if (emp2 && PLATFORMS.length > 0) {
-            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + p(c.value), 0);
-            const percentualRepasse = emp2.ecommerceShare || 0;
-            const valorIrParaEcommerce = totalEmp2 * (percentualRepasse / 100);
-            rateioEmp2PorMkt = valorIrParaEcommerce / PLATFORMS.length;
+        // Tudo que não é a Empresa 0 (Lume) entra no grupo de Rateio/Bureau
+        let rateioRestantesPorMkt = 0;
+        if (empresas.length > 1 && PLATFORMS.length > 0) {
+            empresas.forEach((emp, idx) => {
+                if (idx === 0) return;
+                const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
+                const percentualRepasse = emp.ecommerceShare || 0;
+                const valorIrParaEcommerce = totalEmp * (percentualRepasse / 100);
+                rateioRestantesPorMkt += valorIrParaEcommerce / PLATFORMS.length;
+            });
         }
 
-        return PLATFORMS.map(p => {
-            const d = getMktDetail(p.id, month);
+        return PLATFORMS.map(pObj => {
+            const d = getMktDetail(pObj.id, month);
             const custoInevLume = d.horasConsumidas * custoHoraEmp1;
-            const custoInevBureau = rateioEmp2PorMkt;
+            const custoInevBureau = rateioRestantesPorMkt;
             const totalCustosDiretos = d.totalCustosDiretos;
             const custoInevShare = custoInevLume + custoInevBureau;
             const lucroLiquido = d.faturamento - d.custoMateriais - totalCustosDiretos - d.adsExtras - custoInevShare;
-            return { ...p, ...d, totalCustosDiretos, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
+            return { ...pObj, ...d, totalCustosDiretos, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
         });
     };
 
