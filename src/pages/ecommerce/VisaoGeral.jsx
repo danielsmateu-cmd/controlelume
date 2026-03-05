@@ -31,6 +31,12 @@ const VisaoGeral = () => {
     const months = Array.from({ length: 12 }, (_, i) =>
         `${currentYear}-${String(i + 1).padStart(2, '0')}`
     );
+    const p = (v) => {
+        if (typeof v === 'number') return v;
+        if (!v) return 0;
+        const clean = String(v).replace(/[R$\s.]/g, '').replace(',', '.');
+        return parseFloat(clean) || 0;
+    };
 
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
@@ -85,13 +91,13 @@ const VisaoGeral = () => {
             const ft = fts.find(f => f.id === row.ftId);
             if (!ft) return;
             const qtd = parseInt(row.quantity) || 0;
-            const precoBase = parseFloat(ft.salePrice) || 0;
-            const desconto = parseFloat(row.discountPercent) || 0;
+            const precoBase = p(ft.salePrice);
+            const desconto = p(row.discountPercent);
             const precoEfet = precoBase * (1 - desconto / 100);
 
-            const mat = (ft.materials || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
-            const dir = (ft.directCostsRS || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
-            const pct = (ft.directCostsPercent || []).reduce((a, c) => a + ((parseFloat(c.percentage) || 0) / 100 * precoBase), 0);
+            const mat = (ft.materials || []).reduce((a, c) => a + p(c.value), 0);
+            const dir = (ft.directCostsRS || []).reduce((a, c) => a + p(c.value), 0);
+            const pct = (ft.directCostsPercent || []).reduce((a, c) => a + (p(c.percentage) / 100 * precoBase), 0);
 
             const tempoMin = parseFloat(ft.productionTime) || 0;
             horasConsumidas += (tempoMin / 60) * qtd;
@@ -111,11 +117,12 @@ const VisaoGeral = () => {
         // Soma os ads cujo marketplace é este (ou 'geral')
         const adsExtras =
             adsArr.filter(a => a.marketplace === platformId || a.marketplace === 'geral')
-                .reduce((a, c) => a + (parseFloat(c.value) || 0), 0)
+                .reduce((a, c) => a + p(c.value), 0)
             + extrasArr.filter(e => e.marketplace === platformId || e.marketplace === 'geral')
-                .reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+                .reduce((a, c) => a + p(c.value), 0);
 
-        return { faturamento, itens, custoMateriais, custosDiretosRS, custosDiretosPerc, adsExtras, horasConsumidas };
+        const totalCustosDiretos = custosDiretosRS + custosDiretosPerc;
+        return { faturamento, itens, custoMateriais, totalCustosDiretos, adsExtras, horasConsumidas, custoInevShare: 0 }; // Placeholder para evitar erro no return
     };
 
     // Helper para retornar a tabela enriquecida do mês com Custo Inevitável calculado por tempo/rateio
@@ -127,7 +134,7 @@ const VisaoGeral = () => {
         let custoHoraEmp1 = 0;
         if (empresas.length > 0) {
             const emp1 = empresas[0]; // Empresa 1 (Lume)
-            const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
@@ -135,7 +142,7 @@ const VisaoGeral = () => {
         const emp2 = empresas.length > 1 ? empresas[1] : null; // Empresa 2 (Bureau)
         let rateioEmp2PorMkt = 0;
         if (emp2 && PLATFORMS.length > 0) {
-            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const percentualRepasse = emp2.ecommerceShare || 0;
             const valorIrParaEcommerce = totalEmp2 * (percentualRepasse / 100);
             rateioEmp2PorMkt = valorIrParaEcommerce / PLATFORMS.length;
@@ -145,9 +152,10 @@ const VisaoGeral = () => {
             const d = getMktDetail(p.id, month);
             const custoInevLume = d.horasConsumidas * custoHoraEmp1;
             const custoInevBureau = rateioEmp2PorMkt;
+            const totalCustosDiretos = d.totalCustosDiretos;
             const custoInevShare = custoInevLume + custoInevBureau;
-            const lucroLiquido = d.faturamento - d.custoMateriais - d.custosDiretosRS - d.custosDiretosPerc - d.adsExtras - custoInevShare;
-            return { ...p, ...d, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
+            const lucroLiquido = d.faturamento - d.custoMateriais - totalCustosDiretos - d.adsExtras - custoInevShare;
+            return { ...p, ...d, totalCustosDiretos, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
         });
     };
 
@@ -174,7 +182,7 @@ const VisaoGeral = () => {
         let fatMes = 0, custosMes = 0, adsExtrasMes = 0, inevMes = 0;
         rows.forEach(r => {
             fatMes += r.faturamento;
-            custosMes += r.custoMateriais + r.custosDiretosRS + r.custosDiretosPerc;
+            custosMes += r.custoMateriais + r.totalCustosDiretos;
             adsExtrasMes += r.adsExtras;
             inevMes += r.custoInevShare;
         });
@@ -190,7 +198,7 @@ const VisaoGeral = () => {
         { key: 'faturamento', label: 'Faturamento', align: 'right' },
         { key: 'itens', label: 'Qtd Vendas', align: 'right' },
         { key: 'custoMateriais', label: 'Custo Mater.', align: 'right' },
-        { key: 'custosDiretosRS', label: 'C. Diretos', align: 'right' },
+        { key: 'totalCustosDiretos', label: 'C. Diretos', align: 'right' },
         { key: 'adsExtras', label: 'Ads+Extras', align: 'right' },
         { key: 'custoInevLume', label: 'Inev. Lume', align: 'right' },
         { key: 'custoInevBureau', label: 'Inev. Bureau', align: 'right' },
@@ -252,13 +260,13 @@ const VisaoGeral = () => {
                         faturamento: a.faturamento + r.faturamento,
                         itens: a.itens + r.itens,
                         custoMateriais: a.custoMateriais + r.custoMateriais,
-                        custosDiretosRS: a.custosDiretosRS + r.custosDiretosRS,
+                        totalCustosDiretos: a.totalCustosDiretos + r.totalCustosDiretos,
                         adsExtras: a.adsExtras + r.adsExtras,
                         custoInevLume: a.custoInevLume + r.custoInevLume,
                         custoInevBureau: a.custoInevBureau + r.custoInevBureau,
                         custoInevShare: a.custoInevShare + r.custoInevShare,
                         lucroLiquido: a.lucroLiquido + r.lucroLiquido,
-                    }), { faturamento: 0, itens: 0, custoMateriais: 0, custosDiretosRS: 0, adsExtras: 0, custoInevLume: 0, custoInevBureau: 0, custoInevShare: 0, lucroLiquido: 0 });
+                    }), { faturamento: 0, itens: 0, custoMateriais: 0, totalCustosDiretos: 0, adsExtras: 0, custoInevLume: 0, custoInevBureau: 0, custoInevShare: 0, lucroLiquido: 0 });
 
                     return (
                         <div key={month} className={clsx('bg-white rounded-xl overflow-hidden', isCurrent ? 'border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl' : 'border border-gray-200 shadow-sm')}>
@@ -298,8 +306,8 @@ const VisaoGeral = () => {
                                                     <td className="px-4 py-3 text-right font-semibold text-gray-700">{r.itens > 0 ? r.itens : '—'}</td>
                                                     {/* Custo Materiais */}
                                                     <td className="px-4 py-3 text-right text-orange-600">{fmtN(r.custoMateriais)}</td>
-                                                    {/* Custos Diretos RS */}
-                                                    <td className="px-4 py-3 text-right text-orange-500">{fmtN(r.custosDiretosRS)}</td>
+                                                    {/* Total Custos Diretos */}
+                                                    <td className="px-4 py-3 text-right text-orange-500">{fmtN(r.totalCustosDiretos)}</td>
                                                     {/* Ads+Extras */}
                                                     <td className="px-4 py-3 text-right text-purple-500 font-medium">{fmtN(r.adsExtras)}</td>
                                                     {/* Custo Inev Lume */}
@@ -322,7 +330,7 @@ const VisaoGeral = () => {
                                             <td className="px-4 py-3 text-right">{fmtN(totals.faturamento)}</td>
                                             <td className="px-4 py-3 text-right">{totals.itens > 0 ? totals.itens : '—'}</td>
                                             <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.custoMateriais)}</td>
-                                            <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.custosDiretosRS)}</td>
+                                            <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.totalCustosDiretos)}</td>
                                             <td className="px-4 py-3 text-right text-purple-200">{fmtN(totals.adsExtras)}</td>
                                             <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevLume)}</td>
                                             <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevBureau)}</td>
