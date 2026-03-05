@@ -3,7 +3,7 @@ import { Plus, Trash2, Save, ShoppingCart, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
-const Vendas = () => {
+const Vendas = ({ marketplace = 'geral' }) => {
     // Carregar opções de FTs
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,9 +36,10 @@ const Vendas = () => {
         // Se as FTs ainda não carregaram, não tenta renderizar/mergear as rows para não apagar vendas antigas.
         if (isLoading) return;
 
-        if (monthlySales[currentMonth]) {
+        const monthKey = `${marketplace}_${currentMonth}`;
+        if (monthlySales[monthKey]) {
             // Merge saved rows with potentially new FTs
-            const savedRows = monthlySales[currentMonth];
+            const savedRows = monthlySales[monthKey];
             const currentRows = buildInitialRows().map(defaultRow => {
                 const savedRow = savedRows.find(r => r.ftId === defaultRow.ftId);
                 return savedRow ? { ...defaultRow, quantity: savedRow.quantity, discountPercent: savedRow.discountPercent || 0 } : defaultRow;
@@ -47,7 +48,7 @@ const Vendas = () => {
         } else {
             setRows(buildInitialRows());
         }
-    }, [currentMonth, monthlySales, fts, isLoading]);
+    }, [currentMonth, monthlySales, fts, isLoading, marketplace]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -78,7 +79,7 @@ const Vendas = () => {
         };
 
         loadData();
-    }, []);
+    }, [marketplace]);
 
     // Função auxiliar para formatar o mês na tela
     const formatMonthDisplay = (monthStr) => {
@@ -92,21 +93,22 @@ const Vendas = () => {
 
         const prevDate = new Date(year, month - 2);
         const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
-        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
+        const lastDayPrev = new Date(year, month - 1, 0).getDate();
 
-        return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
+        return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
     };
 
     const updateRow = (id, field, value) => {
         setRows(prevRows => {
             const nextRows = prevRows.map(r => r.id === id ? { ...r, [field]: value } : r);
+            const monthKey = `${marketplace}_${currentMonth}`;
 
             // Auto-save no estado e na API
             setMonthlySales(prevSales => {
-                const updatedSales = { ...prevSales, [currentMonth]: nextRows };
+                const updatedSales = { ...prevSales, [monthKey]: nextRows };
                 return updatedSales;
             });
-            api.saveMonthlySales(currentMonth, nextRows).catch(err => console.error("Auto-save error:", err));
+            api.saveMonthlySales(monthKey, nextRows).catch(err => console.error("Auto-save error:", err));
 
             return nextRows;
         });
@@ -118,14 +120,22 @@ const Vendas = () => {
         return fts.find(ft => ft.id === ftId) || null;
     };
 
-    const calculateCost = (ft) => {
+    const calculateMaterials = (ft) => {
         if (!ft) return 0;
-        const totalMat = ft.materials?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+        return ft.materials?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
+    };
+
+    const calculateDirectCosts = (ft) => {
+        if (!ft) return 0;
         const totalDir = ft.directCostsRS?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
         const totalPerc = ft.directCostsPercent?.reduce((acc, curr) => {
             return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(ft.salePrice) || 0));
         }, 0) || 0;
-        return totalMat + totalDir + totalPerc;
+        return totalDir + totalPerc;
+    };
+
+    const calculateCost = (ft) => {
+        return calculateMaterials(ft) + calculateDirectCosts(ft);
     };
 
     // Resumo do mês
@@ -142,6 +152,18 @@ const Vendas = () => {
         const ft = getFtDetails(row.ftId);
         if (!ft) return acc;
         return acc + (calculateCost(ft) * (parseInt(row.quantity) || 0));
+    }, 0);
+
+    const totalMonthMaterials = rows.reduce((acc, row) => {
+        const ft = getFtDetails(row.ftId);
+        if (!ft) return acc;
+        return acc + (calculateMaterials(ft) * (parseInt(row.quantity) || 0));
+    }, 0);
+
+    const totalMonthDirectCosts = rows.reduce((acc, row) => {
+        const ft = getFtDetails(row.ftId);
+        if (!ft) return acc;
+        return acc + (calculateDirectCosts(ft) * (parseInt(row.quantity) || 0));
     }, 0);
 
     const monthMargin = totalMonthSales - totalMonthCosts;
@@ -215,7 +237,8 @@ const Vendas = () => {
                                         <th className="px-4 py-3 font-medium text-right">Preço de Venda</th>
                                         <th className="px-4 py-3 font-medium text-center w-24">% Desc</th>
                                         <th className="px-4 py-3 font-medium text-right">Preço Final</th>
-                                        <th className="px-4 py-3 font-medium text-right">Custo Unitário</th>
+                                        <th className="px-4 py-3 font-medium text-right">Total Materiais</th>
+                                        <th className="px-4 py-3 font-medium text-right">Total C. Diretos</th>
                                         <th className="px-4 py-3 font-medium text-right">Custo Total</th>
                                         <th className="px-4 py-3 font-medium text-right">Margem Unit. (%)</th>
                                         <th className="px-4 py-3 font-medium text-right">TP Total (min)</th>
@@ -231,7 +254,8 @@ const Vendas = () => {
                                             <td className="px-4 py-3 text-right">-</td>
                                             <td className="px-4 py-3 text-center">-</td>
                                             <td className="px-4 py-3 text-right">-</td>
-                                            <td className="px-4 py-3 text-right">-</td>
+                                            <td className="px-4 py-3 text-right">R$ {totalMonthMaterials.toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-right">R$ {totalMonthDirectCosts.toFixed(2)}</td>
                                             <td className="px-4 py-3 text-right">R$ {totalMonthCosts.toFixed(2)}</td>
                                             <td className="px-4 py-3 text-right">
                                                 <span className={clsx("px-2 py-0.5 rounded text-sm", monthMarginPercent >= 0 ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>
@@ -262,7 +286,9 @@ const Vendas = () => {
                                         const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
                                         const discountedPrice = unitPrice * (1 - discount / 100);
 
-                                        const unitCost = calculateCost(ft);
+                                        const unitMaterials = calculateMaterials(ft);
+                                        const unitDirectCosts = calculateDirectCosts(ft);
+                                        const unitCost = unitMaterials + unitDirectCosts;
                                         const totalCost = unitCost * qty;
                                         const unitMarginRS = discountedPrice - unitCost;
                                         const unitMarginPercent = discountedPrice > 0 ? (unitMarginRS / discountedPrice) * 100 : 0;
@@ -301,7 +327,10 @@ const Vendas = () => {
                                                     R$ {discountedPrice.toFixed(2)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-500">
-                                                    R$ {unitCost.toFixed(2)}
+                                                    R$ {(unitMaterials * qty).toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-orange-600 font-medium">
+                                                    R$ {(unitDirectCosts * qty).toFixed(2)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-600 font-medium">
                                                     R$ {totalCost.toFixed(2)}

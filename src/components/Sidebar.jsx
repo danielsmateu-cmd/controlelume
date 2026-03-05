@@ -9,12 +9,12 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
 
     const allMenuItems = [
         { id: 'resumo', label: 'Resumo', icon: LayoutDashboard },
-        { id: 'saida', label: 'Saída', icon: Wallet },
         { id: 'vendas', label: 'Entradas', icon: ShoppingCart },
+        { id: 'saida', label: 'Saídas', icon: Wallet },
         { id: 'orcamentos', label: 'Orçamentos', icon: Calculator },
         { id: 'contas', label: 'Produção', icon: Factory },
-        { id: 'ecommerce', label: 'E-Commerce', icon: ShoppingCart },
         { id: 'tarefas', label: 'Tarefas', icon: ClipboardList },
+        { id: 'ecommerce', label: 'E-Commerce', icon: ShoppingCart },
     ];
 
     // Filter menu items by what the current user can see

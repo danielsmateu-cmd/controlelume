@@ -1,189 +1,206 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Activity, Building2, ShoppingCart, Wallet, Loader2 } from 'lucide-react';
+import { BarChart3, Activity, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { api } from '../../services/api';
 
+const PLATFORMS = [
+    { id: 'meli', label: 'Mercado Livre', emoji: '🛒', headerBg: 'bg-yellow-400', headerText: 'text-yellow-900', rowBg: 'bg-yellow-50', border: 'border-yellow-200' },
+    { id: 'shopee', label: 'Shopee', emoji: '🧡', headerBg: 'bg-orange-500', headerText: 'text-white', rowBg: 'bg-orange-50', border: 'border-orange-200' },
+    { id: 'tiktok', label: 'TikTok', emoji: '🎵', headerBg: 'bg-gray-800', headerText: 'text-white', rowBg: 'bg-gray-50', border: 'border-gray-200' },
+    { id: 'amazon', label: 'Amazon', emoji: '📦', headerBg: 'bg-amber-500', headerText: 'text-white', rowBg: 'bg-amber-50', border: 'border-amber-200' },
+    { id: 'site', label: 'Site', emoji: '🌐', headerBg: 'bg-indigo-600', headerText: 'text-white', rowBg: 'bg-indigo-50', border: 'border-indigo-200' },
+];
+
+const getWorkHoursInMonth = (monthStr) => {
+    if (!monthStr) return 0;
+    const [year, month] = monthStr.split('-').map(Number);
+    const prevDate = new Date(year, month - 2, 1);
+    const targetYear = prevDate.getFullYear();
+    const targetMonthIndex = prevDate.getMonth();
+    const daysInMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
+    let weekdays = 0;
+    for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(targetYear, targetMonthIndex, i).getDay();
+        if (d !== 0 && d !== 6) weekdays++;
+    }
+    return weekdays * 7;
+};
+
 const VisaoGeral = () => {
     const currentYear = new Date().getFullYear();
-    const months = Array.from({ length: 12 }, (_, i) => {
-        return `${currentYear}-${String(i + 1).padStart(2, '0')}`;
-    });
+    const months = Array.from({ length: 12 }, (_, i) =>
+        `${currentYear}-${String(i + 1).padStart(2, '0')}`
+    );
 
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
-
     const [ftsData, setFtsData] = useState([]);
+    const [mktFtsData, setMktFtsData] = useState({});
     const [isLoading, setIsLoading] = useState(true);
 
-    // Carregar dados de vendas, custos e fts
     useEffect(() => {
-        const loadDados = async () => {
+        const load = async () => {
             setIsLoading(true);
             try {
-                // Buscar FTs da API (Supabase)
                 const fts = await api.getFts();
                 setFtsData(fts);
 
+                const mktFts = {};
+                PLATFORMS.forEach(p => {
+                    const raw = localStorage.getItem(`fts_mkt_${p.id}`);
+                    mktFts[p.id] = raw ? JSON.parse(raw) : fts;
+                });
+                setMktFtsData(mktFts);
+
                 let dbSales = await api.getMonthlySales();
-                const savedVendas = localStorage.getItem('ecommerce_vendas');
-                if (savedVendas && Object.keys(dbSales).length === 0) {
-                    dbSales = JSON.parse(savedVendas);
-                }
+                const localSales = localStorage.getItem('ecommerce_vendas');
+                if (localSales && Object.keys(dbSales).length === 0) dbSales = JSON.parse(localSales);
                 setVendasData(dbSales);
 
                 let dbCosts = await api.getMonthlyCosts();
-                const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
-                if (savedCustos && Object.keys(dbCosts).length === 0) {
-                    dbCosts = JSON.parse(savedCustos);
-                }
+                const localCosts = localStorage.getItem('ecommerce_empresas_custos_mensal');
+                if (localCosts && Object.keys(dbCosts).length === 0) dbCosts = JSON.parse(localCosts);
                 setCustosData(dbCosts);
-            } catch (error) {
-                console.error("Erro ao carregar dados na Visão Geral:", error);
+            } catch (err) {
+                console.error('Erro ao carregar Visão Geral:', err);
             } finally {
                 setIsLoading(false);
             }
         };
-
-        loadDados();
-        // Nota: storage manager local não detectaria mudanças no db, 
-        // idealmente usariamos realtime do supabase aqui, mas pra simplificar vamos recarregar ao focar na janela.
-        window.addEventListener('focus', loadDados);
-        return () => window.removeEventListener('focus', loadDados);
+        load();
+        window.addEventListener('focus', load);
+        return () => window.removeEventListener('focus', load);
     }, []);
 
-    // Função auxiliar para calcular custo da FT
-    const calculateCost = (ft) => {
-        if (!ft) return 0;
-        const totalMat = ft.materials?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-        const totalDir = ft.directCostsRS?.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-        const totalPerc = ft.directCostsPercent?.reduce((acc, curr) => {
-            return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(ft.salePrice) || 0));
-        }, 0) || 0;
-        return totalMat + totalDir + totalPerc;
-    };
+    // Breakdown detalhado por marketplace / mês
+    const getMktDetail = (platformId, month) => {
+        const key = `${platformId}_${month}`;
+        const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+        const fts = mktFtsData[platformId] || ftsData;
 
-    // Função para calcular os totais de custo inevitável do mês
-    const getCustoInevitalel = (month) => {
-        const data = custosData[month];
-        if (!data) return 0;
-
-        const expenses1 = data.empresa1?.expenses || [];
-        const totalEmpresa1 = expenses1.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-
-        const expenses2 = data.empresa2?.expenses || [];
-        const totalEmpresa2 = expenses2.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-
-        let percentCalcEmpresa1 = 0;
-        let percentCalcEmpresa2 = 0;
-        const percents = data.somatoria?.percent || [];
-        percents.forEach(p => {
-            const perc = parseFloat(p.percent) || 0;
-            percentCalcEmpresa1 += totalEmpresa1 * (perc / 100);
-            percentCalcEmpresa2 += totalEmpresa2 * (perc / 100);
-        });
-
-        const totalPercentRS = percentCalcEmpresa1 + percentCalcEmpresa2;
-        const fixedRs = data.somatoria?.fixedRS || [];
-        const totalFixedRS = fixedRs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0) || 0;
-
-        return totalPercentRS + totalFixedRS;
-    };
-
-    // Função para calcular resumo do mês
-    const getMonthSummary = (month) => {
-        const vendas = Array.isArray(vendasData[month]) ? vendasData[month] : [];
-
-        let faturamento = 0;
-        let custoTotalProdutos = 0;
-        let qtdItensVendidos = 0;
+        let faturamento = 0, itens = 0, horasConsumidas = 0;
+        let custoMateriais = 0, custosDiretosRS = 0, custosDiretosPerc = 0;
 
         vendas.forEach(row => {
-            const ft = ftsData.find(f => f.id === row.ftId);
-            if (ft) {
-                const qtd = parseInt(row.quantity) || 0;
-                qtdItensVendidos += qtd;
+            const ft = fts.find(f => f.id === row.ftId);
+            if (!ft) return;
+            const qtd = parseInt(row.quantity) || 0;
+            const precoBase = parseFloat(ft.salePrice) || 0;
+            const desconto = parseFloat(row.discountPercent) || 0;
+            const precoEfet = precoBase * (1 - desconto / 100);
 
-                const precoBase = parseFloat(ft.salePrice) || 0;
-                const desconto = parseFloat(row.discountPercent) || 0;
-                const precoEfetivo = precoBase * (1 - desconto / 100);
+            const mat = (ft.materials || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const dir = (ft.directCostsRS || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const pct = (ft.directCostsPercent || []).reduce((a, c) => a + ((parseFloat(c.percentage) || 0) / 100 * precoBase), 0);
 
-                const custoUnitario = calculateCost(ft);
+            const tempoMin = parseFloat(ft.productionTime) || 0;
+            horasConsumidas += (tempoMin / 60) * qtd;
 
-                faturamento += precoEfetivo * qtd;
-                custoTotalProdutos += custoUnitario * qtd;
-            }
+            itens += qtd;
+            faturamento += precoEfet * qtd;
+            custoMateriais += mat * qtd;
+            custosDiretosRS += dir * qtd;
+            custosDiretosPerc += pct * qtd;
         });
 
-        const lucroBruto = faturamento - custoTotalProdutos;
-        const margemMedia = faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0;
-        const custoInevitavel = getCustoInevitalel(month);
+        // Ads + Extras deste marketplace no mês
+        const costData = custosData[month];
+        const adsArr = Array.isArray(costData?.ads) ? costData.ads : [];
+        const extrasArr = Array.isArray(costData?.gastosExtras) ? costData.gastosExtras : [];
 
-        // Novos cálculos segundo definição do usuário:
-        const pontoEquilibrio = custoTotalProdutos + custoInevitavel;
-        const lucroLiquido = faturamento - pontoEquilibrio;
+        // Soma os ads cujo marketplace é este (ou 'geral')
+        const adsExtras =
+            adsArr.filter(a => a.marketplace === platformId || a.marketplace === 'geral')
+                .reduce((a, c) => a + (parseFloat(c.value) || 0), 0)
+            + extrasArr.filter(e => e.marketplace === platformId || e.marketplace === 'geral')
+                .reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
 
-        return {
-            faturamento,
-            custoTotalProdutos,
-            custoInevitavel,
-            pontoEquilibrio,
-            lucroLiquido,
-            margemMedia,
-            qtdItensVendidos,
-            lucroBruto
-        };
+        return { faturamento, itens, custoMateriais, custosDiretosRS, custosDiretosPerc, adsExtras, horasConsumidas };
     };
 
-    // Resumo do Ano
-    const yearSummary = months.reduce((acc, month) => {
-        const summ = getMonthSummary(month);
-        acc.faturamento += summ.faturamento;
-        acc.custoInevitavel += summ.custoInevitavel;
-        acc.custoTotalProdutos += summ.custoTotalProdutos;
-        acc.pontoEquilibrio += summ.pontoEquilibrio;
-        acc.lucroLiquido += summ.lucroLiquido;
-        if (summ.faturamento > 0) {
-            acc.margemSum += summ.margemMedia;
-            acc.mesesComVenda++;
+    // Helper para retornar a tabela enriquecida do mês com Custo Inevitável calculado por tempo/rateio
+    const getMonthDetails = (month) => {
+        const costData = custosData[month];
+        const empresas = costData?.empresas || [];
+        const monthHours = getWorkHoursInMonth(month);
+
+        let custoHoraEmp1 = 0;
+        if (empresas.length > 0) {
+            const emp1 = empresas[0]; // Empresa 1 (Lume)
+            const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
+            custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
-        return acc;
-    }, {
-        faturamento: 0,
-        custoInevitavel: 0,
-        custoTotalProdutos: 0,
-        pontoEquilibrio: 0,
-        lucroLiquido: 0,
-        margemSum: 0,
-        mesesComVenda: 0
-    });
 
-    const margemMediaAno = yearSummary.mesesComVenda > 0 ? yearSummary.margemSum / yearSummary.mesesComVenda : 0;
+        const emp2 = empresas.length > 1 ? empresas[1] : null; // Empresa 2 (Bureau)
+        let rateioEmp2PorMkt = 0;
+        if (emp2 && PLATFORMS.length > 0) {
+            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const percentualRepasse = emp2.ecommerceShare || 0;
+            const valorIrParaEcommerce = totalEmp2 * (percentualRepasse / 100);
+            rateioEmp2PorMkt = valorIrParaEcommerce / PLATFORMS.length;
+        }
 
-    // Ordered months: Current active month first, then the rest of the year sequentially
-    const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const orderedMonths = [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
+        return PLATFORMS.map(p => {
+            const d = getMktDetail(p.id, month);
+            const custoInevLume = d.horasConsumidas * custoHoraEmp1;
+            const custoInevBureau = rateioEmp2PorMkt;
+            const custoInevShare = custoInevLume + custoInevBureau;
+            const lucroLiquido = d.faturamento - d.custoMateriais - d.custosDiretosRS - d.custosDiretosPerc - d.adsExtras - custoInevShare;
+            return { ...p, ...d, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
+        });
+    };
 
-    const formatCurrency = (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const formatPercent = (val) => `${val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    const fmt = (v) => `R$ ${(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtN = (v) => v > 0 ? fmt(v) : '—';
+
     const formatMonthName = (monthStr) => {
-        if (!monthStr) return '';
         const [yearStr, monthStrPart] = monthStr.split('-');
         const year = parseInt(yearStr);
         const month = parseInt(monthStrPart);
-
-        const date = new Date(year, month - 1);
-        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-
-        const prevDate = new Date(year, month - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
-        const currMonthNum = String(date.getMonth() + 1).padStart(2, '0');
-
-        return `${monthName} DE ${year} - VENDAS DE 06/${prevMonthNum} A 06/${currMonthNum}`;
+        const name = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prev = new Date(year, month - 2);
+        const prevM = String(prev.getMonth() + 1).padStart(2, '0');
+        const last = new Date(year, month - 1, 0).getDate();
+        return `${name} DE ${year} — VENDAS DE 01/${prevM} A ${last}/${prevM}`;
     };
+
+    const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const orderedMonths = [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
+
+    // Totais do ano
+    const yearTotals = months.reduce((acc, month) => {
+        const rows = getMonthDetails(month);
+        let fatMes = 0, custosMes = 0, adsExtrasMes = 0, inevMes = 0;
+        rows.forEach(r => {
+            fatMes += r.faturamento;
+            custosMes += r.custoMateriais + r.custosDiretosRS + r.custosDiretosPerc;
+            adsExtrasMes += r.adsExtras;
+            inevMes += r.custoInevShare;
+        });
+        acc.faturamento += fatMes;
+        acc.custoInev += inevMes;
+        acc.lucroLiquido += fatMes - custosMes - adsExtrasMes - inevMes;
+        return acc;
+    }, { faturamento: 0, custoInev: 0, lucroLiquido: 0 });
+
+    // Colunas da tabela
+    const COLS = [
+        { key: 'platform', label: 'Marketplace', align: 'left' },
+        { key: 'faturamento', label: 'Faturamento', align: 'right' },
+        { key: 'itens', label: 'Qtd Vendas', align: 'right' },
+        { key: 'custoMateriais', label: 'Custo Mater.', align: 'right' },
+        { key: 'custosDiretosRS', label: 'C. Diretos', align: 'right' },
+        { key: 'adsExtras', label: 'Ads+Extras', align: 'right' },
+        { key: 'custoInevLume', label: 'Inev. Lume', align: 'right' },
+        { key: 'custoInevBureau', label: 'Inev. Bureau', align: 'right' },
+        { key: 'lucroLiquido', label: 'Lucro Líquido', align: 'right' },
+    ];
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+            {/* Título */}
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <BarChart3 className="w-6 h-6 text-indigo-600" />
@@ -200,136 +217,127 @@ const VisaoGeral = () => {
                 </div>
             )}
 
-            {/* RESUMO DO ANO */}
+            {/* Resumo do Ano */}
             <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-xl p-6 text-white shadow-md overflow-hidden relative">
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-5">
                     <Activity className="w-48 h-48" />
                 </div>
-                <h3 className="text-lg font-bold mb-4 opacity-90 uppercase tracking-wider text-slate-200">Resumo do Ano ({currentYear})</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
+                <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-slate-300">Resumo do Ano ({currentYear})</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Faturamento Anual</div>
-                        <div className="text-3xl font-bold">{formatCurrency(yearSummary.faturamento)}</div>
+                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Faturamento Anual</div>
+                        <div className="text-3xl font-bold">{fmt(yearTotals.faturamento)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Ponto de Equilíbrio (Custos)</div>
-                        <div className="text-3xl font-bold text-orange-300">{formatCurrency(yearSummary.pontoEquilibrio)}</div>
+                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Custo Inevitável Anual</div>
+                        <div className="text-3xl font-bold text-orange-300">{fmt(yearTotals.custoInev)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Lucro Líquido</div>
-                        <div className={clsx("text-3xl font-bold", yearSummary.lucroLiquido >= 0 ? "text-emerald-400" : "text-red-400")}>
-                            {formatCurrency(yearSummary.lucroLiquido)}
+                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Lucro Líquido</div>
+                        <div className={clsx('text-3xl font-bold', yearTotals.lucroLiquido >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                            {fmt(yearTotals.lucroLiquido)}
                         </div>
-                    </div>
-                    <div>
-                        <div className="text-slate-400 text-sm font-semibold mb-1 uppercase">Margem Média</div>
-                        <div className="text-3xl font-bold text-blue-300">{formatPercent(margemMediaAno)}</div>
                     </div>
                 </div>
             </div>
 
-            {/* LISTA DE MESES */}
+            {/* Meses */}
             <div className="space-y-8">
-                {orderedMonths.map((month, index) => {
-                    const sum = getMonthSummary(month);
+                {orderedMonths.map((month) => {
                     const isCurrent = month === currentMonthStr;
+                    const rows = getMonthDetails(month);
+
+                    // Totais da linha de rodapé
+                    const totals = rows.reduce((a, r) => ({
+                        faturamento: a.faturamento + r.faturamento,
+                        itens: a.itens + r.itens,
+                        custoMateriais: a.custoMateriais + r.custoMateriais,
+                        custosDiretosRS: a.custosDiretosRS + r.custosDiretosRS,
+                        adsExtras: a.adsExtras + r.adsExtras,
+                        custoInevLume: a.custoInevLume + r.custoInevLume,
+                        custoInevBureau: a.custoInevBureau + r.custoInevBureau,
+                        custoInevShare: a.custoInevShare + r.custoInevShare,
+                        lucroLiquido: a.lucroLiquido + r.lucroLiquido,
+                    }), { faturamento: 0, itens: 0, custoMateriais: 0, custosDiretosRS: 0, adsExtras: 0, custoInevLume: 0, custoInevBureau: 0, custoInevShare: 0, lucroLiquido: 0 });
 
                     return (
-                        <div key={month} className={clsx("bg-white rounded-xl overflow-hidden", isCurrent ? "border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl shadow-indigo-100/50 transform scale-[1.01] transition-all" : "border border-gray-200 shadow-sm")}>
+                        <div key={month} className={clsx('bg-white rounded-xl overflow-hidden', isCurrent ? 'border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl' : 'border border-gray-200 shadow-sm')}>
 
-                            {/* Cabeçalho do Mês */}
-                            <div className={clsx("p-4 border-b flex justify-between items-center", isCurrent ? "bg-indigo-600 border-indigo-700" : "bg-gray-50 border-gray-100")}>
-                                <div className="flex items-center gap-3">
-                                    {isCurrent && <span className="px-2 py-0.5 bg-yellow-400 text-indigo-900 text-[10px] uppercase font-bold rounded shadow-sm">Mês Atual</span>}
-                                    <h4 className={clsx("font-bold text-lg", isCurrent ? "text-white tracking-wide" : "text-gray-700")}>{formatMonthName(month)}</h4>
-                                </div>
+                            {/* Cabeçalho */}
+                            <div className={clsx('p-4 border-b flex items-center gap-3', isCurrent ? 'bg-indigo-600 border-indigo-700' : 'bg-gray-50 border-gray-100')}>
+                                {isCurrent && <span className="px-2 py-0.5 bg-yellow-400 text-indigo-900 text-[10px] uppercase font-bold rounded">Mês Atual</span>}
+                                <h4 className={clsx('font-bold text-base', isCurrent ? 'text-white' : 'text-gray-700')}>{formatMonthName(month)}</h4>
                             </div>
 
-                            <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Tabela */}
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                    {/* Cabeçalho colunas */}
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b border-gray-100">
+                                            {COLS.map(col => (
+                                                <th key={col.key} className={clsx('px-4 py-2.5 font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap', col.align === 'right' ? 'text-right' : 'text-left')}>
+                                                    {col.label}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {rows.map(r => {
+                                            const hasData = r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0;
+                                            return (
+                                                <tr key={r.id} className={clsx('transition-colors', r.rowBg, hasData ? 'opacity-100' : 'opacity-50')}>
+                                                    {/* Nome */}
+                                                    <td className={clsx('px-4 py-3 font-bold border-l-4', r.border)}>
+                                                        <span className="mr-1.5">{r.emoji}</span>
+                                                        <span>{r.label}</span>
+                                                    </td>
+                                                    {/* Faturamento */}
+                                                    <td className="px-4 py-3 text-right font-semibold text-gray-800">{fmtN(r.faturamento)}</td>
+                                                    {/* Qtd */}
+                                                    <td className="px-4 py-3 text-right font-semibold text-gray-700">{r.itens > 0 ? r.itens : '—'}</td>
+                                                    {/* Custo Materiais */}
+                                                    <td className="px-4 py-3 text-right text-orange-600">{fmtN(r.custoMateriais)}</td>
+                                                    {/* Custos Diretos RS */}
+                                                    <td className="px-4 py-3 text-right text-orange-500">{fmtN(r.custosDiretosRS)}</td>
+                                                    {/* Ads+Extras */}
+                                                    <td className="px-4 py-3 text-right text-purple-500 font-medium">{fmtN(r.adsExtras)}</td>
+                                                    {/* Custo Inev Lume */}
+                                                    <td className="px-4 py-3 text-right text-red-400">{fmtN(r.custoInevLume)}</td>
+                                                    {/* Custo Inev Bureau */}
+                                                    <td className="px-4 py-3 text-right text-red-500">{fmtN(r.custoInevBureau)}</td>
+                                                    {/* Lucro Líquido */}
+                                                    <td className={clsx('px-4 py-3 text-right font-bold', r.lucroLiquido >= 0 && (r.faturamento > 0 || hasData) ? 'text-emerald-600' : (r.lucroLiquido < 0 ? 'text-red-600' : 'text-gray-400'))}>
+                                                        {(r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0) ? fmt(r.lucroLiquido) : '—'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
 
-                                {/* KPIs Principais */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                        <div className="flex items-center gap-2 text-gray-500 mb-2">
-                                            <TrendingUp size={16} />
-                                            <span className="text-xs font-bold uppercase">Margem de Contribuição</span>
-                                        </div>
-                                        <div className="text-xl font-bold text-gray-800">{formatPercent(sum.margemMedia)}</div>
-                                    </div>
-
-                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                                        <div className="flex items-center gap-2 text-blue-500 mb-2">
-                                            <ShoppingCart size={16} />
-                                            <span className="text-xs font-bold uppercase">Itens Vendidos</span>
-                                        </div>
-                                        <div className="text-xl font-bold text-blue-800">{sum.qtdItensVendidos} un</div>
-                                    </div>
-
-                                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                                        <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                                            <Wallet size={16} />
-                                            <span className="text-xs font-bold uppercase">Lucro Líquido</span>
-                                        </div>
-                                        <div className={clsx("text-xl font-bold", sum.lucroLiquido >= 0 ? "text-emerald-700" : "text-red-600")}>
-                                            {formatCurrency(sum.lucroLiquido)}
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                                        <div className="flex items-center gap-2 text-indigo-600 mb-2">
-                                            <DollarSign size={16} />
-                                            <span className="text-xs font-bold uppercase">Faturamento Total</span>
-                                        </div>
-                                        <div className="text-xl font-bold text-indigo-700">{formatCurrency(sum.faturamento)}</div>
-                                    </div>
-                                </div>
-
-                                {/* Ponto de Equilíbrio / Conta Simples */}
-                                <div className="bg-blue-50/50 p-5 rounded-lg border border-blue-100 flex flex-col justify-between">
-                                    <div className="mb-4">
-                                        <div className="flex justify-between items-end mb-2">
-                                            <h5 className="text-sm font-bold text-gray-700 uppercase">Demonstrativo Simplificado</h5>
-                                        </div>
-                                        <div className="space-y-2 text-sm font-medium">
-                                            <div className="flex justify-between text-gray-600">
-                                                <span>(+) Faturamento</span>
-                                                <span className="text-emerald-600">{formatCurrency(sum.faturamento)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-gray-600">
-                                                <span>(-) Custo Total dos Produtos</span>
-                                                <span className="text-orange-500">{formatCurrency(sum.custoTotalProdutos)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-gray-600 border-b border-blue-200 pb-2">
-                                                <span>(-) Custo Inevitável</span>
-                                                <span className="text-orange-500">{formatCurrency(sum.custoInevitavel)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-md font-bold pt-2 text-gray-500">
-                                                <span>(=) Ponto de Equilíbrio (Soma dos Custos)</span>
-                                                <span className="text-orange-600">
-                                                    {formatCurrency(sum.pontoEquilibrio)}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between text-lg font-bold pt-2 mt-2 border-t border-blue-300">
-                                                <span className="text-gray-800">(=) Lucro Líquido</span>
-                                                <span className={sum.lucroLiquido >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                                    {formatCurrency(sum.lucroLiquido)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {sum.lucroLiquido < 0 && (
-                                        <div className="text-xs text-red-600 bg-red-100 p-2 rounded text-center font-semibold">
-                                            ⚠️ O lucro está negativo neste mês.
-                                        </div>
-                                    )}
-                                </div>
-
+                                    {/* Rodapé — Totais */}
+                                    <tfoot>
+                                        <tr className="bg-indigo-600 text-white font-bold border-t-2 border-indigo-700">
+                                            <td className="px-4 py-3 uppercase text-xs tracking-wide">Total do Mês</td>
+                                            <td className="px-4 py-3 text-right">{fmtN(totals.faturamento)}</td>
+                                            <td className="px-4 py-3 text-right">{totals.itens > 0 ? totals.itens : '—'}</td>
+                                            <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.custoMateriais)}</td>
+                                            <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.custosDiretosRS)}</td>
+                                            <td className="px-4 py-3 text-right text-purple-200">{fmtN(totals.adsExtras)}</td>
+                                            <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevLume)}</td>
+                                            <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevBureau)}</td>
+                                            <td className={clsx('px-4 py-3 text-right text-base', totals.lucroLiquido >= 0 ? 'text-emerald-300' : 'text-red-300')}>
+                                                {fmt(totals.lucroLiquido)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
+
                         </div>
                     );
                 })}
             </div>
-
         </div>
     );
 };

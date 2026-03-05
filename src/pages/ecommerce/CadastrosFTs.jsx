@@ -3,7 +3,8 @@ import { Plus, Trash2, Save, Edit, FileText, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
-const CadastrosFTs = () => {
+const CadastrosFTs = ({ marketplace = 'geral' }) => {
+    const mktKey = `fts_mkt_${marketplace}`;
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -39,7 +40,7 @@ const CadastrosFTs = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [marketplace]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -49,17 +50,26 @@ const CadastrosFTs = () => {
                 api.getFtCostModels()
             ]);
 
-            let finalFts = dbFts;
+            // FTs por marketplace: lê do localStorage ou copia do Supabase
+            const savedRaw = localStorage.getItem(mktKey);
+            let finalFts;
+            if (savedRaw) {
+                finalFts = JSON.parse(savedRaw);
+            } else {
+                // Primeira abertura deste marketplace: copia FTs mestras
+                finalFts = dbFts.map(ft => ({ ...ft, _mkt: marketplace }));
+                localStorage.setItem(mktKey, JSON.stringify(finalFts));
+            }
+
             let finalModels = dbModels;
 
-            // --- MIGRAÇÃO DO LOCALSTORAGE PARA O SUPABASE ---
+            // --- MIGRAÇÃO DO LOCALSTORAGE GLOBAL PARA O SUPABASE ---
             const localFts = localStorage.getItem('ecommerce_fts');
             if (localFts && dbFts.length === 0) {
                 console.log("Migrando FTs do LocalStorage para Supabase...");
                 const parsedLocalFts = JSON.parse(localFts);
                 const migratedFts = [];
                 for (const ft of parsedLocalFts) {
-                    // Remover IDs antigos/falsos do localstorage
                     const { id, ...ftWithoutId } = ft;
                     const res = await api.saveFt({ ...ftWithoutId, id: null });
                     if (res.success) {
@@ -68,6 +78,7 @@ const CadastrosFTs = () => {
                 }
                 localStorage.removeItem('ecommerce_fts');
                 finalFts = migratedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+                localStorage.setItem(mktKey, JSON.stringify(finalFts));
             }
 
             const localModels = localStorage.getItem('ecommerce_cost_models');
@@ -85,7 +96,7 @@ const CadastrosFTs = () => {
                 finalModels = migratedModels;
             }
 
-            setFts(finalFts);
+            setFts(finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode)));
             setCostModels(finalModels);
             setForm({ ...initialFormState, ftCode: getNewFtCode(finalFts) });
         } catch (err) {
@@ -103,21 +114,18 @@ const CadastrosFTs = () => {
 
         setIsSaving(true);
         try {
-            const res = await api.saveFt(form);
-            if (res.success) {
-                let updatedFts;
-                if (isEditing) {
-                    updatedFts = fts.map(ft => ft.id === form.id ? { ...form, id: ft.id } : ft);
-                } else {
-                    updatedFts = [...fts, { ...form, id: res.newId }];
-                }
-                updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
-                setFts(updatedFts);
-                setIsEditing(false);
-                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+            let updatedFts;
+            if (isEditing) {
+                updatedFts = fts.map(ft => ft.id === form.id ? { ...form } : ft);
             } else {
-                alert("Erro ao salvar FT.");
+                const newFt = { ...form, id: `local_${Date.now()}` };
+                updatedFts = [...fts, newFt];
             }
+            updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+            setFts(updatedFts);
+            localStorage.setItem(mktKey, JSON.stringify(updatedFts));
+            setIsEditing(false);
+            setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
         } finally {
             setIsSaving(false);
         }
@@ -131,16 +139,12 @@ const CadastrosFTs = () => {
 
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta FT?')) {
-            const success = await api.deleteFt(id);
-            if (success) {
-                const updatedFts = fts.filter(ft => ft.id !== id);
-                setFts(updatedFts);
-                if (isEditing && form.id === id) {
-                    setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
-                    setIsEditing(false);
-                }
-            } else {
-                alert("Erro ao excluir FT.");
+            const updatedFts = fts.filter(ft => ft.id !== id);
+            setFts(updatedFts);
+            localStorage.setItem(mktKey, JSON.stringify(updatedFts));
+            if (isEditing && form.id === id) {
+                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+                setIsEditing(false);
             }
         }
     };
