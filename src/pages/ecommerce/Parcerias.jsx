@@ -25,6 +25,12 @@ const Parcerias = () => {
     const months = Array.from({ length: 12 }, (_, i) =>
         `${currentYear}-${String(i + 1).padStart(2, '0')}`
     );
+    const p = (v) => {
+        if (typeof v === 'number') return v;
+        if (!v) return 0;
+        const clean = String(v).replace(/[R$\s.]/g, '').replace(',', '.');
+        return parseFloat(clean) || 0;
+    };
 
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
@@ -73,32 +79,41 @@ const Parcerias = () => {
     }, []);
 
     // --- Helpers FTs ---
-    const calcMaterials = (ft) => ft?.materials?.reduce((a, c) => a + (parseFloat(c.value) || 0), 0) || 0;
-    const calcDirectCosts = (ft) => {
+    const calcMaterials = (ft) => ft?.materials?.reduce((a, c) => a + p(c.value), 0) || 0;
+    const calcDirectCostsRS = (ft) => ft?.directCostsRS?.reduce((a, c) => a + p(c.value), 0) || 0;
+    const calcDirectCostsPerc = (ft, precoEfet) => {
         if (!ft) return 0;
-        const dir = ft.directCostsRS?.reduce((a, c) => a + (parseFloat(c.value) || 0), 0) || 0;
-        const perc = ft.directCostsPercent?.reduce((a, c) =>
-            a + (((parseFloat(c.percentage) || 0) / 100) * (parseFloat(ft.salePrice) || 0)), 0) || 0;
-        return dir + perc;
+        const percTotal = ft.directCostsPercent?.reduce((a, c) => a + p(c.percentage), 0) || 0;
+        return (percTotal / 100) * (p(ft.salePrice) || precoEfet);
     };
     const calcCost = (ft) => calcMaterials(ft) + calcDirectCosts(ft);
 
     // --- Dados de Vendas + Lucro Líquido por mês ---
+    // --- Dados de Vendas + Lucro Líquido por mês ---
     const getVendasSummary = (month) => {
-        const rows = Array.isArray(vendasData[month]) ? vendasData[month] : [];
-        let totalVendas = 0, totalMateriais = 0, totalCustosDiretos = 0;
+        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretosRS = 0, totalCustosDiretosPerc = 0;
+        const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
 
-        rows.forEach(row => {
-            const ft = ftsData.find(f => f.id === row.ftId);
-            if (!ft) return;
-            const qty = parseInt(row.quantity) || 0;
-            const precoEfetivo = (parseFloat(ft.salePrice) || 0) * (1 - (parseFloat(row.discountPercent) || 0) / 100);
-            totalVendas += precoEfetivo * qty;
-            totalMateriais += calcMaterials(ft) * qty;
-            totalCustosDiretos += calcDirectCosts(ft) * qty;
+        PLATFORMS_ID.forEach(pid => {
+            const key = `${pid}_${month}`;
+            const rows = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+
+            rows.forEach(row => {
+                const ft = ftsData.find(f => f.id === row.ftId);
+                if (!ft) return;
+                const qty = parseInt(row.quantity) || 0;
+                const precoBase = p(ft.salePrice);
+                const desconto = p(row.discountPercent);
+                const precoEfetivo = precoBase * (1 - desconto / 100);
+
+                totalFaturamento += precoEfetivo * qty;
+                totalMateriais += calcMaterials(ft) * qty;
+                totalCustosDiretosRS += calcDirectCostsRS(ft) * qty;
+                totalCustosDiretosPerc += calcDirectCostsPerc(ft, precoEfetivo) * qty;
+            });
         });
 
-        return { totalVendas, totalMateriais, totalCustosDiretos };
+        return { totalFaturamento, totalMateriais, totalCustosDiretosRS, totalCustosDiretosPerc };
     };
 
     // --- Custos inevitáveis reais por mês (Horas + Rateio) ---
@@ -122,7 +137,7 @@ const Parcerias = () => {
         let rateioEmp2 = 0;
         const emp2 = empresas.length > 1 ? empresas[1] : null;
         if (emp2) {
-            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+            const totalEmp2 = (emp2.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const perc = emp2.ecommerceShare || 0;
             rateioEmp2 = totalEmp2 * (perc / 100);
         }
@@ -130,8 +145,8 @@ const Parcerias = () => {
         // 3. Custos Extras Genéricos + Ads (agrupado aqui)
         const adsArr = Array.isArray(costData?.ads) ? costData.ads : [];
         const extrasArr = Array.isArray(costData?.gastosExtras) ? costData.gastosExtras : [];
-        const custosExtrasRS = adsArr.reduce((a, c) => a + (parseFloat(c.value) || 0), 0) +
-            extrasArr.reduce((a, c) => a + (parseFloat(c.value) || 0), 0);
+        const custosExtrasRS = adsArr.reduce((a, c) => a + p(c.value), 0) +
+            extrasArr.reduce((a, c) => a + p(c.value), 0);
 
         // 4. Somar horas consumidas de todas as vendas deste mês
         let horasTotaisConsumidas = 0;
