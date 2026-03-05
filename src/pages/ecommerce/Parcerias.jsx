@@ -297,28 +297,28 @@ const Parcerias = () => {
                                         </div>
 
                                         {/* Total C. Diretos */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-orange-50 rounded-lg border border-orange-100">
+                                        <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
                                             <span className="text-xs text-gray-600 font-medium">Custos Diretos (R$)</span>
-                                            <span className="text-sm font-bold text-orange-600">{fmt(v.totalCustosDiretosRS)}</span>
+                                            <span className="text-sm font-bold text-blue-700">{fmt(v.totalCustosDiretosRS)}</span>
                                         </div>
-                                        <div className="flex justify-between items-center px-3 py-2 bg-orange-50 rounded-lg border border-orange-100">
+                                        <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
                                             <span className="text-xs text-gray-600 font-medium">Custos Diretos (%)</span>
-                                            <span className="text-sm font-bold text-orange-600">{fmt(v.totalCustosDiretosPerc)}</span>
+                                            <span className="text-sm font-bold text-blue-700">{fmt(v.totalCustosDiretosPerc)}</span>
                                         </div>
 
                                         {/* Ads+Extras */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-yellow-50 rounded-lg border border-yellow-100">
+                                        <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
                                             <span className="text-xs text-gray-600 font-medium">Ads+Extras</span>
-                                            <span className="text-sm font-bold text-yellow-700">{fmt(c.custosExtrasRS)}</span>
+                                            <span className="text-sm font-bold text-blue-700">{fmt(c.custosExtrasRS)}</span>
                                         </div>
 
                                         {/* LUME R$ */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                                        <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
                                             <div className="flex items-center gap-1.5">
-                                                <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
                                                 <span className="text-xs text-gray-600 font-medium">Inev. Lume</span>
                                             </div>
-                                            <span className="text-sm font-bold text-indigo-700">{fmt(c.lumeRS)}</span>
+                                            <span className="text-sm font-bold text-blue-700">{fmt(c.lumeRS)}</span>
                                         </div>
 
                                         {/* BUREAU R$ */}
