@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { api } from '../../services/api';
 
 const CadastrosFTs = ({ marketplace = 'geral' }) => {
-    const mktKey = `fts_mkt_${marketplace}`;
+    // Remove mktKey entirely
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -40,7 +40,9 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
     useEffect(() => {
         loadData();
-    }, [marketplace]);
+        // Disabling dependency on marketplace so it's fully global
+        // eslint-disable-next-line
+    }, []);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -50,54 +52,43 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                 api.getFtCostModels()
             ]);
 
-            // FTs por marketplace: lê do localStorage ou copia do Supabase
-            const savedRaw = localStorage.getItem(mktKey);
-            let finalFts;
-            if (savedRaw) {
-                finalFts = JSON.parse(savedRaw);
-            } else {
-                // Primeira abertura deste marketplace: copia FTs mestras
-                finalFts = dbFts.map(ft => ({ ...ft, _mkt: marketplace }));
-                localStorage.setItem(mktKey, JSON.stringify(finalFts));
-            }
+            let finalFts = [...dbFts];
 
-            let finalModels = dbModels;
+            // --- MIGRAÇÃO DE FTS PRESAS NO LOCALSTORAGE POR MARKETPLACE ---
+            const knownMkts = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+            let ftsMigrated = false;
 
-            // --- MIGRAÇÃO DO LOCALSTORAGE GLOBAL PARA O SUPABASE ---
-            const localFts = localStorage.getItem('ecommerce_fts');
-            if (localFts && dbFts.length === 0) {
-                console.log("Migrando FTs do LocalStorage para Supabase...");
-                const parsedLocalFts = JSON.parse(localFts);
-                const migratedFts = [];
-                for (const ft of parsedLocalFts) {
-                    const { id, ...ftWithoutId } = ft;
-                    const res = await api.saveFt({ ...ftWithoutId, id: null });
-                    if (res.success) {
-                        migratedFts.push({ ...ftWithoutId, id: res.newId });
+            for (const mkt of knownMkts) {
+                const key = `fts_mkt_${mkt}`;
+                const mktData = localStorage.getItem(key);
+                if (mktData) {
+                    try {
+                        const parsed = JSON.parse(mktData);
+                        console.log(`Migrando FTs do marketplace ${mkt}...`);
+                        for (const ft of parsed) {
+                            // Only migrate FTs that don't already exist in Supabase (check by ft_code)
+                            const exists = finalFts.some(dbFt => dbFt.ftCode === ft.ftCode);
+                            if (!exists) {
+                                const { id, _mkt, ...ftWithoutId } = ft;
+                                const res = await api.saveFt({ ...ftWithoutId, id: null });
+                                if (res.success) {
+                                    finalFts.push({ ...ftWithoutId, id: res.newId, ftCode: ft.ftCode });
+                                    ftsMigrated = true;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error migrating mkt data", e);
                     }
+                    // Limpar do localStorage para nunca mais rodar
+                    localStorage.removeItem(key);
                 }
-                localStorage.removeItem('ecommerce_fts');
-                finalFts = migratedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
-                localStorage.setItem(mktKey, JSON.stringify(finalFts));
             }
 
-            const localModels = localStorage.getItem('ecommerce_cost_models');
-            if (localModels && dbModels.length === 0) {
-                console.log("Migrando Modelos de Custos do LocalStorage para Supabase...");
-                const parsedModels = JSON.parse(localModels);
-                const migratedModels = [];
-                for (const m of parsedModels) {
-                    const { id, ...mWithoutId } = m;
-                    const res = await api.saveFtCostModel({ ...mWithoutId, id: null });
-                    if (res.success) migratedModels.push(res.data);
-                }
-                localStorage.removeItem('ecommerce_cost_models');
-                localStorage.removeItem('ecommerce_cost_model');
-                finalModels = migratedModels;
-            }
+            finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
 
-            setFts(finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode)));
-            setCostModels(finalModels);
+            setFts(finalFts);
+            setCostModels(dbModels);
             setForm({ ...initialFormState, ftCode: getNewFtCode(finalFts) });
         } catch (err) {
             console.error(err);
@@ -114,18 +105,29 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
         setIsSaving(true);
         try {
-            let updatedFts;
-            if (isEditing) {
-                updatedFts = fts.map(ft => ft.id === form.id ? { ...form } : ft);
-            } else {
-                const newFt = { ...form, id: `local_${Date.now()}` };
-                updatedFts = [...fts, newFt];
+            const formData = { ...form };
+            if (!isEditing) {
+                formData.id = null; // Let the API generate a UUID
             }
-            updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
-            setFts(updatedFts);
-            localStorage.setItem(mktKey, JSON.stringify(updatedFts));
-            setIsEditing(false);
-            setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+
+            const res = await api.saveFt(formData);
+
+            if (res.success) {
+                let updatedFts;
+                if (isEditing) {
+                    updatedFts = fts.map(ft => ft.id === formData.id ? { ...formData } : ft);
+                } else {
+                    const newFt = { ...formData, id: res.newId };
+                    updatedFts = [...fts, newFt];
+                }
+                updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+                setFts(updatedFts);
+                setIsEditing(false);
+                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+            } else {
+                alert('Erro ao salvar FT.');
+                console.error(res.error);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -139,12 +141,16 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta FT?')) {
-            const updatedFts = fts.filter(ft => ft.id !== id);
-            setFts(updatedFts);
-            localStorage.setItem(mktKey, JSON.stringify(updatedFts));
-            if (isEditing && form.id === id) {
-                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
-                setIsEditing(false);
+            const success = await api.deleteFt(id);
+            if (success) {
+                const updatedFts = fts.filter(ft => ft.id !== id);
+                setFts(updatedFts);
+                if (isEditing && form.id === id) {
+                    setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+                    setIsEditing(false);
+                }
+            } else {
+                alert('Erro ao excluir FT.');
             }
         }
     };
