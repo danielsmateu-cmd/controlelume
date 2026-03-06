@@ -230,11 +230,11 @@ function AppContent() {
             case 'vendas':
                 return <Entradas orders={orders} setOrders={setOrders} readOnly={!canEdit('vendas')} />;
             case 'contas':
-                return <Anotacoes />;
+                return <Anotacoes readOnly={!canEdit('contas')} />;
             case 'orcamentos':
-                return <Orcamentos materials={materials} setMaterials={setMaterials} />;
+                return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} />;
             case 'ecommerce':
-                return <ECommerce />;
+                return <ECommerce readOnly={!canEdit('ecommerce')} />;
             case 'tarefas':
                 return <Tarefas />;
             default:

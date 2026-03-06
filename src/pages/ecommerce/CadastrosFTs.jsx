@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Edit, FileText, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Save, Edit, FileText, Loader2, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
-const CadastrosFTs = ({ marketplace = 'geral' }) => {
+const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     // Remove mktKey entirely
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +108,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     };
 
     const handleSave = async () => {
+        if (readOnly) return;
         if (!form.name || form.salePrice <= 0) {
             alert('Por favor, preencha o nome e o preço de venda válido.');
             return;
@@ -164,12 +165,14 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     };
 
     const handleEdit = (ft) => {
+        if (readOnly) return;
         setForm(ft);
         setIsEditing(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleDelete = async (id) => {
+        if (readOnly) return;
         const ftToDelete = fts.find(f => f.id === id);
 
         if (ftToDelete?.isOverride) {
@@ -209,11 +212,13 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     };
 
     const handleCancel = () => {
+        if (readOnly) return;
         setForm({ ...initialFormState, ftCode: getNewFtCode(fts) });
         setIsEditing(false);
     };
 
     const handleSaveCostModel = async () => {
+        if (readOnly) return;
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
         if (!name || name.trim() === '') return;
 
@@ -238,6 +243,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     };
 
     const handleLoadCostModel = (e) => {
+        if (readOnly) return;
         const id = e.target.value;
         if (!id) return;
         const model = costModels.find(m => m.id === id);
@@ -256,14 +262,17 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
     // dynamic lists handlers
     const addListItem = (listName, template) => {
+        if (readOnly) return;
         setForm({ ...form, [listName]: [...form[listName], { ...template, id: Date.now().toString() }] });
     };
 
     const removeListItem = (listName, id) => {
+        if (readOnly) return;
         setForm({ ...form, [listName]: form[listName].filter(item => item.id !== id) });
     };
 
     const updateListItem = (listName, id, field, value) => {
+        if (readOnly) return;
         setForm({
             ...form,
             [listName]: form[listName].map(item => item.id === id ? { ...item, [field]: value } : item)
@@ -312,6 +321,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                     setIsEditing(false);
                                 }
                             }}
+                            disabled={readOnly}
                             className="w-full sm:w-auto text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 font-medium py-1.5"
                         >
                             {Array.from({ length: 1000 }, (_, i) => {
@@ -335,6 +345,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             type="text"
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            readOnly={readOnly}
                             className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="Ex: Luminária X"
                         />
@@ -345,6 +356,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             type="text"
                             value={form.variation}
                             onChange={(e) => setForm({ ...form, variation: e.target.value })}
+                            readOnly={readOnly}
                             className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="Ex: Preto"
                         />
@@ -355,6 +367,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             type="number"
                             value={form.productionTime || ''}
                             onChange={(e) => setForm({ ...form, productionTime: e.target.value })}
+                            readOnly={readOnly}
                             className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="Ex: 30"
                             min="0"
@@ -366,6 +379,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             type="number"
                             value={form.salePrice || ''}
                             onChange={(e) => setForm({ ...form, salePrice: parseFloat(e.target.value) || 0 })}
+                            readOnly={readOnly}
                             className="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="0,00"
                             step="0.01"
@@ -375,27 +389,31 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 mt-8 gap-4 border-b border-gray-100 pb-4">
                     <h3 className="text-md font-bold text-gray-800">Composição de Custos</h3>
-                    <div className="flex flex-wrap items-center gap-3">
-                        {costModels.length > 0 && (
-                            <select
-                                onChange={handleLoadCostModel}
-                                defaultValue=""
-                                className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                    {!readOnly && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            {costModels.length > 0 && (
+                                <select
+                                    onChange={handleLoadCostModel}
+                                    defaultValue=""
+                                    disabled={readOnly}
+                                    className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    <option value="" disabled>Carregar Modelo...</option>
+                                    {costModels.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                </select>
+                            )}
+                            <button
+                                type="button"
+                                onClick={handleSaveCostModel}
+                                disabled={readOnly}
+                                className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
                             >
-                                <option value="" disabled>Carregar Modelo...</option>
-                                {costModels.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
-                        )}
-                        <button
-                            type="button"
-                            onClick={handleSaveCostModel}
-                            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
-                        >
-                            Salvar como Modelo
-                        </button>
-                    </div>
+                                Salvar como Modelo
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -403,9 +421,11 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-gray-800">Materiais</h3>
-                            <button onClick={() => addListItem('materials', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
-                                <Plus size={16} />
-                            </button>
+                            {!readOnly && (
+                                <button onClick={() => addListItem('materials', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
+                                    <Plus size={16} />
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-3">
                             {form.materials.map(item => (
@@ -415,6 +435,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                         placeholder="Material"
                                         value={item.name}
                                         onChange={(e) => updateListItem('materials', item.id, 'name', e.target.value)}
+                                        readOnly={readOnly}
                                         className="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                     <input
@@ -422,12 +443,15 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                         placeholder="R$"
                                         value={item.value || ''}
                                         onChange={(e) => updateListItem('materials', item.id, 'value', parseFloat(e.target.value) || 0)}
+                                        readOnly={readOnly}
                                         className="w-24 text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
                                         step="0.01"
                                     />
-                                    <button onClick={() => removeListItem('materials', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {!readOnly && (
+                                        <button onClick={() => removeListItem('materials', item.id)} className="text-red-500 hover:text-red-700 p-1">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                             {form.materials.length === 0 && <p className="text-xs text-gray-500 italic text-center py-2">Nenhum material</p>}
@@ -441,9 +465,11 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-gray-800">Custos Diretos (R$)</h3>
-                            <button onClick={() => addListItem('directCostsRS', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
-                                <Plus size={16} />
-                            </button>
+                            {!readOnly && (
+                                <button onClick={() => addListItem('directCostsRS', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
+                                    <Plus size={16} />
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-3">
                             {form.directCostsRS.map(item => (
@@ -453,6 +479,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                         placeholder="Custo (ex: Frete)"
                                         value={item.name}
                                         onChange={(e) => updateListItem('directCostsRS', item.id, 'name', e.target.value)}
+                                        readOnly={readOnly}
                                         className="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                     <input
@@ -460,12 +487,15 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                         placeholder="R$"
                                         value={item.value || ''}
                                         onChange={(e) => updateListItem('directCostsRS', item.id, 'value', parseFloat(e.target.value) || 0)}
+                                        readOnly={readOnly}
                                         className="w-24 text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
                                         step="0.01"
                                     />
-                                    <button onClick={() => removeListItem('directCostsRS', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {!readOnly && (
+                                        <button onClick={() => removeListItem('directCostsRS', item.id)} className="text-red-500 hover:text-red-700 p-1">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                             {form.directCostsRS.length === 0 && <p className="text-xs text-gray-500 italic text-center py-2">Nenhum custo R$</p>}
@@ -479,9 +509,11 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-gray-800">Custos Diretos (%)</h3>
-                            <button onClick={() => addListItem('directCostsPercent', { name: '', percentage: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
-                                <Plus size={16} />
-                            </button>
+                            {!readOnly && (
+                                <button onClick={() => addListItem('directCostsPercent', { name: '', percentage: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
+                                    <Plus size={16} />
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-3">
                             {form.directCostsPercent.map(item => (
@@ -491,6 +523,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                         placeholder="Custo (ex: Imposto)"
                                         value={item.name}
                                         onChange={(e) => updateListItem('directCostsPercent', item.id, 'name', e.target.value)}
+                                        readOnly={readOnly}
                                         className="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                     <div className="w-24 relative">
@@ -499,14 +532,17 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                             placeholder="%"
                                             value={item.percentage || ''}
                                             onChange={(e) => updateListItem('directCostsPercent', item.id, 'percentage', parseFloat(e.target.value) || 0)}
+                                            readOnly={readOnly}
                                             className="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 pr-6"
                                             step="0.1"
                                         />
                                         <span className="absolute right-2 top-1.5 text-xs text-gray-500">%</span>
                                     </div>
-                                    <button onClick={() => removeListItem('directCostsPercent', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {!readOnly && (
+                                        <button onClick={() => removeListItem('directCostsPercent', item.id)} className="text-red-500 hover:text-red-700 p-1">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                             {form.directCostsPercent.length === 0 && <p className="text-xs text-gray-500 italic text-center py-2">Nenhum custo %</p>}
@@ -541,7 +577,7 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
 
                 {/* Botões de Ação */}
                 <div className="mt-6 flex justify-end gap-3">
-                    {isEditing && (
+                    {isEditing && !readOnly && (
                         <button
                             onClick={handleCancel}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -549,14 +585,16 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             Cancelar
                         </button>
                     )}
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                    >
-                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        {isEditing ? 'Atualizar FT' : 'Salvar nova FT'}
-                    </button>
+                    {!readOnly && (
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving || readOnly}
+                            className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                        >
+                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            {isEditing ? 'Atualizar FT' : 'Salvar nova FT'}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -572,10 +610,13 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                             <thead className="text-xs text-gray-500 bg-white uppercase">
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
-                                    <th className="px-6 py-3 font-medium text-right">Preço de Venda</th>
-                                    <th className="px-6 py-3 font-medium text-right">M. Contribuição (R$)</th>
-                                    <th className="px-6 py-3 font-medium text-right">M. Contribuição (%)</th>
-                                    <th className="px-6 py-3 font-medium text-center">Ações</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Diretos (R$)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Diretos (%)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (R$)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (%)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Venda (R$)</th>
+                                    <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo / Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -603,39 +644,67 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                                 </div>
                                                 {ft.productionTime && <div className="text-xs text-gray-500 mt-1">Tempo Prod.: {ft.productionTime} min</div>}
                                             </td>
-                                            <td className="px-6 py-4 text-right font-medium text-gray-900">
-                                                R$ {parseFloat(ft.salePrice).toFixed(2)}
+                                            <td className="px-6 py-4 text-right text-gray-600">
+                                                R$ {ftTotalMat.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right text-gray-600">
+                                                R$ {ftTotalDir.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right text-gray-600">
+                                                {ftTotalPerc.toFixed(1)}%
                                             </td>
                                             <td className={clsx("px-6 py-4 text-right font-semibold", ftMarginRS >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                 R$ {ftMarginRS.toFixed(2)}
                                             </td>
                                             <td className={clsx("px-6 py-4 text-right font-bold", ftMarginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                {ftMarginPercent.toFixed(2)}%
+                                                {ftMarginPercent.toFixed(1)}%
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setForm({
-                                                                ...ft,
-                                                                id: '',
-                                                                ftCode: getNewFtCode(),
-                                                                variation: ''
-                                                            });
-                                                            setIsEditing(false);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                        }}
-                                                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                                                        title="Criar Variação / Duplicar"
-                                                    >
-                                                        <Plus size={16} />
-                                                    </button>
-                                                    <button onClick={() => handleEdit(ft)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Editar">
-                                                        <Edit size={16} />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(ft.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                            <td className="px-6 py-4 text-right font-medium text-gray-900 whitespace-nowrap">
+                                                R$ {parseFloat(ft.salePrice).toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    {ft.productionTime && (
+                                                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                                                            {ft.productionTime}min
+                                                        </span>
+                                                    )}
+                                                    <div className="flex justify-center gap-1">
+                                                        {!readOnly && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setForm({
+                                                                        ...ft,
+                                                                        id: '',
+                                                                        ftCode: getNewFtCode(),
+                                                                        variation: ''
+                                                                    });
+                                                                    setIsEditing(false);
+                                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                }}
+                                                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                                                title="Criar Variação / Duplicar"
+                                                            >
+                                                                <Plus size={16} />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleEdit(ft)}
+                                                            disabled={readOnly}
+                                                            className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50")}
+                                                            title="Editar"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(ft.id)}
+                                                            disabled={readOnly}
+                                                            className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-red-600 hover:bg-red-50")}
+                                                            title="Excluir"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>

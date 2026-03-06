@@ -23,7 +23,7 @@ const getPrazoInfo = (dataFinal) => {
 
 const EMPTY_FORM = { cliente: '', descricao: '', dataFinal: '' };
 
-const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }) => {
+const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave, readOnly }) => {
     const [open, setOpen] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
@@ -64,49 +64,51 @@ const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }
             {open && (
                 <div className="border-t border-gray-100">
                     {/* Formulário */}
-                    {showForm ? (
-                        <div className="p-5 space-y-3 bg-gray-50 border-b border-gray-100">
-                            <input
-                                type="text"
-                                placeholder="Nome do cliente"
-                                value={form.cliente}
-                                onChange={e => setForm(f => ({ ...f, cliente: e.target.value }))}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                                disabled={loadingSave}
-                            />
-                            <textarea
-                                placeholder="Descrição da tarefa"
-                                value={form.descricao}
-                                onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
-                                rows={2}
-                                disabled={loadingSave}
-                            />
-                            <input
-                                type="date"
-                                value={form.dataFinal}
-                                onChange={e => setForm(f => ({ ...f, dataFinal: e.target.value }))}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                                disabled={loadingSave}
-                            />
-                            <div className="flex gap-2">
-                                <button disabled={loadingSave} onClick={handleAdd} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50">
-                                    Adicionar
-                                </button>
-                                <button disabled={loadingSave} onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} className="px-4 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-100 transition-colors disabled:opacity-50">
-                                    Cancelar
+                    {!readOnly && (
+                        showForm ? (
+                            <div className="p-5 space-y-3 bg-gray-50 border-b border-gray-100">
+                                <input
+                                    type="text"
+                                    placeholder="Nome do cliente"
+                                    value={form.cliente}
+                                    onChange={e => setForm(f => ({ ...f, cliente: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                    disabled={loadingSave}
+                                />
+                                <textarea
+                                    placeholder="Descrição da tarefa"
+                                    value={form.descricao}
+                                    onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
+                                    rows={2}
+                                    disabled={loadingSave}
+                                />
+                                <input
+                                    type="date"
+                                    value={form.dataFinal}
+                                    onChange={e => setForm(f => ({ ...f, dataFinal: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                    disabled={loadingSave}
+                                />
+                                <div className="flex gap-2">
+                                    <button disabled={loadingSave} onClick={handleAdd} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                                        Adicionar
+                                    </button>
+                                    <button disabled={loadingSave} onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} className="px-4 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-100 transition-colors disabled:opacity-50">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="px-5 py-2 border-b border-gray-50">
+                                <button
+                                    onClick={() => setShowForm(true)}
+                                    className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium py-1.5 transition-colors"
+                                >
+                                    <Plus size={14} /> Nova tarefa
                                 </button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="px-5 py-2 border-b border-gray-50">
-                            <button
-                                onClick={() => setShowForm(true)}
-                                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium py-1.5 transition-colors"
-                            >
-                                <Plus size={14} /> Nova tarefa
-                            </button>
-                        </div>
+                        )
                     )}
 
                     {/* Lista */}
@@ -125,8 +127,8 @@ const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }
                                     <div key={t.id} className="px-5 py-3.5 flex gap-3 items-start group hover:bg-gray-50 transition-colors">
                                         <button
                                             onClick={() => toggle(t.id, t.concluida)}
-                                            disabled={loadingSave}
-                                            className="mt-0.5 flex-shrink-0 w-4.5 h-4.5 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-indigo-500 transition-colors disabled:opacity-50"
+                                            disabled={loadingSave || readOnly}
+                                            className={`mt-0.5 flex-shrink-0 w-4.5 h-4.5 w-5 h-5 rounded-full border-2 border-gray-300 transition-colors ${readOnly ? 'cursor-default' : 'hover:border-indigo-500'} disabled:opacity-50`}
                                         />
                                         <div className="flex-1 min-w-0">
                                             {t.cliente && <p className="text-xs font-semibold text-gray-400 mb-0.5">{t.cliente}</p>}
@@ -138,9 +140,11 @@ const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }
                                                 </div>
                                             )}
                                         </div>
-                                        <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
-                                            <Trash2 size={14} />
-                                        </button>
+                                        {!readOnly && (
+                                            <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -152,16 +156,18 @@ const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }
                                     </div>
                                     {concluidas.map(t => (
                                         <div key={t.id} className="px-5 py-3 flex gap-3 items-start group hover:bg-gray-50 transition-colors opacity-40">
-                                            <button disabled={loadingSave} onClick={() => toggle(t.id, t.concluida)} className="mt-0.5 w-5 h-5 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0 disabled:opacity-50">
+                                            <button disabled={loadingSave || readOnly} onClick={() => toggle(t.id, t.concluida)} className={`mt-0.5 w-5 h-5 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0 disabled:opacity-50 ${readOnly ? 'cursor-default' : ''}`}>
                                                 <CheckCircle2 size={12} className="text-white" />
                                             </button>
                                             <div className="flex-1 min-w-0">
                                                 {t.cliente && <p className="text-xs text-gray-400 mb-0.5">{t.cliente}</p>}
                                                 <p className="text-sm text-gray-500 line-through break-words whitespace-pre-wrap">{t.descricao}</p>
                                             </div>
-                                            <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {!readOnly && (
+                                                <button disabled={loadingSave} onClick={() => remove(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all mt-0.5 flex-shrink-0 disabled:opacity-50">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </>
@@ -174,7 +180,7 @@ const PessoaPanel = ({ pessoa, tarefas, onAdd, onToggle, onRemove, loadingSave }
     );
 };
 
-const Tarefas = () => {
+const Tarefas = ({ readOnly }) => {
     const [tarefas, setTarefas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingSave, setLoadingSave] = useState(false);
@@ -272,7 +278,7 @@ const Tarefas = () => {
                         onAdd={(t) => handleAddTarefa(t, p.id)}
                         onToggle={handleToggleTarefa}
                         onRemove={handleRemoveTarefa}
-                        loadingSave={loadingSave}
+                        readOnly={readOnly}
                     />
                 ))}
             </div>

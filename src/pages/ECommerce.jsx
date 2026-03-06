@@ -63,7 +63,7 @@ const PLATFORMS = [
     },
 ];
 
-const ECommerce = () => {
+const ECommerce = ({ readOnly }) => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
     const [activePlatform, setActivePlatform] = useState('meli');
     const [activeMktTab, setActiveMktTab] = useState('vendas');
@@ -85,11 +85,11 @@ const ECommerce = () => {
     const renderSubContent = () => {
         switch (activeSubTab) {
             case 'visao_geral':
-                return <VisaoGeral />;
+                return <VisaoGeral readOnly={readOnly} />;
             case 'empresas_custos':
-                return <EmpresasCustos />;
+                return <EmpresasCustos readOnly={readOnly} />;
             case 'parcerias':
-                return <Parcerias />;
+                return <Parcerias readOnly={readOnly} />;
             case 'marketplaces':
                 return (
                     <div className="space-y-4">
@@ -146,8 +146,8 @@ const ECommerce = () => {
 
                         {/* Conteúdo */}
                         <div>
-                            {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} />}
-                            {activeMktTab === 'cadastros_fts' && <CadastrosFTs marketplace={activePlatform} />}
+                            {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={readOnly} />}
+                            {activeMktTab === 'cadastros_fts' && <CadastrosFTs marketplace={activePlatform} readOnly={readOnly} />}
                         </div>
                     </div>
                 );

@@ -3,7 +3,7 @@ import { Plus, Trash2, Save, ShoppingCart, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
-const Vendas = ({ marketplace = 'geral' }) => {
+const Vendas = ({ marketplace = 'geral', readOnly }) => {
     // Carregar opções de FTs
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -312,10 +312,10 @@ const Vendas = ({ marketplace = 'geral' }) => {
                                                 <td className="px-4 py-3">
                                                     <input
                                                         type="number"
-                                                        min="1"
-                                                        value={row.quantity}
-                                                        onChange={(e) => updateRow(row.id, 'quantity', e.target.value)}
-                                                        className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 font-bold text-center"
+                                                        value={row.quantity || ''}
+                                                        onChange={(e) => !readOnly && updateRow(row.id, 'quantity', e.target.value)}
+                                                        readOnly={readOnly}
+                                                        className={`w-16 px-2 py-1 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 outline-none text-center font-bold ${readOnly ? 'cursor-default' : ''}`}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 font-medium text-gray-800">

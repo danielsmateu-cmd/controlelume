@@ -66,7 +66,7 @@ export const ROLE_PERMISSIONS = {
     },
     editor: {
         visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas'],
-        editableTabs: ['orcamentos', 'contas', 'ecommerce', 'tarefas'],
+        editableTabs: ['orcamentos', 'contas', 'tarefas'],
         canExportImport: false
     },
     budget_only: {

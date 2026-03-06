@@ -19,7 +19,7 @@ const TrendingUp = ({ size }) => (
     </svg>
 );
 
-const Orcamentos = ({ materials, setMaterials }) => {
+const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const [view, setView] = useState('budget'); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
     const [globalQty, setGlobalQty] = useState('1');
@@ -659,7 +659,8 @@ const Orcamentos = ({ materials, setMaterials }) => {
                         <div className="md:col-span-2">
                             <button
                                 onClick={saveGlobalSettings}
-                                className="w-full xl:w-1/2 flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold py-2 px-4 rounded-xl border border-indigo-200 transition-colors"
+                                disabled={readOnly}
+                                className={`w-full xl:w-1/2 flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 font-bold py-2 px-4 rounded-xl border border-indigo-200 transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-100'}`}
                             >
                                 <Save size={18} /> Salvar Taxas Globais
                             </button>
@@ -713,7 +714,7 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                     </p>
                                 </div>
                             )}
-                            <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
+                            <button type="submit" disabled={readOnly} className={`w-full py-3 bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 ${readOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'}`}>
                                 <Plus size={20} /> Cadastrar Chapa
                             </button>
                         </form>
@@ -763,10 +764,10 @@ const Orcamentos = ({ materials, setMaterials }) => {
                                                     </td>
                                                     <td className="px-6 py-4 text-center">
                                                         <div className="flex justify-center gap-1">
-                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} className="p-1 text-gray-400 hover:text-indigo-600" title="Subir"><ChevronUp size={18} /></button>
-                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} className="p-1 text-gray-400 hover:text-indigo-600" title="Descer"><ChevronDown size={18} /></button>
-                                                            <button type="button" onClick={() => handleEditMaterial(m)} className="p-1 text-gray-400 hover:text-indigo-600" title="Editar"><Pencil size={16} /></button>
-                                                            <button type="button" onClick={() => handleDeleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Excluir"><Trash2 size={16} /></button>
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'up')} disabled={readOnly} className={`p-1 ${readOnly ? 'opacity-30 cursor-not-allowed' : 'text-gray-400 hover:text-indigo-600'}`} title="Subir"><ChevronUp size={18} /></button>
+                                                            <button type="button" onClick={() => handleMoveMaterial(m.id, 'down')} disabled={readOnly} className={`p-1 ${readOnly ? 'opacity-30 cursor-not-allowed' : 'text-gray-400 hover:text-indigo-600'}`} title="Descer"><ChevronDown size={18} /></button>
+                                                            <button type="button" onClick={() => handleEditMaterial(m)} disabled={readOnly} className={`p-1 ${readOnly ? 'opacity-30 cursor-not-allowed' : 'text-gray-400 hover:text-indigo-600'}`} title="Editar"><Pencil size={16} /></button>
+                                                            <button type="button" onClick={() => handleDeleteMaterial(m.id)} disabled={readOnly} className={`p-2 ${readOnly ? 'opacity-30 cursor-not-allowed' : 'text-gray-300 hover:text-red-500'} transition-colors`} title="Excluir"><Trash2 size={16} /></button>
                                                         </div>
                                                     </td>
                                                 </>

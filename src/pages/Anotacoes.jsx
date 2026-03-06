@@ -17,7 +17,7 @@ const STATUS_ETAPA = {
     concluido: { label: 'Concluído', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
 };
 
-const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
+const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
     const [expanded, setExpanded] = useState(false);
     const etapas = producaoData?.etapas || {};
 
@@ -110,7 +110,8 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                                         <select
                                             value={statusAtual}
                                             onChange={e => onUpdateEtapa(budget.id, etapa.id, e.target.value)}
-                                            className="text-[10px] font-bold bg-transparent border-none outline-none cursor-pointer ml-1"
+                                            disabled={readOnly}
+                                            className={`text-[10px] font-bold bg-transparent border-none outline-none ${readOnly ? 'cursor-default' : 'cursor-pointer'} ml-1`}
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <option value="pendente">Pendente</option>
@@ -127,11 +128,12 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações</p>
                         <textarea
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                            className={`w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none ${readOnly ? 'cursor-default' : ''}`}
                             rows={2}
-                            placeholder="Anotações internas de produção..."
+                            placeholder={readOnly ? "Sem observações" : "Anotações internas de produção..."}
                             value={producaoData?.obs || ''}
                             onChange={e => onUpdateEtapa(budget.id, '__obs__', e.target.value)}
+                            readOnly={readOnly}
                         />
                     </div>
                 </div>
@@ -140,7 +142,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa }) => {
     );
 };
 
-const Producao = () => {
+const Producao = ({ readOnly }) => {
     const [budgetsAprovados, setBudgetsAprovados] = useState([]);
     const [producaoData, setProducaoData] = useState(() => {
         const saved = localStorage.getItem('producao_data');
@@ -217,7 +219,7 @@ const Producao = () => {
                             key={budget.id}
                             budget={budget}
                             producaoData={producaoData[budget.id]}
-                            onUpdateEtapa={handleUpdateEtapa}
+                            readOnly={readOnly}
                         />
                     ))}
                 </div>
