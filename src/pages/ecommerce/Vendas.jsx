@@ -54,8 +54,20 @@ const Vendas = ({ marketplace = 'geral' }) => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                const fetchedFts = await api.getFts();
-                setFts(fetchedFts);
+                const [fetchedFts, mktOverrides] = await Promise.all([
+                    api.getFts(),
+                    api.getSettings(`ft_overrides_${marketplace}`)
+                ]);
+
+                const overridesData = mktOverrides || {};
+                const finalFts = fetchedFts.map(ft => {
+                    if (overridesData[ft.ftCode]) {
+                        return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                    }
+                    return ft;
+                });
+
+                setFts(finalFts);
 
                 let dbSales = await api.getMonthlySales();
 
@@ -307,7 +319,14 @@ const Vendas = ({ marketplace = 'geral' }) => {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 font-medium text-gray-800">
-                                                    {ft ? `${ft.ftCode} - ${ft.name} ${ft.variation ? `(${ft.variation})` : ''}` : 'FT Excluída'}
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{ft ? `${ft.ftCode} - ${ft.name} ${ft.variation ? `(${ft.variation})` : ''}` : 'FT Excluída'}</span>
+                                                        {ft?.isOverride && (
+                                                            <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.5 rounded uppercase tracking-wide whitespace-nowrap">
+                                                                Local
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-700 font-medium">
                                                     R$ {unitPrice.toFixed(2)}

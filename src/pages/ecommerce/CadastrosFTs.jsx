@@ -37,20 +37,23 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [costModels, setCostModels] = useState([]);
+    const [overrides, setOverrides] = useState({});
 
     useEffect(() => {
         loadData();
-        // Disabling dependency on marketplace so it's fully global
-        // eslint-disable-next-line
-    }, []);
+    }, [marketplace]);
 
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [dbFts, dbModels] = await Promise.all([
+            const [dbFts, dbModels, mktOverrides] = await Promise.all([
                 api.getFts(),
-                api.getFtCostModels()
+                api.getFtCostModels(),
+                api.getSettings(`ft_overrides_${marketplace}`)
             ]);
+
+            const overridesData = mktOverrides || {};
+            setOverrides(overridesData);
 
             let finalFts = [...dbFts];
 
@@ -85,6 +88,13 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                 }
             }
 
+            finalFts = finalFts.map(ft => {
+                if (overridesData[ft.ftCode]) {
+                    return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                }
+                return ft;
+            });
+
             finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
 
             setFts(finalFts);
@@ -106,27 +116,47 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
         setIsSaving(true);
         try {
             const formData = { ...form };
+
             if (!isEditing) {
+                // NEW FT -> Save Globally
                 formData.id = null; // Let the API generate a UUID
-            }
+                const res = await api.saveFt(formData);
 
-            const res = await api.saveFt(formData);
-
-            if (res.success) {
-                let updatedFts;
-                if (isEditing) {
-                    updatedFts = fts.map(ft => ft.id === formData.id ? { ...formData } : ft);
-                } else {
+                if (res.success) {
                     const newFt = { ...formData, id: res.newId };
-                    updatedFts = [...fts, newFt];
+                    const updatedFts = [...fts, newFt];
+                    updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+                    setFts(updatedFts);
+                    setIsEditing(false);
+                    setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+                } else {
+                    alert('Erro ao criar nova FT.');
+                    console.error(res.error);
                 }
-                updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
-                setFts(updatedFts);
-                setIsEditing(false);
-                setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
             } else {
-                alert('Erro ao salvar FT.');
-                console.error(res.error);
+                // EDIT EXISTING FT -> Save as Override for this marketplace
+                const nextOverrides = { ...overrides };
+                nextOverrides[form.ftCode] = {
+                    name: form.name,
+                    variation: form.variation,
+                    productionTime: form.productionTime,
+                    salePrice: form.salePrice,
+                    materials: form.materials,
+                    directCostsRS: form.directCostsRS,
+                    directCostsPercent: form.directCostsPercent
+                };
+
+                const success = await api.saveSettings(`ft_overrides_${marketplace}`, nextOverrides);
+                if (success) {
+                    setOverrides(nextOverrides);
+                    const updatedFts = fts.map(ft => ft.ftCode === form.ftCode ? { ...formData, isOverride: true } : ft);
+                    updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
+                    setFts(updatedFts);
+                    setIsEditing(false);
+                    setForm({ ...initialFormState, ftCode: getNewFtCode(updatedFts) });
+                } else {
+                    alert("Erro ao salvar alterações da FT no marketplace.");
+                }
             }
         } finally {
             setIsSaving(false);
@@ -140,7 +170,30 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Tem certeza que deseja excluir esta FT?')) {
+        const ftToDelete = fts.find(f => f.id === id);
+
+        if (ftToDelete?.isOverride) {
+            if (window.confirm(`Esta FT possui modificações APENAS neste marketplace (${marketplace}).\n\nDeseja restaurar as configurações originais (globais)?\n\nOK = Restaurar original\nCancelar = Manter como está`)) {
+                const nextOverrides = { ...overrides };
+                delete nextOverrides[ftToDelete.ftCode];
+                const success = await api.saveSettings(`ft_overrides_${marketplace}`, nextOverrides);
+                if (success) {
+                    setOverrides(nextOverrides);
+                    // Recarregar os dados para pegar a versão original
+                    loadData();
+                    if (isEditing && form.id === id) {
+                        setIsEditing(false);
+                    }
+                } else {
+                    alert("Erro ao restaurar a FT original");
+                }
+                return;
+            } else {
+                return; // Cancelled
+            }
+        }
+
+        if (window.confirm('Tem certeza que deseja EXCLUIR DEFINITIVAMENTE esta FT de TODOS os marketplaces?')) {
             const success = await api.deleteFt(id);
             if (success) {
                 const updatedFts = fts.filter(ft => ft.id !== id);
@@ -539,9 +592,14 @@ const CadastrosFTs = ({ marketplace = 'geral' }) => {
                                     return (
                                         <tr key={ft.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-900">
-                                                    <span className="text-gray-500 mr-2">{ft.ftCode}</span>
-                                                    {ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}
+                                                <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                                    <span className="text-gray-500">{ft.ftCode}</span>
+                                                    {ft.isOverride && (
+                                                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                                            Modificado Local
+                                                        </span>
+                                                    )}
+                                                    <span>{ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}</span>
                                                 </div>
                                                 {ft.productionTime && <div className="text-xs text-gray-500 mt-1">Tempo Prod.: {ft.productionTime} min</div>}
                                             </td>
