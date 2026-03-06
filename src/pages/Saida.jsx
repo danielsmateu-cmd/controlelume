@@ -644,6 +644,28 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         )}
 
                         <div>
+                            {/* TOTALS SUMMARY */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
+                                    <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Pago - {months[selectedMonth]}</p>
+                                    <p className="text-xl font-bold text-green-700">
+                                        {expenses
+                                            .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid)
+                                            .reduce((acc, curr) => acc + curr.amount, 0)
+                                            .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                </div>
+                                <div className="bg-red-50 border border-red-100 p-3 rounded-xl">
+                                    <p className="text-[10px] font-bold text-red-600 uppercase mb-1">Total Pendente - {months[selectedMonth]}</p>
+                                    <p className="text-xl font-bold text-red-700">
+                                        {expenses
+                                            .filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && !e.paid)
+                                            .reduce((acc, curr) => acc + curr.amount, 0)
+                                            .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                </div>
+                            </div>
+
                             <div className="flex items-center justify-between mb-3 border-t pt-4">
                                 <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos e Extras - {months[selectedMonth]}</h3>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length >= fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -793,6 +815,19 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 {/* MERCADO -> GASTOS EXTRAS */}
                 {activeTab === 'mercado' && (
                     <div className="space-y-3">
+                        {/* TOTALS SUMMARY */}
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-2 mb-2">
+                            <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
+                                <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Adicionado - {months[selectedMonth]}</p>
+                                <p className="text-xl font-bold text-green-700">
+                                    {expenses
+                                        .filter(e => e.type === 'mercado' && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear)
+                                        .reduce((acc, curr) => acc + curr.amount, 0)
+                                        .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                            </div>
+                        </div>
+
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <h3 className="text-sm font-semibold text-gray-800">Adicionar Gasto Extra (Avulso)</h3>
@@ -984,6 +1019,19 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 {/* RETIRADA */}
                 {activeTab === 'retirada' && (
                     <div>
+                        {/* TOTALS SUMMARY */}
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-2 mb-4">
+                            <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
+                                <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Retirado - {months[selectedMonth]}</p>
+                                <p className="text-xl font-bold text-green-700">
+                                    {expenses
+                                        .filter(e => e.type === 'retirada' && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear)
+                                        .reduce((acc, curr) => acc + curr.amount, 0)
+                                        .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                            </div>
+                        </div>
+
                         <h3 className="text-sm font-semibold text-gray-800 mb-2">Registrar Retirada</h3>
                         {!readOnly && (
                             <form onSubmit={handleAddRetirada} className="space-y-3">
