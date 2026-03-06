@@ -1,11 +1,26 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onExportExcel }) => {
     const fileInputRef = useRef(null);
     const { currentUser, logout, canView, permissions } = useAuth();
+
+    const handleClearTestData = () => {
+        if (window.confirm('Tem certeza que deseja APAGAR TODOS os dados de teste? Isso limpará todas as entradas, despesas, orçamentos e FTs deste usuário. Essa ação não afeta os dados reais do sistema.')) {
+            // Remove just the teste_ prefixed keys from localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('teste_')) {
+                    localStorage.removeItem(key);
+                    i--; // adjust index since we removed an item
+                }
+            }
+            alert('Dados de teste apagados com sucesso! A página será recarregada.');
+            window.location.reload();
+        }
+    };
 
     const allMenuItems = [
         { id: 'resumo', label: 'Resumo', icon: LayoutDashboard },
@@ -56,8 +71,21 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
                 })}
             </nav>
 
+            {/* Test User Specific Actions */}
+            {currentUser?.login === 'teste' && (
+                <div className="px-4 border-t border-gray-100 pt-3 pb-2 space-y-1">
+                    <button
+                        onClick={handleClearTestData}
+                        className="flex items-center w-full px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors gap-2"
+                        title="Limpar todos os dados locais deste usuário"
+                    >
+                        <Trash2 size={14} className="text-red-500" /> Limpar Dados de Teste
+                    </button>
+                </div>
+            )}
+
             {/* Backup buttons - only for admin */}
-            {permissions?.canExportImport && (
+            {permissions?.canExportImport && currentUser?.login !== 'teste' && (
                 <div className="px-4 border-t border-gray-100 pt-3 pb-2 space-y-1">
                     <button
                         onClick={onExportExcel}
