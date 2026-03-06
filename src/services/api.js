@@ -1,6 +1,20 @@
 import { supabase } from '../lib/supabase';
+import { localApi } from './localApi';
 
-export const api = {
+const isTestUser = () => {
+    try {
+        const user = sessionStorage.getItem('currentUser');
+        if (user) {
+            const parsed = JSON.parse(user);
+            return parsed.login === 'teste';
+        }
+    } catch (e) {
+        // Handle gracefully
+    }
+    return false;
+};
+
+const supabaseApi = {
     // ==================== MATERIAIS ====================
     async getMaterials() {
         try {
@@ -803,3 +817,12 @@ export const api = {
         }
     }
 };
+
+export const api = new Proxy(supabaseApi, {
+    get: function (target, prop) {
+        if (isTestUser() && localApi[prop]) {
+            return localApi[prop];
+        }
+        return target[prop];
+    }
+});

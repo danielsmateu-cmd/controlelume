@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Check, X, Trash2 } from 'lucide-react';
+import { Plus, Check, X, Trash2, Copy } from 'lucide-react';
 import { api } from '../services/api';
 
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
@@ -172,6 +172,60 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             }
             return exp;
         }));
+    };
+
+    const saveExpenseField = async (id, field, value) => {
+        try {
+            await api.updateExpense(id, { [field]: value });
+        } catch (err) {
+            console.error('Erro ao salvar campo no Supabase:', err);
+        }
+    };
+
+    const handleDueDateChange = async (expense, newValue) => {
+        let updatedExpenses = expenses.map(exp =>
+            exp.id === expense.id ? { ...exp, dueDate: newValue } : exp
+        );
+        let promises = [api.updateExpense(expense.id, { dueDate: newValue })];
+
+        if ((expense.type === 'fixos' || expense.type === 'fixos_extra') && newValue) {
+            const dateObj = new Date(newValue + 'T00:00:00');
+            const targetDay = dateObj.getUTCDate();
+
+            const shouldUpdateFuture = window.confirm('Deseja atualizar a data de vencimento para todos os meses futuros desta despesa?');
+
+            if (shouldUpdateFuture) {
+                const identifier = expense.category || expense.description;
+                updatedExpenses = updatedExpenses.map(exp => {
+                    if (exp.id === expense.id) return exp;
+
+                    if ((exp.type === 'fixos' || exp.type === 'fixos_extra') &&
+                        (exp.category || exp.description) === identifier) {
+
+                        if ((exp.year === expense.year && exp.month >= expense.month) || exp.year > expense.year) {
+                            let futureDateStr = exp.dueDate || exp.date;
+                            if (futureDateStr) {
+                                const fDate = new Date(futureDateStr + 'T00:00:00');
+                                fDate.setUTCDate(targetDay);
+                                const newDateStr = fDate.toISOString().split('T')[0];
+
+                                promises.push(api.updateExpense(exp.id, { dueDate: newDateStr }));
+                                return { ...exp, dueDate: newDateStr };
+                            }
+                        }
+                    }
+                    return exp;
+                });
+            }
+        }
+
+        setExpenses(updatedExpenses);
+
+        try {
+            await Promise.all(promises);
+        } catch (err) {
+            console.error('Erro ao atualizar datas futuras no Supabase:', err);
+        }
     };
 
     const handleAddExtra = (e) => {
@@ -363,6 +417,9 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Descrição/Categoria</th>
+                        {activeTab === 'fornecedores' && (
+                            <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Cód. Barras</th>
+                        )}
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Valor</th>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase text-center">Status</th>
@@ -377,13 +434,38 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 {expense.type === 'fixos_extra' && <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Extra</span>}
                                 {expense.month !== undefined && <span className="ml-2 text-[10px] text-gray-400">({months[expense.month]})</span>}
                             </td>
+                            {activeTab === 'fornecedores' && (
+                                <td className="px-6 py-2 text-sm">
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="text"
+                                            value={expense.barcode || ''}
+                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'barcode', e.target.value)}
+                                            onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'barcode', e.target.value)}
+                                            readOnly={readOnly}
+                                            disabled={readOnly}
+                                            placeholder="Código"
+                                            className={`w-full min-w-[100px] max-w-[140px] p-1 border border-transparent hover:border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:bg-white text-xs ${readOnly ? 'cursor-default' : ''}`}
+                                        />
+                                        {expense.barcode && (
+                                            <button
+                                                onClick={() => { navigator.clipboard.writeText(expense.barcode); alert('Código copiado!'); }}
+                                                className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                                                title="Copiar Código"
+                                            >
+                                                <Copy size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            )}
                             <td className="px-6 py-2 text-sm text-gray-500">
                                 {activeTab === 'fornecedores' ? (
                                     <div className="flex items-center">
                                         <input
                                             type="date"
                                             value={expense.dueDate || ''}
-                                            onChange={(e) => updateExpenseField(expense.id, 'dueDate', e.target.value)}
+                                            onChange={(e) => !readOnly && handleDueDateChange(expense, e.target.value)}
                                             className={`p-1 border rounded focus:ring-1 focus:ring-indigo-500 text-xs font-medium shrink-0 ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'}`}
                                         />
                                         {getDaysUntilDue(expense.dueDate, expense.paid)}
@@ -573,6 +655,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                     <thead className="bg-gray-50 border-b border-gray-200">
                                         <tr>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Categoria</th>
+                                            <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Cód. Barras</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Valor (R$)</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-center">Status</th>
@@ -606,6 +689,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                                 type="text"
                                                                 value={expense.category || expense.description || ''}
                                                                 onChange={(e) => !readOnly && updateExpenseField(expense.id, expense.category !== undefined ? 'category' : 'description', e.target.value)}
+                                                                onBlur={(e) => !readOnly && saveExpenseField(expense.id, expense.category !== undefined ? 'category' : 'description', e.target.value)}
                                                                 readOnly={readOnly}
                                                                 disabled={readOnly}
                                                                 className={`w-full max-w-[160px] p-1 border border-transparent hover:border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-300 bg-transparent text-sm font-medium text-indigo-600 outline-none transition-colors ${readOnly ? 'cursor-default' : ''}`}
@@ -615,11 +699,34 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-2">
+                                                        <div className="flex items-center gap-1">
+                                                            <input
+                                                                type="text"
+                                                                value={expense.barcode || ''}
+                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, 'barcode', e.target.value)}
+                                                                onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'barcode', e.target.value)}
+                                                                readOnly={readOnly}
+                                                                disabled={readOnly}
+                                                                placeholder="Código de barras"
+                                                                className={`w-full min-w-[120px] max-w-[160px] p-1 border border-transparent hover:border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:bg-white text-xs ${readOnly ? 'cursor-default' : ''}`}
+                                                            />
+                                                            {expense.barcode && (
+                                                                <button
+                                                                    onClick={() => { navigator.clipboard.writeText(expense.barcode); alert('Código copiado!'); }}
+                                                                    className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                                                                    title="Copiar Código"
+                                                                >
+                                                                    <Copy size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-2">
                                                         <div className="flex items-center">
                                                             <input
                                                                 type="date"
                                                                 value={expense.dueDate || ''}
-                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, 'dueDate', e.target.value)}
+                                                                onChange={(e) => !readOnly && handleDueDateChange(expense, e.target.value)}
                                                                 readOnly={readOnly}
                                                                 disabled={readOnly}
                                                                 className={`p-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-medium shrink-0 ${expense.paid ? 'border-green-300 text-green-700 bg-green-50' : 'border-red-300 text-red-700 bg-red-50'} ${readOnly ? 'cursor-default' : ''}`}
@@ -632,6 +739,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                             type="number" step="0.01"
                                                             value={expense.amount || ''}
                                                             onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                            onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
                                                             readOnly={readOnly}
                                                             disabled={readOnly}
                                                             className="w-full max-w-[120px] p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"

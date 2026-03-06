@@ -47,6 +47,13 @@ export const USERS = [
         password: 'producao',
         name: 'Produção',
         role: 'producao_only'
+    },
+    {
+        id: 99,
+        login: 'teste',
+        password: 'teste',
+        name: 'Usuário de Teste',
+        role: 'admin'
     }
 ];
 
