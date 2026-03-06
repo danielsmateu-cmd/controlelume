@@ -611,8 +611,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
-                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Diretos (R$)</th>
-                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Diretos (%)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (Fixo)</th>
+                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (%)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (R$)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (%)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Venda (R$)</th>
@@ -651,7 +651,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 R$ {ftTotalDir.toFixed(2)}
                                             </td>
                                             <td className="px-6 py-4 text-right text-gray-600">
-                                                {ftTotalPerc.toFixed(1)}%
+                                                R$ {ftTotalPerc.toFixed(2)}
                                             </td>
                                             <td className={clsx("px-6 py-4 text-right font-semibold", ftMarginRS >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                 R$ {ftMarginRS.toFixed(2)}
