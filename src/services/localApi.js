@@ -186,6 +186,7 @@ export const localApi = {
             expense.due_date = updates.dueDate;
             expense.dueDate = updates.dueDate;
         }
+        if (updates.barcode !== undefined) expense.barcode = updates.barcode;
 
         setLocal('expenses', current);
         return true;
@@ -210,7 +211,8 @@ export const localApi = {
                 paid: e.paid,
                 payment_date: e.paymentDate,
                 paymentDate: e.paymentDate,
-                people: e.people
+                people: e.people,
+                barcode: e.barcode
             };
 
             if (index > -1) {

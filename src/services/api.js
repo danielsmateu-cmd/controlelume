@@ -257,7 +257,8 @@ const supabaseApi = {
             return data.map(e => ({
                 ...e,
                 dueDate: e.due_date,
-                paymentDate: e.payment_date
+                paymentDate: e.payment_date,
+                barcode: e.barcode
             }));
         } catch (err) {
             console.error('Supabase getExpenses:', err);
@@ -287,6 +288,7 @@ const supabaseApi = {
             if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
             if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
             if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+            if (updates.barcode !== undefined) dbUpdates.barcode = updates.barcode;
 
             const { error } = await supabase
                 .from('expenses')
@@ -318,7 +320,8 @@ const supabaseApi = {
                         due_date: e.dueDate,
                         paid: e.paid,
                         payment_date: e.paymentDate,
-                        people: e.people
+                        people: e.people,
+                        barcode: e.barcode
                     }))
                 );
 
