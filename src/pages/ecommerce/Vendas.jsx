@@ -10,6 +10,8 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
 
     // Estado para vendas salvas por mês
     const [monthlySales, setMonthlySales] = useState({});
+    const [lockedMonths, setLockedMonths] = useState([]); // Array de chaves [ "meli_2026-03", ... ]
+    const [isLocking, setIsLocking] = useState(false);
 
     // Mês/Ano selecionado atualmente (ex: "2026-03")
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -42,7 +44,8 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
             const savedRows = monthlySales[monthKey];
             const currentRows = buildInitialRows().map(defaultRow => {
                 const savedRow = savedRows.find(r => r.ftId === defaultRow.ftId);
-                return savedRow ? { ...defaultRow, quantity: savedRow.quantity, discountPercent: savedRow.discountPercent || 0 } : defaultRow;
+                // Quando carregamos, mantemos o snapshot se existir
+                return savedRow ? { ...defaultRow, quantity: savedRow.quantity, discountPercent: savedRow.discountPercent || 0, snapshot: savedRow.snapshot } : defaultRow;
             });
             setRows(currentRows);
         } else {
@@ -54,9 +57,10 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                const [fetchedFts, mktOverrides] = await Promise.all([
+                const [fetchedFts, mktOverrides, lockedData] = await Promise.all([
                     api.getFts(),
-                    api.getSettings(`ft_overrides_${marketplace}`)
+                    api.getSettings(`ft_overrides_${marketplace}`),
+                    api.getSettings('locked_ecommerce_months')
                 ]);
 
                 const overridesData = mktOverrides || {};
@@ -83,6 +87,7 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                 }
 
                 setMonthlySales(dbSales);
+                setLockedMonths(lockedData || []);
             } catch (err) {
                 console.error("Erro ao carregar dados na tela de vendas:", err);
             } finally {
@@ -110,7 +115,10 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
     };
 
+    const isCurrentMonthLocked = lockedMonths.includes(`${marketplace}_${currentMonth}`);
+
     const updateRow = (id, field, value) => {
+        if (isCurrentMonthLocked || readOnly) return;
         setRows(prevRows => {
             const nextRows = prevRows.map(r => r.id === id ? { ...r, [field]: value } : r);
             const monthKey = `${marketplace}_${currentMonth}`;
@@ -127,9 +135,13 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     };
 
     // Funcões auxiliares de cálculo
-    const getFtDetails = (ftId) => {
-        if (!ftId) return null;
-        return fts.find(ft => ft.id === ftId) || null;
+    const getFtDetails = (row) => {
+        if (!row.ftId) return null;
+        // Se a linha já tiver um snapshot de quando foi travada, use ele
+        if (row.snapshot) {
+            return row.snapshot;
+        }
+        return fts.find(ft => ft.id === row.ftId) || null;
     };
 
     const calculateMaterials = (ft) => {
@@ -147,12 +159,17 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     };
 
     const calculateCost = (ft) => {
+        if (!ft) return 0;
+        // No snapshot, os valores ja estao calculados (materiais, directCosts)
+        if (ft.materialsTotal !== undefined) {
+            return (ft.materialsTotal || 0) + (ft.directCostsTotal || 0);
+        }
         return calculateMaterials(ft) + calculateDirectCosts(ft);
     };
 
     // Resumo do mês
     const totalMonthSales = rows.reduce((acc, row) => {
-        const ft = getFtDetails(row.ftId);
+        const ft = getFtDetails(row);
         if (!ft) return acc;
         const uPrice = parseFloat(ft.salePrice) || 0;
         const discount = parseFloat(row.discountPercent) || 0;
@@ -161,31 +178,93 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     }, 0);
 
     const totalMonthCosts = rows.reduce((acc, row) => {
-        const ft = getFtDetails(row.ftId);
+        const ft = getFtDetails(row);
         if (!ft) return acc;
         return acc + (calculateCost(ft) * (parseInt(row.quantity) || 0));
     }, 0);
 
     const totalMonthMaterials = rows.reduce((acc, row) => {
-        const ft = getFtDetails(row.ftId);
+        const ft = getFtDetails(row);
         if (!ft) return acc;
-        return acc + (calculateMaterials(ft) * (parseInt(row.quantity) || 0));
+        const value = ft.materialsTotal !== undefined ? ft.materialsTotal : calculateMaterials(ft);
+        return acc + (value * (parseInt(row.quantity) || 0));
     }, 0);
 
     const totalMonthDirectCosts = rows.reduce((acc, row) => {
-        const ft = getFtDetails(row.ftId);
+        const ft = getFtDetails(row);
         if (!ft) return acc;
-        return acc + (calculateDirectCosts(ft) * (parseInt(row.quantity) || 0));
+        const value = ft.directCostsTotal !== undefined ? ft.directCostsTotal : calculateDirectCosts(ft);
+        return acc + (value * (parseInt(row.quantity) || 0));
     }, 0);
 
     const monthMargin = totalMonthSales - totalMonthCosts;
     const monthMarginPercent = totalMonthSales > 0 ? (monthMargin / totalMonthSales) * 100 : 0;
 
     const totalQtd = rows.reduce((acc, row) => acc + (parseInt(row.quantity) || 0), 0);
+
     const overallTotalTP = rows.reduce((acc, row) => {
-        const ft = getFtDetails(row.ftId);
-        return acc + ((ft && ft.productionTime ? parseFloat(ft.productionTime) : 0) * (parseInt(row.quantity) || 0));
+        const ft = getFtDetails(row);
+        if (!ft) return acc;
+        // Se for snapshot, productionTime já é string ou numero direto do snapshot
+        const prodTime = parseFloat(ft.productionTime) || 0;
+        return acc + (prodTime * (parseInt(row.quantity) || 0));
     }, 0);
+
+    const handleLockMonth = async () => {
+        if (isCurrentMonthLocked || readOnly) return;
+
+        const mktName = marketplace.toUpperCase();
+        const monthDisplay = formatMonthDisplay(currentMonth).split(' - ')[0]; // Pega so "FECHAMENTO MARCO DE 2026"
+
+        const confirmMsg = `ATENÇÃO: Você está prestes a TRAVAR os dados de vendas de ${mktName} para o mês de ${monthDisplay}.\n\nAo travar:\n1. Os valores de Preço, Custos e Tempo de Produção atuais serão fixados para este mês.\n2. Nenhuma alteração futura nas Fichas Técnicas afetará este mês.\n3. A edição será BLOQUEADA para este mês.\n\nDeseja continuar?`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsLocking(true);
+        try {
+            // 1. Criar snapshots para todas as linhas que tem venda
+            const snapshottedRows = rows.map(row => {
+                const ft = fts.find(f => f.id === row.ftId);
+                if (!ft) return row;
+
+                return {
+                    ...row,
+                    snapshot: {
+                        ftCode: ft.ftCode,
+                        name: ft.name,
+                        variation: ft.variation,
+                        salePrice: ft.salePrice,
+                        productionTime: ft.productionTime,
+                        materialsTotal: calculateMaterials(ft),
+                        directCostsTotal: calculateDirectCosts(ft)
+                    }
+                };
+            });
+
+            const monthKey = `${marketplace}_${currentMonth}`;
+
+            // 2. Salvar linhas com snapshots
+            const successSales = await api.saveMonthlySales(monthKey, snapshottedRows);
+
+            if (successSales) {
+                // 3. Adicionar aos meses travados
+                const nextLocked = [...lockedMonths, monthKey];
+                const successLock = await api.saveSettings('locked_ecommerce_months', nextLocked);
+
+                if (successLock) {
+                    setLockedMonths(nextLocked);
+                    setMonthlySales(prev => ({ ...prev, [monthKey]: snapshottedRows }));
+                    setRows(snapshottedRows);
+                    alert("Mês travado com sucesso!");
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao travar o mês.");
+        } finally {
+            setIsLocking(false);
+        }
+    };
 
     // Calcular % de Ocupação do Mês (Seg a Sex, 7 horas/dia)
     const [yearStr, monthStr] = currentMonth.split('-');
@@ -215,9 +294,14 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                     </div>
 
                     {/* Mês Ativo - Badge Destacado */}
-                    <div className="flex-1 flex justify-center w-full sm:w-auto mt-4 sm:mt-0">
-                        <div className="bg-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-sm shadow-indigo-200 text-center tracking-wide">
+                    <div className="flex-1 flex flex-col items-center justify-center w-full sm:w-auto mt-4 sm:mt-0">
+                        <div className={clsx(
+                            "px-6 py-2 rounded-full font-bold shadow-sm text-center tracking-wide flex items-center gap-3",
+                            isCurrentMonthLocked ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-indigo-600 text-white shadow-indigo-200"
+                        )}>
+                            {isCurrentMonthLocked && <Save className="w-4 h-4" />}
                             {formatMonthDisplay(currentMonth)}
+                            {isCurrentMonthLocked && <span className="text-[10px] bg-amber-800 text-white px-1.5 py-0.5 rounded ml-1">LOCKED</span>}
                         </div>
                     </div>
 
@@ -291,15 +375,16 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                                         </tr>
                                     )}
                                     {rows.map(row => {
-                                        const ft = getFtDetails(row.ftId);
+                                        const ft = getFtDetails(row);
                                         const qty = parseInt(row.quantity) || 0;
                                         const discount = parseFloat(row.discountPercent) || 0;
 
                                         const unitPrice = ft ? parseFloat(ft.salePrice) || 0 : 0;
                                         const discountedPrice = unitPrice * (1 - discount / 100);
 
-                                        const unitMaterials = calculateMaterials(ft);
-                                        const unitDirectCosts = calculateDirectCosts(ft);
+                                        // Se for snapshot, temos os totais diretos salvos no objeto ft
+                                        const unitMaterials = ft?.materialsTotal !== undefined ? ft.materialsTotal : calculateMaterials(ft);
+                                        const unitDirectCosts = ft?.directCostsTotal !== undefined ? ft.directCostsTotal : calculateDirectCosts(ft);
                                         const unitCost = unitMaterials + unitDirectCosts;
                                         const totalCost = unitCost * qty;
                                         const unitMarginRS = discountedPrice - unitCost;
@@ -338,7 +423,11 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                                                         max="100"
                                                         value={row.discountPercent === 0 ? '' : row.discountPercent}
                                                         onChange={(e) => updateRow(row.id, 'discountPercent', parseFloat(e.target.value) || 0)}
-                                                        className="w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 text-center"
+                                                        readOnly={isCurrentMonthLocked || readOnly}
+                                                        className={clsx(
+                                                            "w-full text-sm border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 px-2 text-center",
+                                                            (isCurrentMonthLocked || readOnly) && "bg-gray-100 cursor-default"
+                                                        )}
                                                         placeholder="0"
                                                     />
                                                 </td>
@@ -381,7 +470,26 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                         </div>
 
                         {/* Controles Inferiores */}
-                        <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-t border-gray-100 pt-6 mt-2">
+                            <div>
+                                {!isCurrentMonthLocked && !readOnly && (
+                                    <button
+                                        onClick={handleLockMonth}
+                                        disabled={isLocking}
+                                        className="flex items-center gap-2 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-sm font-semibold"
+                                    >
+                                        {isLocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        TRAVAR MÊS
+                                    </button>
+                                )}
+                                {isCurrentMonthLocked && (
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg border border-gray-200 font-medium">
+                                        <Save className="w-4 h-4" />
+                                        MÊS TRAVADO (Imutável)
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
                                 <div className="flex flex-col">
                                     <span className="text-xs text-gray-500 font-medium uppercase">Total Mês (Bruto)</span>
