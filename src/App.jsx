@@ -55,6 +55,18 @@ function AppContent() {
     useEffect(() => {
         if (currentUser) {
             setActiveTab('home');
+        }
+    }, [currentUser?.id]);
+
+    // Load from database/localStorage on mount or user change
+    useEffect(() => {
+        const loadData = async () => {
+            if (!currentUser) {
+                setIsLoading(false);
+                return;
+            }
+
+            setIsLoading(true);
 
             // Auto-reset for Test User: clear localStorage on session start
             if (currentUser.login === 'teste') {
@@ -69,29 +81,48 @@ function AppContent() {
                         }
                     }
                     sessionStorage.setItem('teste_auto_cleared', 'true');
-                    // Data loading effect will run next and load empty/defaults
+
+                    // Reset standard keys as well just in case they were used
+                    ['expenses', 'orders', 'notes', 'materials', 'budgets'].forEach(k => localStorage.removeItem(k));
                 }
             }
-        }
-    }, [currentUser?.id]);
 
-    // Load from Supabase on mount
-    useEffect(() => {
-        const loadData = async () => {
             const [dbExpenses, dbOrders, dbNotes, dbMaterials] = await Promise.all([
                 api.getExpenses(),
                 api.getOrders(),
                 api.getNotes(),
                 api.getMaterials()
             ]);
-            if (dbExpenses && dbExpenses.length > 0) setExpenses(dbExpenses);
-            if (dbOrders && dbOrders.length > 0) setOrders(dbOrders);
-            if (dbNotes && dbNotes.length > 0) setNotes(dbNotes);
-            if (dbMaterials && dbMaterials.length > 0) setMaterials(dbMaterials);
+
+            // Set state (if test user and we just cleared, these will be empty/defaults)
+            if (dbExpenses && dbExpenses.length > 0) {
+                setExpenses(dbExpenses);
+            } else {
+                setExpenses(initialFixedExpenses);
+            }
+
+            if (dbOrders && dbOrders.length > 0) {
+                setOrders(dbOrders);
+            } else {
+                setOrders([]);
+            }
+
+            if (dbNotes && dbNotes.length > 0) {
+                setNotes(dbNotes);
+            } else {
+                setNotes([]);
+            }
+
+            if (dbMaterials && dbMaterials.length > 0) {
+                setMaterials(dbMaterials);
+            } else if (currentUser.login !== 'teste') {
+                // Keep defaults for test user, or load from materials state if supabase is empty
+            }
+
             setIsLoading(false);
         };
         loadData();
-    }, []);
+    }, [currentUser?.id]);
 
     // Persist to localStorage + Supabase on change
     useEffect(() => {
