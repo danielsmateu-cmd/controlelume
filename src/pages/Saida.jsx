@@ -552,18 +552,26 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
             {/* GLOBAL MONTH TABS */}
             <div className="flex space-x-1 overflow-x-auto pb-4 scrollbar-hide">
-                {months.map((month, index) => (
-                    <button
-                        key={month}
-                        onClick={() => setSelectedMonth(index)}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${selectedMonth === index
-                            ? 'bg-indigo-600 text-white shadow-md transform scale-105'
-                            : 'text-gray-600 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:bg-indigo-50'
-                            }`}
-                    >
-                        {month}
-                    </button>
-                ))}
+                {months.map((month, index) => {
+                    const isActualCurrentMonth = index === new Date().getMonth() && selectedYear === new Date().getFullYear();
+                    return (
+                        <button
+                            key={month}
+                            onClick={() => setSelectedMonth(index)}
+                            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap flex items-center gap-1.5 ${selectedMonth === index
+                                ? 'bg-indigo-600 text-white shadow-md transform scale-105'
+                                : isActualCurrentMonth
+                                    ? 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100'
+                                    : 'text-gray-600 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:bg-indigo-50'
+                                }`}
+                        >
+                            {month}
+                            {isActualCurrentMonth && selectedMonth !== index && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            )}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* CATEGORY TABS */}

@@ -170,7 +170,7 @@ const Resumo = ({ expenses, orders }) => {
                                 return (
                                     <tr key={monthName} className={clsx(
                                         "transition-colors",
-                                        isCurrentMonth ? "bg-indigo-50/40 hover:bg-indigo-50/80" : "hover:bg-gray-50"
+                                        isCurrentMonth ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"
                                     )}>
                                         <td className={clsx(
                                             "px-6 py-4 font-semibold flex items-center gap-2",
@@ -178,8 +178,8 @@ const Resumo = ({ expenses, orders }) => {
                                         )}>
                                             {monthName}
                                             {isCurrentMonth && (
-                                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">
-                                                    Atual
+                                                <span className="text-[10px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded">
+                                                    Mês Atual
                                                 </span>
                                             )}
                                         </td>

@@ -471,10 +471,27 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const totalPaid = monthOrders.filter(o => o.isPaid).reduce((sum, order) => sum + order.value, 0);
                     const totalPending = totalValue - totalPaid;
 
+                    const currentMonthYear = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                    const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+                    const isCurrentMonth = month === capitalize(currentMonthYear);
+
                     return (
-                        <div key={month} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-                            <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex justify-between items-center shrink-0">
-                                <h3 className="font-semibold text-gray-800 capitalize text-sm">{month}</h3>
+                        <div key={month} className={clsx(
+                            "bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col transition-all",
+                            isCurrentMonth ? "border-green-300 ring-1 ring-green-100 shadow-md" : "border-gray-100"
+                        )}>
+                            <div className={clsx(
+                                "px-4 py-2 border-b flex justify-between items-center shrink-0",
+                                isCurrentMonth ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-800 capitalize text-sm">{month}</h3>
+                                    {isCurrentMonth && (
+                                        <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                            Mês Atual
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex flex-col items-end text-[10px] leading-tight mt-0.5">
                                     <span className="text-gray-600 font-semibold">{fmt(totalValue)}</span>
                                     <span className="text-green-600 font-medium">Pg: {fmt(totalPaid)}</span>

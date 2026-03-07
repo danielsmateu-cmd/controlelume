@@ -545,70 +545,94 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {savedBudgets.map(budget => (
-                                        <tr key={budget.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 text-gray-500">
-                                                {new Date(budget.date).toLocaleDateString()}
-                                                <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
-                                            </td>
-                                            <td className="px-6 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-xs font-bold text-gray-600">
-                                                    {budget.items.length}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-bold text-gray-800">
-                                                {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-1">
-                                                    {['Aguardando', 'Aprovado', 'Recusado', 'Faturado'].map(status => (
-                                                        <button
-                                                            key={status}
-                                                            onClick={() => handleUpdateStatus(budget.id, status)}
-                                                            className={clsx(
-                                                                "p-1.5 rounded-md transition-all",
-                                                                budget.status === status
-                                                                    ? getStatusColor(status) + " ring-1 ring-offset-1 ring-gray-200 scale-110 shadow-sm"
-                                                                    : "text-gray-300 hover:text-gray-400 hover:bg-gray-100"
-                                                            )}
-                                                            title={status}
-                                                        >
-                                                            {status === 'Aprovado' && <CheckCircle size={16} />}
-                                                            {status === 'Recusado' && <XCircle size={16} />}
-                                                            {status === 'Aguardando' && <Clock size={16} />}
-                                                            {status === 'Faturado' && <Receipt size={16} />}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                <div className={clsx("text-[10px] font-bold mt-1 uppercase",
-                                                    budget.status === 'Aprovado' ? 'text-green-600' :
-                                                        budget.status === 'Recusado' ? 'text-red-500' :
-                                                            budget.status === 'Faturado' ? 'text-blue-600' : 'text-yellow-600'
+                                    {savedBudgets.map(budget => {
+                                        const budgetDate = new Date(budget.date);
+                                        const isCurrentMonth = budgetDate.getMonth() === new Date().getMonth() && budgetDate.getFullYear() === new Date().getFullYear();
+
+                                        return (
+                                            <tr key={budget.id} className={clsx(
+                                                "transition-colors",
+                                                isCurrentMonth ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"
+                                            )}>
+                                                <td className="px-6 py-4 text-gray-500">
+                                                    <div className="flex items-center gap-2">
+                                                        {new Date(budget.date).toLocaleDateString()}
+                                                        {isCurrentMonth && (
+                                                            <span className="text-[9px] font-bold bg-green-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter">
+                                                                Mês Atual
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
+                                                </td>
+                                                <td className={clsx(
+                                                    "px-6 py-4 font-bold",
+                                                    isCurrentMonth ? "text-green-800" : "text-gray-800"
+                                                )}>{budget.clientData.name}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={clsx(
+                                                        "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold",
+                                                        isCurrentMonth ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                                                    )}>
+                                                        {budget.items.length}
+                                                    </span>
+                                                </td>
+                                                <td className={clsx(
+                                                    "px-6 py-4 text-right font-bold",
+                                                    isCurrentMonth ? "text-green-700" : "text-gray-800"
                                                 )}>
-                                                    {budget.status}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-2">
-                                                    <button
-                                                        onClick={() => handleLoadBudget(budget)}
-                                                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                        title="Ver / Editar"
-                                                    >
-                                                        <Eye size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteBudget(budget.id)}
-                                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Excluir"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="flex justify-center gap-1">
+                                                        {['Aguardando', 'Aprovado', 'Recusado', 'Faturado'].map(status => (
+                                                            <button
+                                                                key={status}
+                                                                onClick={() => handleUpdateStatus(budget.id, status)}
+                                                                className={clsx(
+                                                                    "p-1.5 rounded-md transition-all",
+                                                                    budget.status === status
+                                                                        ? getStatusColor(status) + " ring-1 ring-offset-1 ring-gray-200 scale-110 shadow-sm"
+                                                                        : "text-gray-300 hover:text-gray-400 hover:bg-gray-100"
+                                                                )}
+                                                                title={status}
+                                                            >
+                                                                {status === 'Aprovado' && <CheckCircle size={16} />}
+                                                                {status === 'Recusado' && <XCircle size={16} />}
+                                                                {status === 'Aguardando' && <Clock size={16} />}
+                                                                {status === 'Faturado' && <Receipt size={16} />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    <div className={clsx("text-[10px] font-bold mt-1 uppercase",
+                                                        budget.status === 'Aprovado' ? 'text-green-600' :
+                                                            budget.status === 'Recusado' ? 'text-red-500' :
+                                                                budget.status === 'Faturado' ? 'text-blue-600' : 'text-yellow-600'
+                                                    )}>
+                                                        {budget.status}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button
+                                                            onClick={() => handleLoadBudget(budget)}
+                                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                            title="Ver / Editar"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteBudget(budget.id)}
+                                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Excluir"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
