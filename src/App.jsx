@@ -55,6 +55,23 @@ function AppContent() {
     useEffect(() => {
         if (currentUser) {
             setActiveTab('home');
+
+            // Auto-reset for Test User: clear localStorage on session start
+            if (currentUser.login === 'teste') {
+                const hasClearedThisSession = sessionStorage.getItem('teste_auto_cleared');
+                if (!hasClearedThisSession) {
+                    console.log('Auto-resetting data for test user...');
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key?.startsWith('teste_')) {
+                            localStorage.removeItem(key);
+                            i--;
+                        }
+                    }
+                    sessionStorage.setItem('teste_auto_cleared', 'true');
+                    // Data loading effect will run next and load empty/defaults
+                }
+            }
         }
     }, [currentUser?.id]);
 
