@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ShoppingCart, Loader2 } from 'lucide-react';
+import { Trash2, Save, ShoppingCart, Loader2, Plus } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
@@ -266,6 +266,49 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         }
     };
 
+    const handleUnlockMonth = async () => {
+        if (!isCurrentMonthLocked || readOnly) return;
+
+        const mktName = marketplace.toUpperCase();
+        const monthDisplay = formatMonthDisplay(currentMonth).split(' - ')[0];
+
+        const confirmMsg = `ATENÇÃO: Você está prestes a DESTRAVAR os dados de vendas de ${mktName} para o mês de ${monthDisplay}.\n\nAo destravar:\n1. Os valores das Fichas Técnicas VOLTARÃO aos valores cadastrados no momento atual.\n2. A "foto" (snapshot) dos valores antigos será PERDIDA.\n3. A edição será LIBERADA para este mês.\n\nDeseja continuar?`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsLocking(true);
+        try {
+            // 1. Limpar snapshots de todas as linhas
+            const cleanedRows = rows.map(row => {
+                const { snapshot, ...rest } = row;
+                return rest;
+            });
+
+            const monthKey = `${marketplace}_${currentMonth}`;
+
+            // 2. Salvar linhas limpas (sem snapshot)
+            const successSales = await api.saveMonthlySales(monthKey, cleanedRows);
+
+            if (successSales) {
+                // 3. Remover dos meses travados
+                const nextLocked = lockedMonths.filter(m => m !== monthKey);
+                const successLock = await api.saveSettings('locked_ecommerce_months', nextLocked);
+
+                if (successLock) {
+                    setLockedMonths(nextLocked);
+                    setMonthlySales(prev => ({ ...prev, [monthKey]: cleanedRows }));
+                    setRows(cleanedRows);
+                    alert("Mês destravado com sucesso!");
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao destravar o mês.");
+        } finally {
+            setIsLocking(false);
+        }
+    };
+
     // Calcular % de Ocupação do Mês (Seg a Sex, 7 horas/dia)
     const [yearStr, monthStr] = currentMonth.split('-');
     const yearNum = parseInt(yearStr);
@@ -476,16 +519,28 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                                     <button
                                         onClick={handleLockMonth}
                                         disabled={isLocking}
-                                        className="flex items-center gap-2 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-sm font-semibold"
+                                        className="flex items-center gap-2 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-sm font-semibold uppercase tracking-wider text-sm"
                                     >
                                         {isLocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        TRAVAR MÊS
+                                        Travar Dados do Mês
                                     </button>
                                 )}
                                 {isCurrentMonthLocked && (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg border border-gray-200 font-medium">
-                                        <Save className="w-4 h-4" />
-                                        MÊS TRAVADO (Imutável)
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 font-bold text-sm uppercase tracking-wide shadow-sm">
+                                            <Save className="w-4 h-4" />
+                                            MÊS TRAVADO (Imutável)
+                                        </div>
+                                        {!readOnly && (
+                                            <button
+                                                onClick={handleUnlockMonth}
+                                                disabled={isLocking}
+                                                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors text-xs font-bold uppercase tracking-wider shadow-sm"
+                                            >
+                                                {isLocking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3 rotate-45" />}
+                                                Destravar Mês
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
