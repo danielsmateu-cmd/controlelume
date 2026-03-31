@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2 } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -8,6 +8,7 @@ const fmt = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL
 const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Orçamentos aprovados disponíveis para importar
     const [approvedBudgets, setApprovedBudgets] = useState([]);
@@ -284,7 +285,16 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     const filteredOrders = orders.filter(order => {
         const orderYear = order.year || new Date(order.orderDate + 'T00:00:00').getUTCFullYear();
-        return orderYear === selectedYear;
+        const matchesYear = orderYear === selectedYear;
+
+        if (!searchQuery.trim()) return matchesYear;
+
+        const q = searchQuery.toLowerCase().trim();
+        const matchesName = order.clientName?.toLowerCase().includes(q);
+        const matchesDesc = order.description?.toLowerCase().includes(q);
+        const matchesVal = order.value?.toString().includes(q);
+
+        return matchesYear && (matchesName || matchesDesc || matchesVal);
     });
 
     return (
@@ -297,15 +307,27 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                         👁️ Somente Visualização
                     </span>
                 ) : (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span className="font-bold uppercase tracking-widest text-[10px]">Filtrar por Ano:</span>
-                        <select
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                            className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-semibold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-                        >
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Buscar nome ou valor..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <span className="font-bold uppercase tracking-widest text-[10px]">Filtrar por Ano:</span>
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-semibold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+                            >
+                                {years.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
                     </div>
                 )}
             </div>
