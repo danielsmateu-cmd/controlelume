@@ -289,6 +289,11 @@ const supabaseApi = {
             if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
             if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
             if (updates.barcode !== undefined) dbUpdates.barcode = updates.barcode;
+            if (updates.category !== undefined) dbUpdates.category = updates.category;
+            if (updates.description !== undefined) dbUpdates.description = updates.description;
+            if (updates.month !== undefined) dbUpdates.month = updates.month;
+            if (updates.year !== undefined) dbUpdates.year = updates.year;
+            if (updates.date !== undefined) dbUpdates.date = updates.date;
 
             const { error } = await supabase
                 .from('expenses')
@@ -309,19 +314,19 @@ const supabaseApi = {
                 .from('expenses')
                 .upsert(
                     expensesList.map(e => ({
-                        id: e.id, // Mantém o ID original (pode ser string 'fixed-...' ou number)
-                        type: e.type,
-                        year: e.year,
-                        month: e.month,
-                        category: e.category,
-                        description: e.description,
+                        id: e.id,
+                        type: e.type || 'fixos',
+                        year: e.year || new Date().getFullYear(),
+                        month: e.month || 0,
+                        category: e.category || null,
+                        description: e.description || null,
                         amount: e.amount || 0,
-                        date: e.date,
-                        due_date: e.dueDate,
-                        paid: e.paid,
-                        payment_date: e.paymentDate,
-                        people: e.people,
-                        barcode: e.barcode
+                        date: e.date || null,
+                        due_date: e.dueDate || null,
+                        paid: Boolean(e.paid),
+                        payment_date: e.paymentDate || null,
+                        people: e.people || null,
+                        barcode: e.barcode || null
                     }))
                 );
 

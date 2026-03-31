@@ -5,8 +5,6 @@ import { api } from '../services/api';
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const [activeTab, setActiveTab] = useState('fixos');
 
-    const fixedCategories = ['ENERGIA', 'AGUA', 'INTERNET', 'DAS', 'CONTADOR', 'IPTU', 'FAXINA', 'DARE', 'FUNCIONARIO'];
-
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -349,12 +347,44 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         });
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (expense) => {
+        if (!expense || !expense.id) return;
+
         if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
             try {
-                const success = await api.deleteExpense(id);
+                // If it's a fixed expense, ask if they want to delete future ones too
+                if (expense.type === 'fixos' || expense.type === 'fixos_extra') {
+                    const deleteFuture = window.confirm('Deseja excluir também de TODOS os meses seguintes deste ano?');
+
+                    if (deleteFuture) {
+                        const nameToMatch = expense.category || expense.description || '';
+
+                        // Find all instances of this expense from this month onwards in the same year
+                        const expensesToDelete = expenses.filter(e => {
+                            if (e.type !== 'fixos' && e.type !== 'fixos_extra') return false;
+                            if (e.year !== expense.year) return false;
+                            if (e.month < expense.month) return false;
+
+                            const eName = e.category || e.description || '';
+                            return eName === nameToMatch;
+                        });
+
+                        const idsToDelete = expensesToDelete.map(e => e.id);
+
+                        // Delete all from server
+                        const deletePromises = idsToDelete.map(id => api.deleteExpense(id));
+                        await Promise.all(deletePromises);
+
+                        // Update local state by removing all deleted IDs
+                        setExpenses(expenses.filter(e => !idsToDelete.includes(e.id)));
+                        return;
+                    }
+                }
+
+                // Default single deletion
+                const success = await api.deleteExpense(expense.id);
                 if (!success) throw new Error("A API retornou false");
-                setExpenses(expenses.filter(e => e.id !== id));
+                setExpenses(expenses.filter(e => e.id !== expense.id));
             } catch (err) {
                 console.error('Erro ao excluir:', err);
                 alert('Erro ao excluir do servidor. Tente novamente.');
@@ -408,6 +438,23 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             const nameB = (b.category || b.description || '').toLowerCase();
             return nameA.localeCompare(nameB);
         }
+        if (activeTab === 'retirada') {
+            const dA = a.date;
+            const dB = b.date;
+            let dateDiff = 0;
+            if (dA && dB) {
+                dateDiff = new Date(dB + 'T00:00:00') - new Date(dA + 'T00:00:00');
+            } else if (dA) {
+                dateDiff = -1;
+            } else if (dB) {
+                dateDiff = 1;
+            }
+            if (dateDiff !== 0) return dateDiff;
+
+            const nameA = (a.description || '').toLowerCase();
+            const nameB = (b.description || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        }
         return 0;
     });
 
@@ -431,7 +478,6 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         <tr key={expense.id} className="hover:bg-gray-50">
                             <td className="px-6 py-2 text-sm text-gray-900">
                                 {expense.category ? <span className="font-semibold text-indigo-600">{expense.category}</span> : expense.description}
-                                {expense.type === 'fixos_extra' && <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Extra</span>}
                                 {expense.month !== undefined && <span className="ml-2 text-[10px] text-gray-400">({months[expense.month]})</span>}
                             </td>
                             {activeTab === 'fornecedores' && (
@@ -513,9 +559,11 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 )}
                             </td>
                             <td className="px-6 py-2 text-sm text-right">
-                                <button onClick={() => handleDelete(expense.id)} className="text-gray-400 hover:text-red-600 transition-colors">
-                                    Excluir
-                                </button>
+                                {!readOnly && (
+                                    <button onClick={() => handleDelete(expense)} className="text-gray-400 hover:text-red-600 transition-colors">
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -603,7 +651,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                     <div className="space-y-3">
                         {!readOnly && (
                             <div className="mb-6">
-                                <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Gasto Extra</h3>
+                                <h3 className="text-sm font-semibold text-gray-800 mb-2">Adicionar Despesa Fixa</h3>
                                 <form onSubmit={handleAddExtra} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                     <div className="md:col-span-4">
                                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição</label>
@@ -644,7 +692,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             <span className="leading-tight">Repetir no ano inteiro?</span>
                                         </label>
                                         <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
-                                            <Plus size={16} /> Adicionar Extra
+                                            <Plus size={16} /> Adicionar Despesa
                                         </button>
                                     </div>
                                 </form>
@@ -675,8 +723,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             </div>
 
                             <div className="flex items-center justify-between mb-3 border-t pt-4">
-                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos e Extras - {months[selectedMonth]}</h3>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length >= fixedCategories.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos - {months[selectedMonth]}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && !e.paid).length === 0 && expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear).length > 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                     {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length} Pagos
                                 </span>
                             </div>
@@ -722,10 +770,9 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                                 onBlur={(e) => !readOnly && saveExpenseField(expense.id, expense.category !== undefined ? 'category' : 'description', e.target.value)}
                                                                 readOnly={readOnly}
                                                                 disabled={readOnly}
-                                                                className={`w-full max-w-[160px] p-1 border border-transparent hover:border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-300 bg-transparent text-sm font-medium text-indigo-600 outline-none transition-colors ${readOnly ? 'cursor-default' : ''}`}
+                                                                className={`w-full max-w-[170px] p-1 border border-transparent hover:border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-300 bg-transparent text-sm font-medium text-indigo-600 outline-none transition-colors ${readOnly ? 'cursor-default' : ''}`}
                                                                 placeholder="Nome do Gasto"
                                                             />
-                                                            {expense.type === 'fixos_extra' && <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block mt-0.5 shrink-0">Extra</span>}
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-2">
@@ -801,8 +848,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                                 >
                                                                     {expense.paid ? 'PAGO' : 'NÃO PAGO'}
                                                                 </button>
-                                                                {expense.type === 'fixos_extra' && !readOnly && (
-                                                                    <button onClick={() => handleDelete(expense.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Excluir Extra">
+                                                                {!readOnly && (
+                                                                    <button onClick={() => handleDelete(expense)} className="text-gray-400 hover:text-red-500 transition-colors" title="Excluir Despesa">
                                                                         <Trash2 size={16} />
                                                                     </button>
                                                                 )}
@@ -1028,7 +1075,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 {activeTab === 'retirada' && (
                     <div>
                         {/* TOTALS SUMMARY */}
-                        <div className="grid grid-cols-1 md:grid-cols-1 gap-2 mb-4">
+                        <div className="flex flex-col gap-2 mb-4">
                             <div className="bg-green-50 border border-green-100 p-3 rounded-xl">
                                 <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Retirado - {months[selectedMonth]}</p>
                                 <p className="text-xl font-bold text-green-700">
@@ -1037,6 +1084,23 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                         .reduce((acc, curr) => acc + curr.amount, 0)
                                         .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1">
+                                {withdrawalPeople.map(person => {
+                                    const totalPerson = expenses
+                                        .filter(e => e.type === 'retirada' && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear && e.people && e.people.includes(person))
+                                        .reduce((acc, curr) => acc + curr.amount, 0);
+
+                                    return (
+                                        <div key={person} className="bg-white border border-gray-200 p-2 text-center rounded-xl shadow-sm">
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase truncate">{person}</p>
+                                            <p className="text-sm font-bold text-indigo-700">
+                                                {totalPerson.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 

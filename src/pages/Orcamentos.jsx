@@ -197,6 +197,79 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const [editingMaterialId, setEditingMaterialId] = useState(null);
     const [editMaterialData, setEditMaterialData] = useState({});
 
+    // Bulk Percentage Update
+    const [selectedMaterialIds, setSelectedMaterialIds] = useState([]);
+    const [bulkPercent, setBulkPercent] = useState('');
+
+    const toggleMaterialSelection = (id) => {
+        if (selectedMaterialIds.includes(id)) {
+            setSelectedMaterialIds(selectedMaterialIds.filter(i => i !== id));
+        } else {
+            setSelectedMaterialIds([...selectedMaterialIds, id]);
+        }
+    };
+
+    const handleBulkPercentIncrease = async () => {
+        const percent = parseFloat(bulkPercent);
+        if (!percent || isNaN(percent)) {
+            alert("Digite um valor percentual válido.");
+            return;
+        }
+        if (selectedMaterialIds.length === 0) {
+            alert("Selecione pelo menos um material.");
+            return;
+        }
+        if (!window.confirm(`Aplicar ${percent > 0 ? '+' : ''}${percent}% de ajuste em ${selectedMaterialIds.length} materiais selecionados?`)) return;
+
+        const updatedMaterials = [];
+        const promises = [];
+
+        materials.forEach(m => {
+            if (selectedMaterialIds.includes(m.id)) {
+                const newPrice = m.price * (1 + (percent / 100));
+                
+                const payload = {
+                    name: m.name,
+                    price: newPrice
+                };
+                if (m.type === 'unit') {
+                    payload.width = 0;
+                    payload.height = 0;
+                    payload.price_per_m2 = 0;
+                } else if (m.type === 'linear') {
+                    payload.width = 0;
+                    payload.height = 1;
+                    payload.price_per_m2 = 0;
+                } else {
+                    payload.width = m.width || 0;
+                    payload.height = m.height || 0;
+                    payload.price_per_m2 = (payload.price / ((payload.width * payload.height) / 10000)) || 0;
+                }
+
+                updatedMaterials.push({ ...m, ...payload, pricePerM2: payload.price_per_m2 });
+                promises.push(api.updateMaterial(m.id, payload));
+            } else {
+                updatedMaterials.push(m);
+            }
+        });
+
+        setMaterials(updatedMaterials);
+        setSelectedMaterialIds([]);
+        setBulkPercent('');
+
+        try {
+            const results = await Promise.all(promises);
+            setMaterials(prev => prev.map(item => {
+                const updated = results.find(res => res && res.id === item.id);
+                return updated ? updated : item;
+            }));
+            alert("Preços atualizados com sucesso!");
+        } catch (error) {
+            console.error(error);
+            alert("Ocorreu um erro ao atualizar no banco de dados.");
+        }
+    };
+
     const handleEditMaterial = (m) => {
         setEditingMaterialId(m.id);
         setEditMaterialData({
@@ -407,12 +480,15 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
 
     // O desconto em R$ abate do unitário final (afeta o carrinho e a base do %)
     const discountVal = parseFloat(discountValue) || 0;
-    const finalUnitWithValueDiscount = Math.max(0, baseUnitFinal - discountVal);
+    const rawUnitValue = Math.max(0, baseUnitFinal - discountVal);
+    // Arredonda para 2 casas para bater exatamente na multiplicação pela quantidade
+    const finalUnitWithValueDiscount = Math.round(rawUnitValue * 100) / 100;
     const finalTotalWithDiscount = finalUnitWithValueDiscount * (parseFloat(globalQty) || 1);
 
     // O desconto em % é apenas simulação visual sobre o unitário já com desconto em R$
     const discountPerc = parseFloat(discount) || 0;
-    const visualUnitWithPercDiscount = Math.max(0, finalUnitWithValueDiscount * (1 - (discountPerc / 100)));
+    const rawVisualUnit = Math.max(0, finalUnitWithValueDiscount * (1 - (discountPerc / 100)));
+    const visualUnitWithPercDiscount = Math.round(rawVisualUnit * 100) / 100;
     const visualTotalWithPercDiscount = visualUnitWithPercDiscount * (parseFloat(globalQty) || 1);
 
     // 6. Cálculos do Projeto (Múltiplos Itens)
@@ -692,6 +768,38 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                     </div>
                 </div>
 
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl shadow-sm border border-indigo-100 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h3 className="text-sm font-bold text-indigo-700 uppercase tracking-widest flex items-center gap-2">
+                            <Percent size={16} /> Ajuste em Massa (%)
+                        </h3>
+                        <span className="text-xs font-bold bg-white text-indigo-600 px-3 py-1.5 rounded-full shadow-sm border border-indigo-100 shrink-0 text-center">
+                            {selectedMaterialIds.length} selecionado(s)
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-bold text-indigo-800 flex items-center gap-2 uppercase">Aumento / Desconto (%)</label>
+                            <input
+                                type="number" step="0.01"
+                                placeholder="Ex: 15 (aumento) ou -10 (desconto)"
+                                value={bulkPercent}
+                                onChange={e => setBulkPercent(e.target.value)}
+                                className="w-full px-4 py-2 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <button
+                                onClick={handleBulkPercentIncrease}
+                                disabled={readOnly || selectedMaterialIds.length === 0 || !bulkPercent}
+                                className={`w-full md:w-3/4 flex items-center justify-center gap-2 font-bold py-2 px-4 rounded-xl transition-colors ${readOnly || selectedMaterialIds.length === 0 || !bulkPercent ? 'bg-indigo-100 text-indigo-300 border border-indigo-200 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'}`}
+                            >
+                                <CheckCircle size={18} /> Aplicar aos Selecionados
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* ─── CHAPAS ──────────────────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
@@ -748,6 +856,19 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
+                                        <th className="px-4 py-4 w-10 text-center">
+                                            <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded cursor-pointer" 
+                                                checked={sheetMaterials.length > 0 && sheetMaterials.every(m => selectedMaterialIds.includes(m.id))}
+                                                onChange={e => {
+                                                    const allIds = sheetMaterials.map(m => m.id);
+                                                    if (e.target.checked) {
+                                                        setSelectedMaterialIds(prev => [...new Set([...prev, ...allIds])]);
+                                                    } else {
+                                                        setSelectedMaterialIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                    }
+                                                }}
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Material</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-center">Chapa (cm)</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Preço/m²</th>
@@ -756,7 +877,10 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {sheetMaterials.map(m => (
-                                        <tr key={m.id} className="hover:bg-gray-50/50 group">
+                                        <tr key={m.id} className={`hover:bg-gray-50/50 group ${selectedMaterialIds.includes(m.id) ? 'bg-indigo-50/40' : ''}`}>
+                                            <td className="px-4 py-4 text-center">
+                                                <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded cursor-pointer" checked={selectedMaterialIds.includes(m.id)} onChange={() => toggleMaterialSelection(m.id)} />
+                                            </td>
                                             {editingMaterialId === m.id ? (
                                                 <>
                                                     <td className="px-4 py-2">
@@ -769,8 +893,26 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                                             <input type="number" value={editMaterialData.height} onChange={e => setEditMaterialData({ ...editMaterialData, height: e.target.value })} className="w-12 px-1 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm text-center" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-2 text-center">
-                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-20 px-2 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold text-indigo-600 text-right" />
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold text-indigo-600 text-right" />
+                                                            <div className="flex items-center gap-1" title="Digite o % e tecle Enter">
+                                                                <span className="text-[9px] font-bold text-indigo-400 uppercase">+ %</span>
+                                                                <input type="number" placeholder="ex: 15" className="w-14 px-1 py-0.5 border border-indigo-100 rounded text-[10px] text-center focus:outline-none focus:ring-1 focus:ring-indigo-300" 
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            const percent = parseFloat(e.target.value);
+                                                                            if(percent && !isNaN(percent)) {
+                                                                                const newPrice = parseFloat(editMaterialData.price || 0) * (1 + (percent/100));
+                                                                                setEditMaterialData({...editMaterialData, price: newPrice.toFixed(2)});
+                                                                                e.target.value = '';
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
                                                         <div className="flex justify-center gap-1">
@@ -799,7 +941,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                         </tr>
                                     ))}
                                     {sheetMaterials.length === 0 && (
-                                        <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic">Nenhuma chapa cadastrada.</td></tr>
+                                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic">Nenhuma chapa cadastrada.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -845,6 +987,19 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
+                                        <th className="px-4 py-4 w-10 text-center">
+                                            <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded cursor-pointer" 
+                                                checked={unitMaterials.length > 0 && unitMaterials.every(m => selectedMaterialIds.includes(m.id))}
+                                                onChange={e => {
+                                                    const allIds = unitMaterials.map(m => m.id);
+                                                    if (e.target.checked) {
+                                                        setSelectedMaterialIds(prev => [...new Set([...prev, ...allIds])]);
+                                                    } else {
+                                                        setSelectedMaterialIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                    }
+                                                }}
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Material</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Preço / Unidade</th>
                                         <th className="px-6 py-4 text-center w-16"></th>
@@ -852,14 +1007,35 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {unitMaterials.map(m => (
-                                        <tr key={m.id} className="hover:bg-gray-50/50 group">
+                                        <tr key={m.id} className={`hover:bg-gray-50/50 group ${selectedMaterialIds.includes(m.id) ? 'bg-emerald-50/40' : ''}`}>
+                                            <td className="px-4 py-4 text-center">
+                                                <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded cursor-pointer" checked={selectedMaterialIds.includes(m.id)} onChange={() => toggleMaterialSelection(m.id)} />
+                                            </td>
                                             {editingMaterialId === m.id ? (
                                                 <>
                                                     <td className="px-4 py-2">
                                                         <input type="text" value={editMaterialData.name} onChange={e => setEditMaterialData({ ...editMaterialData, name: e.target.value })} className="w-full px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 text-sm font-bold text-gray-700" />
                                                     </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 text-sm font-bold text-emerald-600 text-right" />
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 text-sm font-bold text-emerald-600 text-right" />
+                                                            <div className="flex items-center gap-1" title="Digite o % e tecle Enter">
+                                                                <span className="text-[9px] font-bold text-emerald-400 uppercase">+ %</span>
+                                                                <input type="number" placeholder="ex: 15" className="w-14 px-1 py-0.5 border border-emerald-100 rounded text-[10px] text-center focus:outline-none focus:ring-1 focus:ring-emerald-300" 
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            const percent = parseFloat(e.target.value);
+                                                                            if(percent && !isNaN(percent)) {
+                                                                                const newPrice = parseFloat(editMaterialData.price || 0) * (1 + (percent/100));
+                                                                                setEditMaterialData({...editMaterialData, price: newPrice.toFixed(2)});
+                                                                                e.target.value = '';
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
                                                         <div className="flex justify-center gap-1">
@@ -887,7 +1063,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                         </tr>
                                     ))}
                                     {unitMaterials.length === 0 && (
-                                        <tr><td colSpan="3" className="px-6 py-10 text-center text-gray-400 italic">Nenhum material por unidade cadastrado.</td></tr>
+                                        <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic">Nenhum material por unidade cadastrado.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -933,6 +1109,19 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
+                                        <th className="px-4 py-4 w-10 text-center">
+                                            <input type="checkbox" className="w-4 h-4 text-amber-600 rounded cursor-pointer" 
+                                                checked={linearMaterials.length > 0 && linearMaterials.every(m => selectedMaterialIds.includes(m.id))}
+                                                onChange={e => {
+                                                    const allIds = linearMaterials.map(m => m.id);
+                                                    if (e.target.checked) {
+                                                        setSelectedMaterialIds(prev => [...new Set([...prev, ...allIds])]);
+                                                    } else {
+                                                        setSelectedMaterialIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                    }
+                                                }}
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Material</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Preço / Metro Linear</th>
                                         <th className="px-6 py-4 text-center w-16"></th>
@@ -940,14 +1129,35 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {linearMaterials.map(m => (
-                                        <tr key={m.id} className="hover:bg-gray-50/50 group">
+                                        <tr key={m.id} className={`hover:bg-gray-50/50 group ${selectedMaterialIds.includes(m.id) ? 'bg-amber-50/40' : ''}`}>
+                                            <td className="px-4 py-4 text-center">
+                                                <input type="checkbox" className="w-4 h-4 text-amber-600 rounded cursor-pointer" checked={selectedMaterialIds.includes(m.id)} onChange={() => toggleMaterialSelection(m.id)} />
+                                            </td>
                                             {editingMaterialId === m.id ? (
                                                 <>
                                                     <td className="px-4 py-2">
                                                         <input type="text" value={editMaterialData.name} onChange={e => setEditMaterialData({ ...editMaterialData, name: e.target.value })} className="w-full px-2 py-1 border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm font-bold text-gray-700" />
                                                     </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm font-bold text-amber-600 text-right" />
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <input type="number" step="0.01" value={editMaterialData.price} onChange={e => setEditMaterialData({ ...editMaterialData, price: e.target.value })} className="w-24 px-2 py-1 border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm font-bold text-amber-600 text-right" />
+                                                            <div className="flex items-center gap-1" title="Digite o % e tecle Enter">
+                                                                <span className="text-[9px] font-bold text-amber-400 uppercase">+ %</span>
+                                                                <input type="number" placeholder="ex: 15" className="w-14 px-1 py-0.5 border border-amber-100 rounded text-[10px] text-center focus:outline-none focus:ring-1 focus:ring-amber-300" 
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            const percent = parseFloat(e.target.value);
+                                                                            if(percent && !isNaN(percent)) {
+                                                                                const newPrice = parseFloat(editMaterialData.price || 0) * (1 + (percent/100));
+                                                                                setEditMaterialData({...editMaterialData, price: newPrice.toFixed(2)});
+                                                                                e.target.value = '';
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
                                                         <div className="flex justify-center gap-1">
@@ -975,7 +1185,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                                         </tr>
                                     ))}
                                     {linearMaterials.length === 0 && (
-                                        <tr><td colSpan="3" className="px-6 py-10 text-center text-gray-400 italic">Nenhum material por metro linear cadastrado.</td></tr>
+                                        <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic">Nenhum material por metro linear cadastrado.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -1190,6 +1400,18 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                             <div className="text-[10px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
                             <div className="text-[11px] italic text-slate-700 mt-4 leading-relaxed font-medium">
                                 Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Descrição</div>
+                                <div className="text-[10px] text-slate-700 leading-relaxed font-medium">
+                                    Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:
+                                    <br />
+                                    Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP
+                                    <br />
+                                    CEP: 13.347-458
+                                    <br />
+                                    <strong>Não fazemos instalação.</strong>
+                                </div>
                             </div>
                         </div>
                     </div>

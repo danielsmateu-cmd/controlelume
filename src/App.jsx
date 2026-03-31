@@ -18,26 +18,9 @@ function AppContent() {
     const [isLoading, setIsLoading] = useState(true);
 
     // SHARED STATE
-    const fixedCategories = ['ENERGIA', 'AGUA', 'INTERNET', 'DAS', 'CONTADOR', 'IPTU', 'FAXINA', 'DARE', 'FUNCIONARIO'];
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const currentYear = new Date().getFullYear();
 
-    const initialFixedExpenses = months.flatMap((monthName, monthIndex) =>
-        fixedCategories.map((cat, catIndex) => ({
-            id: `fixed-${currentYear}-${monthIndex}-${catIndex}`,
-            type: 'fixos',
-            year: currentYear,
-            month: monthIndex,
-            category: cat,
-            description: `${cat} - ${monthName}`,
-            amount: 0,
-            date: `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}-01`,
-            dueDate: `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}-10`,
-            paid: false
-        }))
-    );
-
-    const [expenses, setExpenses] = useState(initialFixedExpenses);
+    const [expenses, setExpenses] = useState([]);
 
     const [orders, setOrders] = useState([]);
 
@@ -98,7 +81,7 @@ function AppContent() {
             if (dbExpenses && dbExpenses.length > 0) {
                 setExpenses(dbExpenses);
             } else {
-                setExpenses(initialFixedExpenses);
+                setExpenses([]);
             }
 
             if (dbOrders && dbOrders.length > 0) {
@@ -128,7 +111,14 @@ function AppContent() {
     useEffect(() => {
         if (isLoading) return;
         localStorage.setItem('expenses', JSON.stringify(expenses));
-        api.saveExpenses(expenses);
+
+        const handler = setTimeout(() => {
+            api.saveExpenses(expenses);
+        }, 1500);
+
+        return () => {
+            clearTimeout(handler);
+        };
     }, [expenses, isLoading]);
 
     useEffect(() => {
