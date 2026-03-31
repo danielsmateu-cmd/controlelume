@@ -501,7 +501,9 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             <div className="divide-y divide-gray-100 overflow-y-auto max-h-[500px]">
                                 {[...monthOrders].sort((a, b) => {
                                     if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
-                                    return new Date(a.orderDate) - new Date(b.orderDate);
+                                    const dateA = a.isPaid ? new Date(a.paymentDate || a.orderDate) : new Date(a.orderDate);
+                                    const dateB = b.isPaid ? new Date(b.paymentDate || b.orderDate) : new Date(b.orderDate);
+                                    return dateA - dateB;
                                 }).map((order) => (
                                     <div key={order.id} className={clsx("py-1 px-2 flex hover:bg-gray-50 transition-colors gap-1", editingId === order.id ? "flex-col items-stretch" : "items-center justify-between")}>
                                         {editingId === order.id ? (
