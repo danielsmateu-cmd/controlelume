@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Save, ShoppingCart, Loader2, Plus } from 'lucide-react';
+import { Trash2, Save, ShoppingCart, Loader2, Plus, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
@@ -18,6 +18,8 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
+
+    const [searchQuery, setSearchQuery] = useState('');
 
     const buildInitialRows = () => {
         return fts
@@ -324,6 +326,18 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     const totalWorkMinutesMonth = workDays * 7 * 60;
     const tpPercentage = totalWorkMinutesMonth > 0 ? (overallTotalTP / totalWorkMinutesMonth) * 100 : 0;
 
+    const visibleRows = rows.filter(row => {
+        if (!searchQuery.trim()) return true;
+        const ft = getFtDetails(row);
+        if (!ft) return false;
+        const q = searchQuery.toLowerCase().trim();
+        return (
+            ft.ftCode?.toLowerCase().includes(q) ||
+            ft.name?.toLowerCase().includes(q) ||
+            ft.variation?.toLowerCase().includes(q)
+        );
+    });
+
     return (
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -336,8 +350,22 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                         <p className="text-sm text-gray-500 mt-1">Registre e acompanhe as vendas mensais</p>
                     </div>
 
+                    {/* Barra de Busca */}
+                    <div className="flex-1 flex w-full max-w-sm mt-4 sm:mt-0">
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Buscar produto por código ou nome..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all shadow-sm"
+                            />
+                        </div>
+                    </div>
+
                     {/* Mês Ativo - Badge Destacado */}
-                    <div className="flex-1 flex flex-col items-center justify-center w-full sm:w-auto mt-4 sm:mt-0">
+                    <div className="flex flex-col items-center justify-center w-full sm:w-auto mt-4 sm:mt-0">
                         <div className={clsx(
                             "px-6 py-2 rounded-full font-bold shadow-sm text-center tracking-wide flex items-center gap-3",
                             isCurrentMonthLocked ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-indigo-600 text-white shadow-indigo-200"
@@ -417,7 +445,7 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                                             <td className="px-4 py-3 text-right text-lg">R$ {totalMonthSales.toFixed(2)}</td>
                                         </tr>
                                     )}
-                                    {rows.map(row => {
+                                    {visibleRows.map(row => {
                                         const ft = getFtDetails(row);
                                         const qty = parseInt(row.quantity) || 0;
                                         const discount = parseFloat(row.discountPercent) || 0;
@@ -501,10 +529,10 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                                         );
                                     })}
 
-                                    {rows.length === 0 && (
+                                    {visibleRows.length === 0 && (
                                         <tr>
-                                            <td colSpan="7" className="px-6 py-8 text-center text-gray-500 italic">
-                                                Nenhuma Ficha Técnica cadastrada. Cadastre produtos no módulo de "Cadastros de FTs".
+                                            <td colSpan="11" className="px-6 py-8 text-center text-gray-500 italic">
+                                                Nenhuma Ficha Técnica encontrada para esta busca.
                                             </td>
                                         </tr>
                                     )}
