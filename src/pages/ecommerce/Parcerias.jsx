@@ -20,7 +20,7 @@ const getWorkHoursInMonth = (monthStr) => {
     return weekdays * 7;
 };
 
-const Parcerias = () => {
+const Parcerias = ({ readOnly, printMonth }) => {
     const currentYear = new Date().getFullYear();
     const months = Array.from({ length: 12 }, (_, i) =>
         `${currentYear}-${String(i + 1).padStart(2, '0')}`
@@ -206,18 +206,18 @@ const Parcerias = () => {
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const orderedMonths = [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
+    const orderedMonths = printMonth ? [printMonth] : [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+            <div className="bg-white p-5 print:p-2 print:border-none print:shadow-none rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <Handshake className="w-6 h-6 text-indigo-600" />
                         Parcerias
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">Distribuição de custos e cálculos por parceiro — {currentYear}</p>
+                    <p className="text-sm text-gray-500 mt-1 print:hidden">Distribuição de custos e cálculos por parceiro — {currentYear}</p>
                 </div>
             </div>
 
@@ -272,7 +272,7 @@ const Parcerias = () => {
                                 </div>
 
                                 {/* Conteúdo: 2 colunas */}
-                                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="p-4 print:p-2 grid grid-cols-1 md:grid-cols-2 gap-6 print:gap-2">
 
                                     {/* ===== COLUNA ESQUERDA — Dados ===== */}
                                     <div className="space-y-1.5">

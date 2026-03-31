@@ -179,9 +179,9 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
     });
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 print:gap-2">
             {/* Botão Add Empresa no topo */}
-            <div className="md:col-span-2 xl:col-span-3 flex justify-end">
+            <div className="md:col-span-2 xl:col-span-3 flex justify-end print:hidden">
                 <button
                     onClick={() => mutateData(d => ({
                         ...d,
@@ -327,7 +327,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             ))}
                         </div>
 
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-2 mt-2 print:hidden">
                             <button
                                 onClick={() => mutateData(d => ({
                                     ...d,
@@ -349,7 +349,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
             })}
 
             {/* Nova Coluna: Custo Inevitável Total por Marketplace */}
-            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col">
+            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col print:hidden">
                 <div className="bg-gray-100 p-2 rounded mb-3 flex justify-between items-center">
                     <h3 className="font-bold text-gray-800 text-sm">Custo Inevitável (Rateios)</h3>
                 </div>
@@ -529,12 +529,21 @@ const TabResumoParcerias = () => (
 
 // ─── Componente Principal ──────────────────────────────────────────────────
 
-const EmpresasCustos = () => {
+const EmpresasCustos = ({ readOnly, printMonth, forceTab }) => {
     const [currentMonth, setCurrentMonth] = useState(() => {
+        if (printMonth) return printMonth;
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
-    const [activeTab, setActiveTab] = useState('empresas');
+    const [activeTab, setActiveTab] = useState(forceTab || 'empresas');
+
+    useEffect(() => {
+        if (printMonth) setCurrentMonth(printMonth);
+    }, [printMonth]);
+
+    useEffect(() => {
+        if (forceTab) setActiveTab(forceTab);
+    }, [forceTab]);
     const [data, setData] = useState(getInitData);
     const [vendasData, setVendasData] = useState({});
     const [ftsData, setFtsData] = useState([]);
@@ -615,7 +624,7 @@ const EmpresasCustos = () => {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-4 print:p-2 print:border-none print:shadow-none rounded-xl shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <Building2 className="w-6 h-6 text-indigo-600" />
@@ -641,7 +650,7 @@ const EmpresasCustos = () => {
             </div>
 
             {/* Sub-abas */}
-            <div className="flex gap-2 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex gap-2 bg-white p-2 rounded-xl border border-gray-100 shadow-sm print:hidden">
                 {SUB_TABS.map(tab => (
                     <button
                         key={tab.id}

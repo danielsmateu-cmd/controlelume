@@ -289,7 +289,7 @@ function AppContent() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100 print:bg-white">
+        <div className="flex h-screen bg-gray-100 print:bg-white print:block print:h-auto">
             <Sidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -297,7 +297,7 @@ function AppContent() {
                 onImportBackup={handleImportBackup}
                 onExportExcel={handleExportExcel}
             />
-            <main className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible">
+            <main className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible print:block print:h-auto">
                 {renderContent()}
             </main>
         </div>

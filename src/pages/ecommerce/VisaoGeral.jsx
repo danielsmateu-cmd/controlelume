@@ -26,7 +26,7 @@ const getWorkHoursInMonth = (monthStr) => {
     return weekdays * 7;
 };
 
-const VisaoGeral = () => {
+const VisaoGeral = ({ readOnly, printMonth }) => {
     const currentYear = new Date().getFullYear();
     const months = Array.from({ length: 12 }, (_, i) =>
         `${currentYear}-${String(i + 1).padStart(2, '0')}`
@@ -185,7 +185,7 @@ const VisaoGeral = () => {
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const orderedMonths = [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
+    const orderedMonths = printMonth ? [printMonth] : [currentMonthStr, ...months.filter(m => m !== currentMonthStr)];
 
     // Totais do ano
     const yearTotals = months.reduce((acc, month) => {
@@ -219,13 +219,13 @@ const VisaoGeral = () => {
     return (
         <div className="space-y-6">
             {/* Título */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center bg-white p-4 print:p-2 print:border-none print:shadow-none rounded-xl shadow-sm border border-gray-100">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <BarChart3 className="w-6 h-6 text-indigo-600" />
                         Visão Geral e Ponto de Equilíbrio
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">Acompanhamento de faturamento, custos e margens de {currentYear}.</p>
+                    <p className="text-sm text-gray-500 mt-1 print:hidden">Acompanhamento de faturamento, custos e margens de {currentYear}.</p>
                 </div>
             </div>
 
@@ -235,30 +235,6 @@ const VisaoGeral = () => {
                     <span className="ml-2 text-indigo-600 font-medium">Carregando dados...</span>
                 </div>
             )}
-
-            {/* Resumo do Ano */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-xl p-6 text-white shadow-md overflow-hidden relative">
-                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-5">
-                    <Activity className="w-48 h-48" />
-                </div>
-                <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-slate-300">Resumo do Ano ({currentYear})</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                    <div>
-                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Faturamento Anual</div>
-                        <div className="text-3xl font-bold">{fmt(yearTotals.faturamento)}</div>
-                    </div>
-                    <div>
-                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Custo Inevitável Anual</div>
-                        <div className="text-3xl font-bold text-orange-300">{fmt(yearTotals.custoInev)}</div>
-                    </div>
-                    <div>
-                        <div className="text-slate-400 text-xs font-bold mb-1 uppercase">Lucro Líquido</div>
-                        <div className={clsx('text-3xl font-bold', yearTotals.lucroLiquido >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                            {fmt(yearTotals.lucroLiquido)}
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Meses */}
             <div className="space-y-8">

@@ -42,7 +42,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
     };
 
     return (
-        <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col print:hidden">
             <div
                 className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setActiveTab('home')}
