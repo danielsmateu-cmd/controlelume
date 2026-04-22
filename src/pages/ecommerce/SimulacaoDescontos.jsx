@@ -156,11 +156,12 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
         
         const numValue = parseInt(value, 10);
         const newStock = { ...stockData };
+        const existingHistory = newStock[ftCode]?.history || [];
         
         if (isNaN(numValue) || value === '') {
-            newStock[ftCode] = { quantity: 0, status: 'pending', appliedAt: null };
+            newStock[ftCode] = { quantity: 0, status: 'pending', appliedAt: null, history: existingHistory };
         } else {
-            newStock[ftCode] = { quantity: numValue, status: 'pending', appliedAt: null };
+            newStock[ftCode] = { quantity: numValue, status: 'pending', appliedAt: null, history: existingHistory };
         }
 
         setStockData(newStock);
