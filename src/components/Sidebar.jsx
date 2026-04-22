@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2 } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +30,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'contas', label: 'Produção', icon: Factory },
         { id: 'tarefas', label: 'Tarefas', icon: ClipboardList },
         { id: 'ecommerce', label: 'E-Commerce', icon: ShoppingCart },
+        { id: 'simulacao', label: 'Simulação', icon: Calculator },
     ];
 
     // Filter menu items by what the current user can see
@@ -113,6 +114,23 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
                         className="flex items-center w-full px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-2"
                     >
                         <Upload size={14} className="text-orange-500" /> Restaurar Backup
+                    </button>
+                </div>
+            )}
+
+            {/* User Management - only for dsmateu */}
+            {currentUser?.login === 'dsmateu' && (
+                <div className="px-4 border-t border-gray-100 pt-3 pb-2 space-y-1">
+                    <button
+                        onClick={() => setActiveTab('usuarios')}
+                        className={clsx(
+                            "flex items-center w-full px-4 py-2 text-xs font-semibold rounded-lg transition-colors gap-2",
+                            activeTab === 'usuarios'
+                                ? "bg-indigo-100 text-indigo-700"
+                                : "text-indigo-600 hover:bg-indigo-50"
+                        )}
+                    >
+                        <Users size={14} /> Controle de Usuários
                     </button>
                 </div>
             )}

@@ -4,6 +4,7 @@
 //   editor         -> edita Orçamentos, Produção e Tarefas; restante só visualização
 //   budget_only    -> somente Orçamentos e Produção (edição completa)
 //   producao_only  -> somente tela de Produção
+//   simulacao_only -> somente tela de Simulação de Descontos
 
 export const USERS = [
     {
@@ -54,19 +55,26 @@ export const USERS = [
         password: 'teste',
         name: 'Usuário de Teste',
         role: 'admin'
+    },
+    {
+        id: 7,
+        login: 'simulador',
+        password: 'sim',
+        name: 'Simulador',
+        role: 'simulacao_only'
     }
 ];
 
 // Permissões por role
 export const ROLE_PERMISSIONS = {
     admin: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas'],
-        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
+        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
         canExportImport: true
     },
     editor: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas'],
-        editableTabs: ['orcamentos', 'contas', 'tarefas'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
+        editableTabs: ['orcamentos', 'contas', 'tarefas', 'simulacao'],
         canExportImport: false
     },
     budget_only: {
@@ -77,6 +85,11 @@ export const ROLE_PERMISSIONS = {
     producao_only: {
         visibleTabs: ['contas'],
         editableTabs: ['contas'],
+        canExportImport: false
+    },
+    simulacao_only: {
+        visibleTabs: ['simulacao'],
+        editableTabs: ['simulacao'],
         canExportImport: false
     }
 };

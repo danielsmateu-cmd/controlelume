@@ -7,7 +7,8 @@ import {
     ListTodo,
     ShoppingCart,
     Store,
-    Printer
+    Printer,
+    Calculator
 } from 'lucide-react';
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';

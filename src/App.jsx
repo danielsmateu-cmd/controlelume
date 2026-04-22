@@ -9,7 +9,9 @@ import Anotacoes from './pages/Anotacoes';
 import Orcamentos from './pages/Orcamentos';
 import Tarefas from './pages/Tarefas';
 import ECommerce from './pages/ECommerce';
+import SimulacaoDescontos from './pages/ecommerce/SimulacaoDescontos';
 import Login from './pages/Login';
+import Usuarios from './pages/Usuarios';
 import { api } from './services/api';
 
 function AppContent() {
@@ -273,8 +275,12 @@ function AppContent() {
                 return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} />;
             case 'ecommerce':
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
+            case 'simulacao':
+                return <SimulacaoDescontos readOnly={!canEdit('simulacao')} />;
             case 'tarefas':
                 return <Tarefas />;
+            case 'usuarios':
+                return <Usuarios />;
             default:
                 return (
                     <div className="flex h-full w-full items-center justify-center">
