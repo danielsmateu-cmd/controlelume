@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, Calculator, CheckCircle2, AlertCircle, Search } from 'lucide-react';
+import { Loader2, Calculator, CheckCircle2, AlertCircle, Search, X, History } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -60,6 +60,7 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
     const [stockData, setStockData] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingCounts, setPendingCounts] = useState({});
+    const [historyModal, setHistoryModal] = useState(null);
     
     const { currentUser } = useAuth();
     const isAdmin = currentUser?.role === 'admin';
@@ -179,8 +180,16 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
             const newStock = { ...stockData };
             if (newStock[ftCode]) {
                 const now = new Date();
+                const appliedStr = now.toLocaleString('pt-BR');
                 newStock[ftCode].status = 'applied';
-                newStock[ftCode].appliedAt = now.toLocaleString('pt-BR');
+                newStock[ftCode].appliedAt = appliedStr;
+                
+                newStock[ftCode].history = newStock[ftCode].history || [];
+                newStock[ftCode].history.push({
+                    date: appliedStr,
+                    quantity: newStock[ftCode].quantity,
+                    user: currentUser?.name || 'Funcionário'
+                });
                 setStockData(newStock);
                 api.saveSettings(`estoque_marketplace_${activePlatform}`, newStock);
                 
@@ -396,8 +405,16 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                                                             <span className="text-xs text-gray-500 font-medium">un</span>
                                                         </div>
                                                         {ftStock.status === 'applied' && ftStock.quantity > 0 && (
-                                                            <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold mt-1 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                                                <CheckCircle2 size={12} /> OK: {ftStock.appliedAt}
+                                                            <div className="flex flex-col items-center gap-1 mt-1">
+                                                                <div className="flex flex-col items-center gap-0.5 text-[10px] text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded-lg text-center">
+                                                                    <div className="flex items-center gap-1"><CheckCircle2 size={12} /> OK: {ftStock.quantity} un</div>
+                                                                    <div>{ftStock.appliedAt}</div>
+                                                                </div>
+                                                                {(ftStock.history && ftStock.history.length > 0) && (
+                                                                    <button onClick={() => setHistoryModal(ft.ftCode)} className="flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 transition-colors mt-0.5">
+                                                                        <History size={10} /> Histórico
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                         {ftStock.status === 'pending' && ftStock.quantity > 0 && (
@@ -421,8 +438,16 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                                                                         <CheckCircle2 size={14} /> Dar OK
                                                                     </button>
                                                                 ) : (
-                                                                    <div className="flex items-center gap-1 text-xs text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded-full">
-                                                                        <CheckCircle2 size={14} /> {ftStock.appliedAt}
+                                                                    <div className="flex flex-col items-center gap-1 mt-1">
+                                                                        <div className="flex flex-col items-center gap-1 text-xs text-emerald-600 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl text-center shadow-sm">
+                                                                            <div className="flex items-center gap-1"><CheckCircle2 size={14} /> OK: {ftStock.quantity} un</div>
+                                                                            <div className="text-[10px]">{ftStock.appliedAt}</div>
+                                                                        </div>
+                                                                        {(ftStock.history && ftStock.history.length > 0) && (
+                                                                            <button onClick={() => setHistoryModal(ft.ftCode)} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors mt-1 bg-indigo-50 px-2 py-1 rounded-lg">
+                                                                                <History size={12} /> Ver Histórico
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </>
@@ -442,6 +467,54 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
             ) : (
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center text-gray-500">
                     Nenhuma Ficha Técnica encontrada.
+                </div>
+            )}
+
+            {/* Modal de Histórico */}
+            {historyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm print:hidden">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden m-4">
+                        <div className="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+                            <h2 className="font-bold text-indigo-900 flex items-center gap-2">
+                                <History className="w-5 h-5 text-indigo-600" />
+                                Histórico de Estoque
+                            </h2>
+                            <button onClick={() => setHistoryModal(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-gray-500 mb-4">
+                                Mostrando o histórico de estoque adicionado no marketplace para a FT: <span className="font-bold text-gray-800">{historyModal}</span>
+                            </p>
+                            
+                            <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+                                {stockData[historyModal]?.history?.length > 0 ? (
+                                    stockData[historyModal].history.slice().reverse().map((hist, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors">
+                                            <div>
+                                                <div className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                                                    <CheckCircle2 size={12} className="text-emerald-500" />
+                                                    {hist.date}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 mt-0.5">Por: {hist.user}</div>
+                                            </div>
+                                            <div className="font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-lg text-sm shadow-sm">
+                                                +{hist.quantity} un
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center text-sm text-gray-400 py-4 italic">Nenhum histórico registrado.</div>
+                                )}
+                            </div>
+                            <div className="mt-6 flex justify-end pt-4 border-t border-gray-100">
+                                <button onClick={() => setHistoryModal(null)} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-xl transition-colors">
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
