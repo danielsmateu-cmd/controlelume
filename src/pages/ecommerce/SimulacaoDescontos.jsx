@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, Calculator, CheckCircle2, AlertCircle, Search, X, History } from 'lucide-react';
+import { Loader2, Calculator, CheckCircle2, AlertCircle, Search, X, History, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -201,6 +201,19 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                 });
                 
                 alert('Confirmado com sucesso!');
+            }
+        }
+    };
+
+    const deleteHistoryEntry = (ftCode, realIndex) => {
+        if (!isAdmin) return;
+        
+        if (window.confirm('Tem certeza que deseja apagar este registro do histórico?')) {
+            const newStock = { ...stockData };
+            if (newStock[ftCode] && newStock[ftCode].history) {
+                newStock[ftCode].history.splice(realIndex, 1);
+                setStockData(newStock);
+                api.saveSettings(`estoque_marketplace_${activePlatform}`, newStock);
             }
         }
     };
@@ -491,7 +504,10 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                             
                             <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
                                 {stockData[historyModal]?.history?.length > 0 ? (
-                                    stockData[historyModal].history.slice().reverse().map((hist, idx) => (
+                                    stockData[historyModal].history.slice().reverse().map((hist, idx) => {
+                                        const originalLength = stockData[historyModal].history.length;
+                                        const realIndex = originalLength - 1 - idx;
+                                        return (
                                         <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors">
                                             <div>
                                                 <div className="text-xs font-bold text-gray-800 flex items-center gap-1">
@@ -500,11 +516,22 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                                                 </div>
                                                 <div className="text-[10px] text-gray-500 mt-0.5">Por: {hist.user}</div>
                                             </div>
-                                            <div className="font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-lg text-sm shadow-sm">
-                                                +{hist.quantity} un
+                                            <div className="flex items-center gap-3">
+                                                <div className="font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-lg text-sm shadow-sm">
+                                                    +{hist.quantity} un
+                                                </div>
+                                                {isAdmin && (
+                                                    <button 
+                                                        onClick={() => deleteHistoryEntry(historyModal, realIndex)}
+                                                        className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                                                        title="Excluir registro do histórico"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                    ))
+                                    )})
                                 ) : (
                                     <div className="text-center text-sm text-gray-400 py-4 italic">Nenhum histórico registrado.</div>
                                 )}
