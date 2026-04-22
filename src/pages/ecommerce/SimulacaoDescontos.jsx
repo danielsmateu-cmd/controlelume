@@ -410,7 +410,7 @@ const SimulacaoDescontos = ({ readOnly = false }) => {
                                                         <div className="flex items-center gap-2">
                                                             <input
                                                                 type="number"
-                                                                value={ftStock.quantity || ''}
+                                                                value={ftStock.status === 'pending' ? (ftStock.quantity || '') : ''}
                                                                 onChange={(e) => handleStockChange(ft.ftCode, e.target.value)}
                                                                 className="w-20 text-sm border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-center font-bold"
                                                                 placeholder="Qtd"
