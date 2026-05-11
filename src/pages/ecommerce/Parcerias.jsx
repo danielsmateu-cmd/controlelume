@@ -198,11 +198,11 @@ const Parcerias = ({ readOnly, printMonth }) => {
         if (!monthStr) return '';
         const [y, m] = monthStr.split('-').map(Number);
         const date = new Date(y, m - 1);
-        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const refMonthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const prevDate = new Date(y, m - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const lastDayPrev = new Date(y, m - 1, 0).getDate();
-        return `${monthName} DE ${y} — VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
+        return `${refMonthName} ${y} — VENDAS DE 01 A ${lastDayPrev} DE ${prevMonthName}`;
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;

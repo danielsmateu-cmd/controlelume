@@ -108,13 +108,13 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         const month = parseInt(monthStrPart);
 
         const date = new Date(year, month - 1);
-        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const refMonthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
 
         const prevDate = new Date(year, month - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const lastDayPrev = new Date(year, month - 1, 0).getDate();
 
-        return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
+        return `FECHAMENTO ${refMonthName} ${year} - VENDAS DE 01 A ${lastDayPrev} DE ${prevMonthName}`;
     };
 
     const isCurrentMonthLocked = lockedMonths.includes(`${marketplace}_${currentMonth}`);

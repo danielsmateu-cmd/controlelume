@@ -177,11 +177,11 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
         const [yearStr, monthStrPart] = monthStr.split('-');
         const year = parseInt(yearStr);
         const month = parseInt(monthStrPart);
-        const name = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const refName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const prev = new Date(year, month - 2);
-        const prevM = String(prev.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prev.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const last = new Date(year, month - 1, 0).getDate();
-        return `${name} DE ${year} — VENDAS DE 01/${prevM} A ${last}/${prevM}`;
+        return `${refName} ${year} — VENDAS DE 01 A ${last} DE ${prevMonthName}`;
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;

@@ -293,8 +293,11 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const matchesName = order.clientName?.toLowerCase().includes(q);
         const matchesDesc = order.description?.toLowerCase().includes(q);
         const matchesVal = order.value?.toString().includes(q);
+        const matchesBoleto = order.boletoNumber?.toLowerCase().includes(q);
+        const matchesNF = order.nfNumber?.toLowerCase().includes(q);
+        const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
 
-        return matchesYear && (matchesName || matchesDesc || matchesVal);
+        return matchesYear && (matchesName || matchesDesc || matchesVal || matchesBoleto || matchesNF || matchesPayment);
     });
 
     return (
@@ -312,7 +315,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar nome ou valor..."
+                                placeholder="Buscar nome, valor, boleto, NF..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
