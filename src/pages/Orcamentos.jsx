@@ -84,6 +84,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const [budgetItems, setBudgetItems] = useState([]);
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
+    const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
 
     const handleSaveBudget = async () => {
         if (budgetItems.length === 0) {
@@ -1216,13 +1217,41 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                         #root {
                             background-color: transparent !important;
                         }
-                        .print-container {
-                            padding: 15mm 15mm;
+                        .print-page {
+                            width: 210mm;
+                            min-height: 297mm;
+                            max-height: 297mm;
+                            overflow: hidden;
+                            padding: 12mm 15mm;
+                            box-sizing: border-box;
+                            page-break-after: always;
+                            break-after: page;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        .print-page:last-child {
+                            page-break-after: avoid;
+                            break-after: avoid;
+                        }
+                        .print-image-page {
+                            width: 210mm;
+                            min-height: 297mm;
+                            max-height: 297mm;
+                            padding: 12mm 15mm;
+                            box-sizing: border-box;
+                            page-break-after: always;
+                            break-after: page;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        .print-image-page:last-child {
+                            page-break-after: avoid;
+                            break-after: avoid;
                         }
                     }
                     .print-table th, .print-table td {
                         border-bottom: 0.5pt solid #e2e8f0;
-                        padding: 10px 4px;
+                        padding: 7px 4px;
                         border-left: none;
                         border-right: none;
                         border-top: none;
@@ -1241,189 +1270,238 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                         color: #475569;
                         text-transform: uppercase;
                         letter-spacing: 0.1em;
-                        margin-bottom: 8px;
+                        margin-bottom: 6px;
                         border-bottom: 0.5pt solid #cbd5e1;
-                        padding-bottom: 4px;
+                        padding-bottom: 3px;
+                    }
+                    .page-number {
+                        margin-top: auto;
+                        text-align: right;
+                        font-size: 8px;
+                        color: #94a3b8;
+                        font-weight: 700;
                     }
                 `}
             </style>
-            <div className="hidden print:block print-container bg-white text-black font-sans leading-tight text-[11px] max-w-[210mm] mx-auto">
+            <div className="hidden print:block">
 
-                {/* HEAD - Split Layout (Logo Left / Data Right) */}
-                <div className="flex justify-between items-center mb-10 pb-6 border-b border-slate-50">
-                    <div className="flex-1">
-                        <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-40 object-contain" />
-                    </div>
-                    <div className="flex-1 text-right">
-                        <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-2">PROPOSTA COMERCIAL</h1>
-                        <div className="text-[9px] text-slate-600 space-y-0.5 leading-relaxed">
-                            <p className="font-bold text-slate-800 text-xs mb-1">{new Date().toLocaleDateString('pt-BR')}</p>
-                            <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
-                            <p>CNPJ: 66.022.922/0001-08</p>
-                            <p>Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP</p>
-                            <p>CEP: 13.347-458 | WhatsApp: (19) 99916-2239</p>
-                        </div>
-                    </div>
-                </div>
+                {/* ── PÁGINA 1: Orçamento principal ── */}
+                {(() => {
+                    const totalPages = 1 + attachedImages.length;
+                    return (
+                        <div className="print-page bg-white text-black font-sans leading-tight text-[10.5px]">
 
-                {/* DADOS CLIENTE */}
-                <div className="mb-6">
-                    <div className="section-title">Informações do Cliente</div>
-                    <div className="grid grid-cols-4 gap-y-4">
-                        <div className="col-span-2">
-                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Nome / Razão Social</span>
-                            <span className="text-xs font-bold text-slate-800 uppercase">{clientData.name}</span>
-                        </div>
-                        <div>
-                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">CPF / CNPJ</span>
-                            <span className="text-xs text-slate-800">{clientData.doc}</span>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Telefone</span>
-                            <span className="text-xs text-slate-800">{clientData.phone}</span>
-                        </div>
-                        <div className="col-span-2">
-                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Email</span>
-                            <span className="text-xs text-slate-800">{clientData.email || '-'}</span>
-                        </div>
-                        <div className="col-span-2 text-right">
-                            <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Endereço</span>
-                            <span className="text-xs text-slate-800">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ITENS */}
-                <div className="mb-4 min-h-[150px]">
-                    <div className="section-title">Descrição dos Serviços</div>
-                    <table className="print-table w-full">
-                        <thead>
-                            <tr>
-                                <th className="w-12 text-center text-[8px] uppercase tracking-widest">Qtd</th>
-                                <th className="text-left text-[8px] uppercase tracking-widest pl-4">Item / Descrição</th>
-                                <th className="w-28 text-right text-[8px] uppercase tracking-widest">Unitário</th>
-                                <th className="w-28 text-right text-[8px] uppercase tracking-widest">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-slate-600">
-                            {budgetItems.map(item => (
-                                <tr key={item.id}>
-                                    <td className="text-center font-bold align-top pt-2">{item.quantity}</td>
-                                    <td className="px-2 text-slate-800 align-top pt-2">
-                                        <div className="font-bold uppercase">{item.name}</div>
-                                        {item.description && (
-                                            <div className="text-[9px] font-normal text-slate-600 mt-1 whitespace-pre-wrap leading-tight">{item.description}</div>
-                                        )}
-                                    </td>
-                                    <td className="text-right text-slate-800 align-top pt-2">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td className="text-right font-black text-slate-900 align-top pt-2">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                </tr>
-                            ))}
-                            {/* Fill Empty Rows */}
-                            {Array.from({ length: Math.max(0, 5 - budgetItems.length) }).map((_, i) => (
-                                <tr key={`empty-${i}`} className="h-6">
-                                    <td className="border-b border-slate-200"></td>
-                                    <td className="border-b border-slate-200"></td>
-                                    <td className="border-b border-slate-200"></td>
-                                    <td className="border-b border-slate-200"></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colSpan="2" className="border-none"></td>
-                                <td className="text-slate-600 font-bold text-right py-6 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
-                                <td className="font-black text-2xl text-right text-slate-900 py-6 border-none whitespace-nowrap">
-                                    R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-
-                {/* PAGAMENTOS, PRAZO E DADOS BANCÁRIOS */}
-                <div className="grid grid-cols-12 gap-12 mt-4">
-                    {/* Coluna Esquerda: Pagamento */}
-                    <div className="col-span-8">
-                        <div className="section-title">Condições de Pagamento</div>
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                                <div>
-                                    <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
-                                    <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
+                            {/* Cabeçalho */}
+                            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-200">
+                                <div className="flex-1">
+                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-28 object-contain" />
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-lg font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    <div className="text-[10px] text-green-700 uppercase mt-1 leading-tight text-right font-bold">
-                                        Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
-                                        + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                <div className="flex-1 text-right">
+                                    <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
+                                    <div className="text-[9px] text-slate-600 space-y-0.5 leading-relaxed">
+                                        <p className="font-bold text-slate-800 text-xs mb-0.5">{new Date().toLocaleDateString('pt-BR')}</p>
+                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
+                                        <p>CNPJ: 66.022.922/0001-08</p>
+                                        <p>Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP</p>
+                                        <p>CEP: 13.347-458 | WhatsApp: (19) 99916-2239</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
-                                    <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-lg font-black text-slate-900">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    <div className="text-[8px] text-slate-600 font-bold uppercase mt-1">Sem juros no cartão</div>
+                            {/* Dados Cliente */}
+                            <div className="mb-4">
+                                <div className="section-title">Informações do Cliente</div>
+                                <div className="grid grid-cols-4 gap-y-3">
+                                    <div className="col-span-2">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Nome / Razão Social</span>
+                                        <span className="text-xs font-bold text-slate-800 uppercase">{clientData.name}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">CPF / CNPJ</span>
+                                        <span className="text-xs text-slate-800">{clientData.doc}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Telefone</span>
+                                        <span className="text-xs text-slate-800">{clientData.phone}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Email</span>
+                                        <span className="text-xs text-slate-800">{clientData.email || '-'}</span>
+                                    </div>
+                                    <div className="col-span-2 text-right">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Endereço</span>
+                                        <span className="text-xs text-slate-800">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="section-title mt-4">Dados Bancários / Pagamento</div>
-                        <div className="flex gap-8">
-                            <div className="flex-1">
-                                <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Banco Itaú</span>
-                                <div className="text-[10px] text-slate-800 space-y-1">
-                                    <p><span className="font-black">Ag:</span> 5396</p>
-                                    <p><span className="font-black">Cc:</span> 97680-4</p>
-                                </div>
+                            {/* Itens */}
+                            <div className="mb-3">
+                                <div className="section-title">Descrição dos Serviços</div>
+                                <table className="print-table w-full">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-12 text-center text-[8px] uppercase tracking-widest">Qtd</th>
+                                            <th className="text-left text-[8px] uppercase tracking-widest pl-4">Item / Descrição</th>
+                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Unitário</th>
+                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-slate-600">
+                                        {budgetItems.map(item => (
+                                            <tr key={item.id}>
+                                                <td className="text-center font-bold align-top pt-1.5">{item.quantity}</td>
+                                                <td className="px-2 text-slate-800 align-top pt-1.5">
+                                                    <div className="font-bold uppercase">{item.name}</div>
+                                                    {item.description && (
+                                                        <div className="text-[9px] font-normal text-slate-600 mt-0.5 whitespace-pre-wrap leading-tight">{item.description}</div>
+                                                    )}
+                                                </td>
+                                                <td className="text-right text-slate-800 align-top pt-1.5">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                <td className="text-right font-black text-slate-900 align-top pt-1.5">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        ))}
+                                        {Array.from({ length: Math.max(0, 4 - budgetItems.length) }).map((_, i) => (
+                                            <tr key={`empty-${i}`} className="h-5">
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colSpan="2" className="border-none"></td>
+                                            <td className="text-slate-600 font-bold text-right py-4 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
+                                            <td className="font-black text-xl text-right text-slate-900 py-4 border-none whitespace-nowrap">
+                                                R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
-                            <div className="flex-1">
-                                <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Transferência PIX</span>
-                                <div className="text-[10px] text-slate-800">
-                                    <p className="font-black text-slate-900">comercial@lumeacrilicos.com.br</p>
-                                    <p className="text-[8px] opacity-90 mt-1 font-bold uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Coluna Direita: Prazo */}
-                    <div className="col-span-4 flex flex-col pt-2">
-                        <div className="border-l border-slate-300 pl-6 h-full flex flex-col justify-start">
-                            <div className="section-title border-none mb-4 text-slate-600 font-bold">Prazo de Produção</div>
-                            <div className="text-3xl font-black text-slate-900 leading-none">10</div>
-                            <div className="text-[10px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
-                            <div className="text-[11px] italic text-slate-700 mt-4 leading-relaxed font-medium">
-                                Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-200">
-                                <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Descrição</div>
-                                <div className="text-[10px] text-slate-700 leading-relaxed font-medium">
-                                    Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:
-                                    <br />
-                                    Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP
-                                    <br />
-                                    CEP: 13.347-458
-                                    <br />
-                                    <strong>Não fazemos instalação.</strong>
+                            {/* Pagamento + Prazo */}
+                            <div className="grid grid-cols-12 gap-8 mt-2">
+                                <div className="col-span-8">
+                                    <div className="section-title">Condições de Pagamento</div>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
+                                                <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-base font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <div className="text-[9px] text-green-700 uppercase mt-0.5 leading-tight text-right font-bold">
+                                                    Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
+                                                    + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
+                                                <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-base font-black text-slate-900">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">Sem juros no cartão</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="section-title mt-3">Dados Bancários / Pagamento</div>
+                                    <div className="flex gap-8">
+                                        <div className="flex-1">
+                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Banco Itaú</span>
+                                            <div className="text-[10px] text-slate-800 space-y-0.5">
+                                                <p><span className="font-black">Ag:</span> 5396</p>
+                                                <p><span className="font-black">Cc:</span> 97680-4</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Transferência PIX</span>
+                                            <div className="text-[10px] text-slate-800">
+                                                <p className="font-black text-slate-900">comercial@lumeacrilicos.com.br</p>
+                                                <p className="text-[8px] opacity-90 mt-0.5 font-bold uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-span-4 flex flex-col pt-1">
+                                    <div className="border-l border-slate-300 pl-5 h-full flex flex-col justify-start">
+                                        <div className="section-title border-none mb-3 text-slate-600 font-bold">Prazo de Produção</div>
+                                        <div className="text-3xl font-black text-slate-900 leading-none">10</div>
+                                        <div className="text-[9px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
+                                        <div className="text-[10px] italic text-slate-700 mt-2 leading-relaxed font-medium">
+                                            Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1">Descrição</div>
+                                            <div className="text-[9px] text-slate-700 leading-relaxed font-medium">
+                                                Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:<br />
+                                                Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP<br />
+                                                CEP: 13.347-458<br />
+                                                <strong>Não fazemos instalação.</strong>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Footer simple */}
-                <div className="mt-8 text-center text-xs text-slate-600 font-bold border-t border-slate-300 pt-2">
-                    Orçamento válido por 7 dias.
-                </div>
+                            {/* Rodapé */}
+                            <div className="mt-4 text-center text-[10px] text-slate-600 font-bold border-t border-slate-300 pt-2">
+                                Orçamento válido por 7 dias.
+                            </div>
+
+                            {/* Paginação */}
+                            {totalPages > 1 && (
+                                <div className="page-number">Pág 1 de {totalPages}</div>
+                            )}
+                        </div>
+                    );
+                })()}
+
+                {/* ── PÁGINAS DE IMAGENS ── */}
+                {attachedImages.map((img, idx) => {
+                    const totalPages = 1 + attachedImages.length;
+                    const pageNum = idx + 2;
+                    return (
+                        <div key={img.id} className="print-image-page bg-white text-black font-sans">
+                            {/* Cabeçalho igual */}
+                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
+                                <div className="flex-1">
+                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-20 object-contain" />
+                                </div>
+                                <div className="flex-1 text-right">
+                                    <h1 className="text-xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
+                                    <div className="text-[9px] text-slate-600 space-y-0.5">
+                                        <p className="font-bold text-slate-800 text-[10px]">{new Date().toLocaleDateString('pt-BR')}</p>
+                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
+                                        <p>CNPJ: 66.022.922/0001-08 | WhatsApp: (19) 99916-2239</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Cliente resumido */}
+                            <div className="text-[9px] text-slate-600 mb-4 font-bold">
+                                Cliente: <span className="text-slate-800 uppercase">{clientData.name}</span>
+                                {img.name && <span className="ml-4 text-slate-500 font-normal">Referência: {img.name}</span>}
+                            </div>
+                            {/* Imagem ocupa o restante */}
+                            <div className="flex-1 flex items-center justify-center">
+                                <img
+                                    src={img.dataUrl}
+                                    alt={img.name || `Imagem ${idx + 1}`}
+                                    style={{ maxWidth: '100%', maxHeight: '210mm', objectFit: 'contain' }}
+                                />
+                            </div>
+                            {/* Paginação */}
+                            <div className="page-number">Pág {pageNum} de {totalPages}</div>
+                        </div>
+                    );
+                })}
             </div>
-
-
 
             {/* Application UI */}
             <div className="space-y-6 pb-20 print:hidden">
@@ -1902,7 +1980,61 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
                     </div>
                 )}
 
-                {!costPerPiece && materials.length > 0 && (
+                {/* IMAGE ATTACHMENTS UI */}
+                {budgetItems.length > 0 && (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Anexos (Para Impressão)</h3>
+                        <div className="flex flex-col gap-4">
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                multiple 
+                                onChange={(e) => {
+                                    const files = Array.from(e.target.files);
+                                    files.forEach(file => {
+                                        const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            setAttachedImages(prev => [
+                                                ...prev, 
+                                                { id: Math.random().toString(36).substr(2, 9), dataUrl: event.target.result, name: file.name }
+                                            ]);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    });
+                                }}
+                                className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-full file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-indigo-50 file:text-indigo-700
+                                hover:file:bg-indigo-100 transition-colors cursor-pointer"
+                            />
+                            
+                            {attachedImages.length > 0 && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                    {attachedImages.map((img, idx) => (
+                                        <div key={img.id} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+                                            <img src={img.dataUrl} alt="Anexo" className="w-full h-32 object-cover" />
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <button 
+                                                    onClick={() => setAttachedImages(prev => prev.filter(i => i.id !== img.id))}
+                                                    className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="p-2 text-[10px] text-center text-gray-500 truncate font-medium">
+                                                {img.name || `Imagem ${idx + 1}`}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {!costPerPiece && materials.length > 0 && budgetItems.length === 0 && (
                     <div className="p-10 border-2 border-dashed border-gray-200 rounded-3xl text-center bg-gray-50/30">
                         <p className="text-gray-400 font-medium">Insira as medidas nos materiais acima para calcular o orçamento inicial.</p>
                     </div>
