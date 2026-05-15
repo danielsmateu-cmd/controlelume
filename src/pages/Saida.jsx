@@ -814,16 +814,21 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-2">
-                                                        <input
-                                                            type="number" step="0.01"
-                                                            value={expense.amount || ''}
-                                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                                                            onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                                                            readOnly={readOnly}
-                                                            disabled={readOnly}
-                                                            className="w-full max-w-[120px] p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                                            placeholder="0,00"
-                                                        />
+                                                        <div className="relative w-full max-w-[120px]">
+                                                            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                                                <span className="text-gray-500 text-sm font-medium">R$</span>
+                                                            </div>
+                                                            <input
+                                                                type="number" step="0.01"
+                                                                value={expense.amount || ''}
+                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                                onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                                readOnly={readOnly}
+                                                                disabled={readOnly}
+                                                                className="w-full pl-7 p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-gray-900"
+                                                                placeholder="0,00"
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
                                                         {confirmingId === expense.id ? (
