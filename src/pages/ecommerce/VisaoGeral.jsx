@@ -161,14 +161,15 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
     const fmtN = (v) => v > 0 ? fmt(v) : '—';
 
     const formatMonthName = (monthStr) => {
+        if (!monthStr) return '';
         const [yearStr, monthStrPart] = monthStr.split('-');
-        const year = parseInt(yearStr);
-        const month = parseInt(monthStrPart);
-        const refName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStrPart, 10);
         const prev = new Date(year, month - 2);
         const prevMonthName = prev.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prevYear = prev.getFullYear();
         const last = new Date(year, month - 1, 0).getDate();
-        return `${refName} ${year} — VENDAS DE 01 A ${last} DE ${prevMonthName}`;
+        return `VENDAS DE 01 A ${last} DE ${prevMonthName} DE ${prevYear}`;
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;

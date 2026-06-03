@@ -65,6 +65,17 @@ const PLATFORMS = [
     },
 ];
 
+const getReportMonthDisplay = (monthStr) => {
+    if (!monthStr) return '';
+    const [yearStr, monthStrPart] = monthStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStrPart, 10);
+    const prevDate = new Date(year, month - 2);
+    const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+    const prevYear = prevDate.getFullYear();
+    return `${prevMonth}/${prevYear}`;
+};
+
 const ECommerce = ({ readOnly }) => {
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
     const [activePlatform, setActivePlatform] = useState('meli');
@@ -239,7 +250,7 @@ const ECommerce = ({ readOnly }) => {
                         {/* Print Area - Shown on screen as preview, and printed securely */}
                         <div className="print-content">
                             <h1 className="text-3xl font-black text-center mt-6 mb-8 hidden print:block text-slate-800 border-b-2 border-slate-200 pb-3">
-                                Resumo Gerencial E-Commerce - {reportMonth.split('-').reverse().join('/')}
+                                Resumo Gerencial E-Commerce - {getReportMonthDisplay(reportMonth)}
                             </h1>
                             
                             <div className="flex flex-col gap-8 print:block">

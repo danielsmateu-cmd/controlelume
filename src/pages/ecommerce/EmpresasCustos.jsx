@@ -573,9 +573,10 @@ const EmpresasCustos = ({ readOnly, printMonth, forceTab }) => {
         const [yearStr, monthNumStr] = monthStr.split('-');
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthNumStr, 10);
-        const monthName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-        const prevMonth = new Date(year, month - 2).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-        return `FECHAMENTO ${monthName} DE ${year} - CONTAS DE ${prevMonth}`;
+        const prevDate = new Date(year, month - 2);
+        const prevMonth = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prevYear = prevDate.getFullYear();
+        return `CONTAS DE ${prevMonth} DE ${prevYear}`;
     };
 
     const empresas = Array.isArray(data.empresas) ? data.empresas : [];
