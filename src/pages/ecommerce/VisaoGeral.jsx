@@ -147,26 +147,13 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
 
-        // Tudo que não é a Empresa 0 (Lume) entra no grupo de Rateio/Bureau
-        let rateioRestantesPorMkt = 0;
-        if (empresas.length > 1 && PLATFORMS.length > 0) {
-            empresas.forEach((emp, idx) => {
-                if (idx === 0) return;
-                const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
-                const percentualRepasse = emp.ecommerceShare || 0;
-                const valorIrParaEcommerce = totalEmp * (percentualRepasse / 100);
-                rateioRestantesPorMkt += valorIrParaEcommerce / PLATFORMS.length;
-            });
-        }
-
         return PLATFORMS.map(pObj => {
             const d = getMktDetail(pObj.id, month);
             const custoInevLume = d.horasConsumidas * custoHoraEmp1;
-            const custoInevBureau = rateioRestantesPorMkt;
             const totalCustosDiretos = d.totalCustosDiretos;
-            const custoInevShare = custoInevLume + custoInevBureau;
+            const custoInevShare = custoInevLume;
             const lucroLiquido = d.faturamento - d.custoMateriais - totalCustosDiretos - d.adsExtras - custoInevShare;
-            return { ...pObj, ...d, totalCustosDiretos, custoInevLume, custoInevBureau, custoInevShare, lucroLiquido };
+            return { ...pObj, ...d, totalCustosDiretos, custoInevLume, custoInevShare, lucroLiquido };
         });
     };
 
@@ -212,7 +199,6 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
         { key: 'totalCustosDiretos', label: 'C. Diretos', align: 'right' },
         { key: 'adsExtras', label: 'Ads+Extras', align: 'right' },
         { key: 'custoInevLume', label: 'Inev. Lume', align: 'right' },
-        { key: 'custoInevBureau', label: 'Inev. Bureau', align: 'right' },
         { key: 'lucroLiquido', label: 'Lucro Líquido', align: 'right' },
     ];
 
@@ -250,10 +236,9 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                         totalCustosDiretos: a.totalCustosDiretos + r.totalCustosDiretos,
                         adsExtras: a.adsExtras + r.adsExtras,
                         custoInevLume: a.custoInevLume + r.custoInevLume,
-                        custoInevBureau: a.custoInevBureau + r.custoInevBureau,
                         custoInevShare: a.custoInevShare + r.custoInevShare,
                         lucroLiquido: a.lucroLiquido + r.lucroLiquido,
-                    }), { faturamento: 0, itens: 0, custoMateriais: 0, totalCustosDiretos: 0, adsExtras: 0, custoInevLume: 0, custoInevBureau: 0, custoInevShare: 0, lucroLiquido: 0 });
+                    }), { faturamento: 0, itens: 0, custoMateriais: 0, totalCustosDiretos: 0, adsExtras: 0, custoInevLume: 0, custoInevShare: 0, lucroLiquido: 0 });
 
                     return (
                         <div key={month} className={clsx('bg-white rounded-xl overflow-hidden', isCurrent ? 'border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl' : 'border border-gray-200 shadow-sm')}>
@@ -299,8 +284,6 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                                     <td className="px-4 py-3 text-right text-purple-500 font-medium">{fmtN(r.adsExtras)}</td>
                                                     {/* Custo Inev Lume */}
                                                     <td className="px-4 py-3 text-right text-red-400">{fmtN(r.custoInevLume)}</td>
-                                                    {/* Custo Inev Bureau */}
-                                                    <td className="px-4 py-3 text-right text-red-500">{fmtN(r.custoInevBureau)}</td>
                                                     {/* Lucro Líquido */}
                                                     <td className={clsx('px-4 py-3 text-right font-bold', r.lucroLiquido >= 0 && (r.faturamento > 0 || hasData) ? 'text-emerald-600' : (r.lucroLiquido < 0 ? 'text-red-600' : 'text-gray-400'))}>
                                                         {(r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0) ? fmt(r.lucroLiquido) : '—'}
@@ -320,7 +303,6 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                             <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.totalCustosDiretos)}</td>
                                             <td className="px-4 py-3 text-right text-purple-200">{fmtN(totals.adsExtras)}</td>
                                             <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevLume)}</td>
-                                            <td className="px-4 py-3 text-right text-red-200">{fmtN(totals.custoInevBureau)}</td>
                                             <td className={clsx('px-4 py-3 text-right text-base', totals.lucroLiquido >= 0 ? 'text-emerald-300' : 'text-red-300')}>
                                                 {fmt(totals.lucroLiquido)}
                                             </td>

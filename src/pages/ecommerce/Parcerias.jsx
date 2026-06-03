@@ -127,7 +127,7 @@ const Parcerias = ({ readOnly, printMonth }) => {
     // --- Custos inevitáveis reais por mês (Horas + Rateio) ---
     const getMonthCustoInev = (month) => {
         const costData = custosData[month];
-        if (!costData) return { lumeRS: 0, bureauRS: 0, custosExtrasRS: 0 };
+        if (!costData) return { lumeRS: 0, custosExtrasRS: 0 };
 
         const monthHours = getWorkHoursInMonth(month);
         const empresas = costData.empresas || [];
@@ -139,17 +139,6 @@ const Parcerias = ({ readOnly, printMonth }) => {
             const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
-        }
-
-        // 2. Rateio das demais empresas (Bureau e outras)
-        let rateioRestantesTotal = 0;
-        if (empresas.length > 1) {
-            empresas.forEach((emp, idx) => {
-                if (idx === 0) return;
-                const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
-                const perc = emp.ecommerceShare || 0;
-                rateioRestantesTotal += totalEmp * (perc / 100);
-            });
         }
 
         // 3. Custos Extras Genéricos + Ads (agrupado aqui)
@@ -178,9 +167,8 @@ const Parcerias = ({ readOnly, printMonth }) => {
         });
 
         const lumeRS = horasTotaisConsumidas * custoHoraEmp1;
-        const bureauRS = rateioRestantesTotal;
 
-        return { lumeRS, bureauRS, custosExtrasRS };
+        return { lumeRS, custosExtrasRS };
     };
 
     // --- Lucro Líquido ---
@@ -188,7 +176,7 @@ const Parcerias = ({ readOnly, printMonth }) => {
         const v = getVendasSummary(month);
         const c = getMonthCustoInev(month);
         const custoTotal = v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + c.custosExtrasRS;
-        const custoInevitavel = c.lumeRS + c.bureauRS;
+        const custoInevitavel = c.lumeRS;
         return v.totalFaturamento - custoTotal - custoInevitavel;
     };
 
@@ -236,14 +224,14 @@ const Parcerias = ({ readOnly, printMonth }) => {
                         const c = getMonthCustoInev(month);
                         const lucroLiquido = getLucroLiquido(month);
                         const isCurrent = month === currentMonthStr;
-                        const hasData = v.totalFaturamento > 0 || c.lumeRS > 0 || c.bureauRS > 0;
+                        const hasData = v.totalFaturamento > 0 || c.lumeRS > 0;
 
                         const pLume = percentConfig[month]?.percentLume || 0;
                         const pBureau = percentConfig[month]?.percentBureau || 0;
 
                         // Cálculos E-Commerce
                         const lumeEcomm = c.lumeRS + c.custosExtrasRS + v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + (pLume / 100) * lucroLiquido;
-                        const bureauEcomm = c.bureauRS + (pBureau / 100) * lucroLiquido;
+                        const bureauEcomm = (pBureau / 100) * lucroLiquido;
 
                         return (
                             <div
@@ -321,15 +309,6 @@ const Parcerias = ({ readOnly, printMonth }) => {
                                             <span className="text-sm font-bold text-blue-700">{fmt(c.lumeRS)}</span>
                                         </div>
 
-                                        {/* BUREAU R$ */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-purple-50 rounded-lg border border-purple-100">
-                                            <div className="flex items-center gap-1.5">
-                                                <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                                                <span className="text-xs text-gray-600 font-medium">Inev. Bureau</span>
-                                            </div>
-                                            <span className="text-sm font-bold text-purple-700">{fmt(c.bureauRS)}</span>
-                                        </div>
-
                                         {/* Lucro Líquido */}
                                         <div className={clsx(
                                             'flex justify-between items-center px-3 py-2 rounded-lg border',
@@ -392,11 +371,9 @@ const Parcerias = ({ readOnly, printMonth }) => {
                                                 <span className="text-white text-xs font-bold uppercase tracking-wide">BUREAU</span>
                                             </div>
                                             <div className="p-3 space-y-1.5 text-xs text-gray-500">
-                                                <div className="flex justify-between"><span>Inev. Bureau</span><span className="text-gray-700 font-medium">{fmt(c.bureauRS)}</span></div>
-
                                                 {/* % Lucro Líquido BUREAU */}
-                                                <div className="flex justify-between items-center pt-1 border-t border-purple-100">
-                                                    <span>+ % do Lucro Líquido</span>
+                                                <div className="flex justify-between items-center pt-1">
+                                                    <span>% do Lucro Líquido</span>
                                                     <div className="flex items-center gap-1">
                                                         <input
                                                             type="number"

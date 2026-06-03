@@ -217,6 +217,39 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         setIsEditing(false);
     };
 
+    const handleInlineProductionTimeChange = async (ft, newValue) => {
+        if (readOnly) return;
+        const val = newValue === '' ? '' : parseInt(newValue, 10);
+        if (newValue !== '' && isNaN(val)) return;
+
+        try {
+            if (ft.isOverride) {
+                const nextOverrides = { ...overrides };
+                nextOverrides[ft.ftCode] = {
+                    ...overrides[ft.ftCode],
+                    productionTime: val
+                };
+                const success = await api.saveSettings(`ft_overrides_${marketplace}`, nextOverrides);
+                if (success) {
+                    setOverrides(nextOverrides);
+                } else {
+                    alert("Erro ao salvar alteração de tempo no marketplace.");
+                    loadData();
+                }
+            } else {
+                const success = await api.updateFtProductionTime(ft.id, val);
+                if (!success) {
+                    alert("Erro ao atualizar tempo de produção global.");
+                    loadData();
+                }
+            }
+        } catch (err) {
+            console.error("Erro ao atualizar tempo de produção:", err);
+            alert("Erro ao salvar alteração.");
+            loadData();
+        }
+    };
+
     const handleSaveCostModel = async () => {
         if (readOnly) return;
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
@@ -610,13 +643,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                             <thead className="text-xs text-gray-500 bg-white uppercase">
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
+                                    <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo Prod.</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (Fixo)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (%)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (R$)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (%)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Venda (R$)</th>
-                                    <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo / Ações</th>
+                                    <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -642,7 +676,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                     <span>{ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}</span>
                                                 </div>
-                                                {ft.productionTime && <div className="text-xs text-gray-500 mt-1">Tempo Prod.: {ft.productionTime} min</div>}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="inline-flex items-center gap-1 justify-center">
+                                                    <input
+                                                        type="number"
+                                                        value={ft.productionTime ?? ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setFts(prev => prev.map(item => item.id === ft.id ? { ...item, productionTime: val } : item));
+                                                        }}
+                                                        onBlur={async (e) => {
+                                                            await handleInlineProductionTimeChange(ft, e.target.value);
+                                                        }}
+                                                        onKeyDown={async (e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.target.blur();
+                                                            }
+                                                        }}
+                                                        disabled={readOnly}
+                                                        className="w-16 text-center text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded-lg py-1 px-1.5 focus:ring-1 focus:ring-indigo-300 transition-colors disabled:opacity-50"
+                                                        placeholder="—"
+                                                        min="0"
+                                                    />
+                                                    <span className="text-xs text-gray-500 font-medium">min</span>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right text-gray-600">
                                                 R$ {ftTotalMat.toFixed(2)}
@@ -663,48 +721,41 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 R$ {parseFloat(ft.salePrice).toFixed(2)}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    {ft.productionTime && (
-                                                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">
-                                                            {ft.productionTime}min
-                                                        </span>
+                                                <div className="flex justify-center gap-1">
+                                                    {!readOnly && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setForm({
+                                                                    ...ft,
+                                                                    id: '',
+                                                                    ftCode: getNewFtCode(),
+                                                                    variation: ''
+                                                                });
+                                                                setIsEditing(false);
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}
+                                                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                                            title="Criar Variação / Duplicar"
+                                                        >
+                                                            <Plus size={16} />
+                                                        </button>
                                                     )}
-                                                    <div className="flex justify-center gap-1">
-                                                        {!readOnly && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setForm({
-                                                                        ...ft,
-                                                                        id: '',
-                                                                        ftCode: getNewFtCode(),
-                                                                        variation: ''
-                                                                    });
-                                                                    setIsEditing(false);
-                                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                                }}
-                                                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                                                                title="Criar Variação / Duplicar"
-                                                            >
-                                                                <Plus size={16} />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleEdit(ft)}
-                                                            disabled={readOnly}
-                                                            className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50")}
-                                                            title="Editar"
-                                                        >
-                                                            <Edit size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(ft.id)}
-                                                            disabled={readOnly}
-                                                            className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-red-600 hover:bg-red-50")}
-                                                            title="Excluir"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => handleEdit(ft)}
+                                                        disabled={readOnly}
+                                                        className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50")}
+                                                        title="Editar"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(ft.id)}
+                                                        disabled={readOnly}
+                                                        className={clsx("p-1.5 rounded transition-colors", readOnly ? "opacity-30 cursor-not-allowed" : "text-red-600 hover:bg-red-50")}
+                                                        title="Excluir"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
