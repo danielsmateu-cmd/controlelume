@@ -163,14 +163,12 @@ const Resumo = ({ expenses, orders }) => {
 
             // 1. Custo Lume baseado diretamente na porcentagem de produção
             let totalEmp1 = 0;
-            let factorPerc = 0;
             let custoHoraEmp1 = 0;
             if (empresas.length > 0) {
                 const emp1 = empresas[0];
                 totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
                 const factor = emp1.productionFactor || 0;
-                factorPerc = factor > 1 ? factor / 100 : factor;
-                const dispEmp1 = factorPerc * monthHours;
+                const dispEmp1 = factor * monthHours;
                 custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
             }
 

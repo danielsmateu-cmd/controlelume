@@ -155,8 +155,7 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
             const emp1 = empresas[0]; // Empresa 1 (Lume)
             const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
             const factor = emp1.productionFactor || 0;
-            const factorPerc = factor > 1 ? factor / 100 : factor;
-            const dispEmp1 = factorPerc * monthHours;
+            const dispEmp1 = factor * monthHours;
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
         }
 

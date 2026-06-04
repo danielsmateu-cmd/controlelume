@@ -155,8 +155,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
         emp1Name = emp1.name || 'LUME';
         const totalEmp1 = getEmpTotal(emp1);
         const factor = emp1.productionFactor || 0;
-        const factorPerc = factor > 1 ? factor / 100 : factor;
-        const dispEmp1 = factorPerc * monthHours;
+        const dispEmp1 = factor * monthHours;
         custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
     }
 
@@ -214,8 +213,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                                 <div className="text-base font-bold text-indigo-700">
                                     {(() => {
                                         const factor = emp.productionFactor || 0;
-                                        const factorPerc = factor > 1 ? factor / 100 : factor;
-                                        return fmtNum(factorPerc * monthHours);
+                                        return fmtNum(factor * monthHours);
                                     })()} <span className="text-[10px] font-normal text-gray-500">hrs</span>
                                 </div>
                             </div>
@@ -226,8 +224,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             if (idx === 0) {
                                 // Empresa 1: Custo por Hora
                                 const factor = emp.productionFactor || 0;
-                                const factorPerc = factor > 1 ? factor / 100 : factor;
-                                const horasDisp = factorPerc * monthHours;
+                                const horasDisp = factor * monthHours;
                                 const custoPorHora = horasDisp > 0 ? total / horasDisp : 0;
                                 return (
                                     <div className="bg-indigo-50/50 p-2 rounded mb-2 border border-indigo-100 flex justify-between items-center">
