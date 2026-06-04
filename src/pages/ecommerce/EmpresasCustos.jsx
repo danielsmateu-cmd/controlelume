@@ -124,8 +124,11 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
     const monthHours = getWorkHoursInMonth(currentMonth);
     const mktsAtivos = MARKETPLACES.filter(m => m.id !== 'geral');
 
-    // Resumo de produção por marketplace
-    const marketplacesResumo = mktsAtivos.map(mkt => {
+    // 1. Calcular total de horas consumidas de todos os marketplaces ativos
+    let horasTotaisConsumidas = 0;
+    const mktHoursMap = {};
+
+    mktsAtivos.forEach(mkt => {
         const key = `${mkt.id}_${currentMonth}`;
         const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
         const fts = mktFtsData[mkt.id] || ftsData;
@@ -133,24 +136,33 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
         let horasConsumidas = 0;
         vendas.forEach(venda => {
             const ft = fts.find(f => f.id === venda.ftId);
-            if (ft) {
-                const tempoMin = parseFloat(ft.productionTime) || 0;
-                const qtd = parseInt(venda.quantity) || 0;
-                // Tempo na FT está em minutos. Dividimos por 60 para obter horas.
-                horasConsumidas += (tempoMin / 60) * qtd;
-            }
+            if (!ft && !venda.snapshot) return;
+            const resolvedFt = venda.snapshot || ft;
+            const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+            const qtd = parseInt(venda.quantity) || 0;
+            horasConsumidas += (tempoMin / 60) * qtd;
         });
 
-        let custoHoraEmp1 = 0;
-        let emp1Name = 'LUME';
-        if (empresas.length > 0) {
-            const emp1 = empresas[0]; // Empresa 1 (Lume)
-            emp1Name = emp1.name || 'LUME';
-            const totalEmp1 = getEmpTotal(emp1);
-            const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
-            custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
-        }
+        mktHoursMap[mkt.id] = horasConsumidas;
+        horasTotaisConsumidas += horasConsumidas;
+    });
 
+    // 2. Calcular custoHoraEmp1 baseado nas horas disponíveis
+    let custoHoraEmp1 = 0;
+    let emp1Name = 'LUME';
+    if (empresas.length > 0) {
+        const emp1 = empresas[0];
+        emp1Name = emp1.name || 'LUME';
+        const totalEmp1 = getEmpTotal(emp1);
+        const factor = emp1.productionFactor || 0;
+        const factorPerc = factor > 1 ? factor / 100 : factor;
+        const dispEmp1 = factorPerc * monthHours;
+        custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
+    }
+
+    // Resumo de produção por marketplace
+    const marketplacesResumo = mktsAtivos.map(mkt => {
+        const horasConsumidas = mktHoursMap[mkt.id] || 0;
         const custoTotalMkt = horasConsumidas * custoHoraEmp1;
 
         return { ...mkt, horasConsumidas, custoTotalMkt, valorEmp1: custoTotalMkt, emp1Name };
@@ -200,7 +212,11 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             <div className="text-right flex-1">
                                 <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Tempo Disp. (Mês)</div>
                                 <div className="text-base font-bold text-indigo-700">
-                                    {fmtNum((emp.productionFactor || 0) * monthHours)} <span className="text-[10px] font-normal text-gray-500">hrs</span>
+                                    {(() => {
+                                        const factor = emp.productionFactor || 0;
+                                        const factorPerc = factor > 1 ? factor / 100 : factor;
+                                        return fmtNum(factorPerc * monthHours);
+                                    })()} <span className="text-[10px] font-normal text-gray-500">hrs</span>
                                 </div>
                             </div>
                         </div>
@@ -209,8 +225,10 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                         {(() => {
                             if (idx === 0) {
                                 // Empresa 1: Custo por Hora
-                                const horasDisp = (emp.productionFactor || 0) * monthHours;
-                                const custoPorHora = horasDisp > 0 ? total / horasDisp : 0;
+                                const factor = emp.productionFactor || 0;
+                                const factorPerc = factor > 1 ? factor / 100 : factor;
+                                const horasDisp = factorPerc * monthHours;
+                                const custoPorHora = horasDisp > 0 ? (total * factorPerc) / horasDisp : 0;
                                 return (
                                     <div className="bg-indigo-50/50 p-2 rounded mb-2 border border-indigo-100 flex justify-between items-center">
                                         <div className="text-[10px] text-indigo-800 font-bold uppercase">Custo por Hora</div>

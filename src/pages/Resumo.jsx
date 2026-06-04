@@ -65,6 +65,7 @@ const Resumo = ({ expenses, orders }) => {
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
 
     const [ftsData, setFtsData] = useState([]);
+    const [mktFtsData, setMktFtsData] = useState({});
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
     const [percentConfig, setPercentConfig] = useState(() => {
@@ -77,6 +78,13 @@ const Resumo = ({ expenses, orders }) => {
             try {
                 const fts = await api.getFts();
                 setFtsData(fts);
+
+                const mktFts = {};
+                ['meli', 'shopee', 'tiktok', 'amazon', 'site'].forEach(pid => {
+                    const raw = localStorage.getItem(`fts_mkt_${pid}`);
+                    mktFts[pid] = raw ? JSON.parse(raw) : fts;
+                });
+                setMktFtsData(mktFts);
 
                 let dbSales = await api.getMonthlySales();
                 const savedVendas = localStorage.getItem('ecommerce_vendas');
@@ -116,7 +124,7 @@ const Resumo = ({ expenses, orders }) => {
         }
         const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
         
-        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretosRS = 0, totalCustosDiretosPerc = 0;
+        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretos = 0;
         const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
 
         PLATFORMS_ID.forEach(pid => {
@@ -124,17 +132,25 @@ const Resumo = ({ expenses, orders }) => {
             const rows = Array.isArray(vendasData[key]) ? vendasData[key] : [];
 
             rows.forEach(row => {
-                const ft = ftsData.find(f => f.id === row.ftId);
-                if (!ft) return;
+                const fts = mktFtsData[pid] || ftsData;
+                const ft = fts.find(f => f.id === row.ftId);
+                if (!ft && !row.snapshot) return;
                 const qty = parseInt(row.quantity) || 0;
-                const precoBase = p(ft.salePrice);
+
+                const resolvedFt = row.snapshot || ft;
+                const precoBase = p(resolvedFt.salePrice);
                 const desconto = p(row.discountPercent);
                 const precoEfetivo = precoBase * (1 - desconto / 100);
 
                 totalFaturamento += precoEfetivo * qty;
-                totalMateriais += calcMaterials(ft) * qty;
-                totalCustosDiretosRS += calcDirectCostsRS(ft) * qty;
-                totalCustosDiretosPerc += calcDirectCostsPerc(ft, precoEfetivo) * qty;
+
+                if (row.snapshot) {
+                    totalMateriais += p(row.snapshot.materialsTotal) * qty;
+                    totalCustosDiretos += p(row.snapshot.directCostsTotal) * qty;
+                } else {
+                    totalMateriais += calcMaterials(ft) * qty;
+                    totalCustosDiretos += (calcDirectCostsRS(ft) + calcDirectCostsPerc(ft, precoEfetivo)) * qty;
+                }
             });
         });
 
@@ -142,16 +158,40 @@ const Resumo = ({ expenses, orders }) => {
         let lumeRS = 0, bureauRS = 0, custosExtrasRS = 0;
 
         if (costData) {
-            const monthHours = getWorkHoursInMonth(monthStr);
             const empresas = costData.empresas || [];
+            const monthHours = getWorkHoursInMonth(monthStr);
 
+            // 1. Custo Lume baseado diretamente na porcentagem de produção
+            let totalEmp1 = 0;
+            let factorPerc = 0;
             let custoHoraEmp1 = 0;
             if (empresas.length > 0) {
                 const emp1 = empresas[0];
-                const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
-                const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
+                totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
+                const factor = emp1.productionFactor || 0;
+                factorPerc = factor > 1 ? factor / 100 : factor;
+                const dispEmp1 = factorPerc * monthHours;
                 custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
             }
+
+            // Somar horas consumidas de todas as vendas deste mês
+            let horasTotaisConsumidas = 0;
+            PLATFORMS_ID.forEach(pid => {
+                const key = `${pid}_${monthStr}`;
+                const ftsLocal = mktFtsData[pid] || ftsData;
+                const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+
+                vendas.forEach(row => {
+                    const ft = ftsLocal.find(f => f.id === row.ftId);
+                    if (!ft && !row.snapshot) return;
+                    const resolvedFt = row.snapshot || ft;
+                    const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+                    const qtd = parseInt(row.quantity) || 0;
+                    horasTotaisConsumidas += (tempoMin / 60) * qtd;
+                });
+            });
+
+            lumeRS = horasTotaisConsumidas * custoHoraEmp1;
 
             let rateioRestantesTotal = 0;
             if (empresas.length > 1) {
@@ -168,26 +208,10 @@ const Resumo = ({ expenses, orders }) => {
             custosExtrasRS = adsArr.reduce((a, c) => a + p(c.value), 0) +
                 extrasArr.reduce((a, c) => a + p(c.value), 0);
 
-            let horasTotaisConsumidas = 0;
-            PLATFORMS_ID.forEach(pid => {
-                const key = `${pid}_${monthStr}`;
-                const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
-
-                vendas.forEach(row => {
-                    const ft = ftsData.find(f => f.id === row.ftId);
-                    if (ft) {
-                        const tempoMin = parseFloat(ft.productionTime) || 0;
-                        const qty = parseInt(row.quantity) || 0;
-                        horasTotaisConsumidas += (tempoMin / 60) * qty;
-                    }
-                });
-            });
-
-            lumeRS = horasTotaisConsumidas * custoHoraEmp1;
             bureauRS = rateioRestantesTotal;
         }
 
-        const custoTotal = totalMateriais + totalCustosDiretosRS + totalCustosDiretosPerc + custosExtrasRS;
+        const custoTotal = totalMateriais + totalCustosDiretos + custosExtrasRS;
         const custoInevitavel = lumeRS + bureauRS;
         const lucroLiquido = totalFaturamento - custoTotal - custoInevitavel;
 
@@ -196,8 +220,7 @@ const Resumo = ({ expenses, orders }) => {
         const lumeEcomm = (parseFloat(lumeRS) || 0) + 
                           (parseFloat(custosExtrasRS) || 0) + 
                           (parseFloat(totalMateriais) || 0) + 
-                          (parseFloat(totalCustosDiretosRS) || 0) + 
-                          (parseFloat(totalCustosDiretosPerc) || 0) + 
+                          (parseFloat(totalCustosDiretos) || 0) + 
                           lucroLiquidoPerc;
         
         return lumeEcomm || 0;
