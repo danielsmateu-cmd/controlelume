@@ -228,7 +228,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                                 const factor = emp.productionFactor || 0;
                                 const factorPerc = factor > 1 ? factor / 100 : factor;
                                 const horasDisp = factorPerc * monthHours;
-                                const custoPorHora = horasDisp > 0 ? (total * factorPerc) / horasDisp : 0;
+                                const custoPorHora = horasDisp > 0 ? total / horasDisp : 0;
                                 return (
                                     <div className="bg-indigo-50/50 p-2 rounded mb-2 border border-indigo-100 flex justify-between items-center">
                                         <div className="text-[10px] text-indigo-800 font-bold uppercase">Custo por Hora</div>
