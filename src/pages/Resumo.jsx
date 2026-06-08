@@ -340,7 +340,7 @@ const Resumo = ({ expenses, orders }) => {
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                 <StatCard
                     title={`Total Entradas (Pagas) - Ano ${selectedYear}`}
-                    value={(annualTotals.entradas + annualTotals.entradasEcomm).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    value={annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     type="positive"
                 />
                 <StatCard
