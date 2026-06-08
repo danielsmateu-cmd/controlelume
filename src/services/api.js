@@ -147,7 +147,7 @@ const supabaseApi = {
             return data ? data.value : null;
         } catch (err) {
             console.error('Supabase getSettings:', err);
-            return null;
+            throw err;
         }
     },
 
