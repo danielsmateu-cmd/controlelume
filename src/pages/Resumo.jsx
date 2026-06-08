@@ -210,7 +210,7 @@ const Resumo = ({ expenses, orders }) => {
         }
 
         const custoTotal = totalMateriais + totalCustosDiretos + custosExtrasRS;
-        const custoInevitavel = lumeRS + bureauRS;
+        const custoInevitavel = lumeRS;
         const lucroLiquido = totalFaturamento - custoTotal - custoInevitavel;
 
         const pLume = parseFloat(percentConfig[monthStr]?.percentLume) || 0;

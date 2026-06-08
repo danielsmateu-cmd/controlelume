@@ -89,6 +89,7 @@ const ECommerce = ({ readOnly }) => {
         { id: 'visao_geral', label: 'Visão Geral', icon: BarChart3 },
         { id: 'empresas_custos', label: 'Empresas e Custos', icon: Building2 },
         { id: 'marketplaces', label: 'Marketplaces', icon: Store },
+        { id: 'cadastros_fts', label: 'Cadastros de FTs', icon: ListTodo },
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
     ];
@@ -135,40 +136,14 @@ const ECommerce = ({ readOnly }) => {
                             </div>
                         </div>
 
-                        {/* Sub-abas da plataforma selecionada */}
-                        <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex gap-2">
-                            {mktTabs.map(tab => {
-                                const Icon = tab.icon;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveMktTab(tab.id)}
-                                        className={clsx(
-                                            'flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                                            activeMktTab === tab.id
-                                                ? 'bg-indigo-600 text-white shadow-sm'
-                                                : 'text-gray-600 hover:bg-gray-50'
-                                        )}
-                                    >
-                                        <Icon className={clsx('w-4 h-4 mr-2', activeMktTab === tab.id ? 'text-white' : 'text-gray-400')} />
-                                        {tab.label}
-                                    </button>
-                                );
-                            })}
-                            <div className="ml-auto flex items-center pr-2">
-                                <span className="text-xs text-gray-400 font-medium">
-                                    {currentPlatform?.emoji} {currentPlatform?.label}
-                                </span>
-                            </div>
-                        </div>
-
                         {/* Conteúdo */}
                         <div>
-                            {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={readOnly} />}
-                            {activeMktTab === 'cadastros_fts' && <CadastrosFTs marketplace={activePlatform} readOnly={readOnly} />}
+                            <Vendas marketplace={activePlatform} readOnly={readOnly} />
                         </div>
                     </div>
                 );
+            case 'cadastros_fts':
+                return <CadastrosFTs readOnly={readOnly} />;
             case 'relatorio':
                 return (
                     <div className="space-y-6">
