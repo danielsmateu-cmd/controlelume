@@ -27,7 +27,6 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             }
         });
     }, []);
-
     const emptyForm = {
         clientName: '',
         description: '',
@@ -38,7 +37,11 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         installmentDates: [new Date().toISOString().split('T')[0]],
         paymentMethod: 'Pix/Transferência',
         nfNumber: '',
-        boletoNumber: ''
+        boletoNumber: '',
+        contribMarginValue: null,
+        contribMarginPerc: null,
+        originalTotal: null,
+        originalMaterialCost: null
     };
 
     const [formData, setFormData] = useState(emptyForm);
@@ -83,11 +86,23 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     // Importar dados de um orçamento aprovado
     const handleImportBudget = async (budget) => {
+        const totalMaterialCost = budget.items?.reduce((sum, item) => sum + ((item.unitMaterialCost || 0) * item.quantity), 0) || 0;
+        const totalTaxAndNfCost = budget.items?.reduce((sum, item) => {
+            const itemTax = (item.unitTaxValue || 0) + (item.unitNfValue || 0);
+            return sum + (itemTax * item.quantity);
+        }, 0) || 0;
+        const totalMargin = (budget.total || 0) - totalMaterialCost - totalTaxAndNfCost;
+        const marginPerc = budget.total > 0 ? (totalMargin / budget.total) * 100 : 0;
+
         setFormData(prev => ({
             ...prev,
             clientName: budget.clientData?.name || '',
             description: `Orçamento #${budget.id} — ${budget.clientData?.name || ''}`,
-            value: budget.total ? String(budget.total.toFixed(2)) : ''
+            value: budget.total ? String(budget.total.toFixed(2)) : '',
+            contribMarginValue: totalMargin,
+            contribMarginPerc: marginPerc,
+            originalTotal: budget.total || 0,
+            originalMaterialCost: totalMaterialCost
         }));
         setShowBudgetPicker(false);
 
@@ -108,20 +123,52 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const numInstallments = parseInt(formData.installments);
         const installmentValue = totalValue / numInstallments;
 
-        const newOrdersToInsert = formData.installmentDates.map((date, index) => ({
-            clientName: formData.clientName,
-            description: numInstallments > 1
-                ? `${formData.description} (${index + 1}/${numInstallments})`
-                : formData.description,
-            orderDate: date,
-            value: installmentValue,
-            paymentDate: null,
-            isPaid: false,
-            paymentMethod: formData.paymentMethod,
-            nfNumber: formData.nfNumber,
-            boletoNumber: formData.paymentMethod === 'Boleto' ? formData.boletoNumber : '',
-            year: new Date(date + 'T00:00:00').getUTCFullYear()
-        }));
+        let totalMargin = formData.contribMarginValue !== null && formData.contribMarginValue !== undefined
+            ? parseFloat(formData.contribMarginValue)
+            : null;
+        let marginPerc = formData.contribMarginPerc !== null && formData.contribMarginPerc !== undefined
+            ? parseFloat(formData.contribMarginPerc)
+            : null;
+
+        // Se o valor faturado foi alterado, recalcula a margem proporcionalmente
+        if (totalMargin !== null && formData.originalTotal && Math.abs(parseFloat(formData.originalTotal) - totalValue) > 0.01) {
+            const originalVal = parseFloat(formData.originalTotal);
+            const materialCost = parseFloat(formData.originalMaterialCost || 0);
+            
+            // originalVal = materialCost + originalTaxesAndNf + totalMargin
+            // originalTaxesAndNf = originalVal - materialCost - totalMargin
+            const originalTaxesAndNf = originalVal - materialCost - totalMargin;
+            const taxRate = originalVal > 0 ? (originalTaxesAndNf / originalVal) : 0;
+            
+            // Nova Margem = Novo Valor - Custo Materiais - (Novo Valor * Taxa Impostos/NF)
+            totalMargin = totalValue - materialCost - (totalValue * taxRate);
+            marginPerc = totalValue > 0 ? (totalMargin / totalValue) * 100 : 0;
+        }
+
+        const newOrdersToInsert = formData.installmentDates.map((date, index) => {
+            const orderVal = installmentValue;
+            let orderMarginVal = null;
+            if (totalMargin !== null) {
+                orderMarginVal = totalMargin / numInstallments;
+            }
+
+            return {
+                clientName: formData.clientName,
+                description: numInstallments > 1
+                    ? `${formData.description} (${index + 1}/${numInstallments})`
+                    : formData.description,
+                orderDate: date,
+                value: orderVal,
+                paymentDate: null,
+                isPaid: false,
+                paymentMethod: formData.paymentMethod,
+                nfNumber: formData.nfNumber,
+                boletoNumber: formData.paymentMethod === 'Boleto' ? formData.boletoNumber : '',
+                year: new Date(date + 'T00:00:00').getUTCFullYear(),
+                contribMarginValue: orderMarginVal,
+                contribMarginPerc: marginPerc
+            };
+        });
 
         try {
             const insertedOrders = await api.addOrders(newOrdersToInsert);
@@ -254,7 +301,9 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             orderDate: orderDateStr,
             paymentMethod: order.paymentMethod || 'Pix/Transferência',
             nfNumber: order.nfNumber || '',
-            boletoNumber: order.boletoNumber || ''
+            boletoNumber: order.boletoNumber || '',
+            contribMarginValue: order.contribMarginValue !== undefined ? order.contribMarginValue : null,
+            contribMarginPerc: order.contribMarginPerc !== undefined ? order.contribMarginPerc : null
         });
     };
 
@@ -394,6 +443,23 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     {/* Formulário de nova entrada */}
                     <h3 className="text-sm font-semibold text-gray-800">Nova Entrada</h3>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                        {formData.contribMarginValue !== null && formData.contribMarginValue !== undefined && (
+                            <div className="col-span-1 md:col-span-12 bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-indigo-700 gap-2">
+                                <span className="flex items-center gap-1.5 font-medium">
+                                    <TrendingUp size={14} className="text-indigo-500" />
+                                    <span>
+                                        <strong>Margem de Contribuição Importada:</strong>{' '}
+                                        {fmt(formData.contribMarginValue)}{' '}
+                                        ({formData.contribMarginPerc?.toFixed(1)}%)
+                                    </span>
+                                </span>
+                                {formData.installments > 1 && (
+                                    <span className="text-[10px] text-gray-500 font-semibold bg-white/50 px-2 py-0.5 rounded border border-indigo-100/50">
+                                        Proporcional por parcela: {fmt(formData.contribMarginValue / formData.installments)}
+                                    </span>
+                                )}
+                            </div>
+                        )}
 
                         <div className="col-span-1 md:col-span-4">
                             <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Nome do Cliente</label>
@@ -595,6 +661,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const totalPaid = monthOrders.filter(o => o.isPaid).reduce((sum, order) => sum + order.value, 0);
                     const totalPending = totalValue - totalPaid;
 
+                    // MC Calculations
+                    const ordersWithMc = monthOrders.filter(o => o.contribMarginValue !== null && o.contribMarginValue !== undefined);
+                    const totalMcValue = ordersWithMc.reduce((sum, o) => sum + o.contribMarginValue, 0);
+                    const totalMcBaseValue = ordersWithMc.reduce((sum, o) => sum + o.value, 0);
+                    const avgMcPerc = totalMcBaseValue > 0 ? (totalMcValue / totalMcBaseValue) * 100 : 0;
+
                     const currentMonthYear = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
                     const isCurrentMonth = month === capitalize(currentMonthYear);
@@ -625,7 +697,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                 </div>
                                 <div className="flex flex-col items-end text-[10px] leading-tight mt-0.5">
                                     <span className="text-gray-600 font-semibold">{fmt(totalValue)}</span>
-                                    <span className="text-green-600 font-medium">Pg: {fmt(totalPaid)}</span>
+                                    {totalMcValue > 0 && (
+                                        <span className="text-indigo-600 font-bold bg-indigo-50/70 border border-indigo-100/50 px-1 py-0.2 rounded mt-0.5">
+                                            MC: {fmt(totalMcValue)} ({avgMcPerc.toFixed(1)}%)
+                                        </span>
+                                    )}
+                                    <span className="text-green-600 font-medium mt-0.5">Pg: {fmt(totalPaid)}</span>
                                     {totalPending > 0 && <span className="text-red-600 font-medium">Pd: {fmt(totalPending)}</span>}
                                 </div>
                             </div>
@@ -724,7 +801,23 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                         )}
                                                     </div>
 
-                                                    <div className="w-20 font-bold text-right text-gray-800 text-xs">
+                                                    {/* Margem de Contribuição */}
+                                                    <div className="w-20 text-center flex flex-col justify-center flex-shrink-0">
+                                                        {order.contribMarginValue !== undefined && order.contribMarginValue !== null ? (
+                                                            <>
+                                                                <span className="font-semibold text-indigo-600 text-[11px]" title={`Margem: ${fmt(order.contribMarginValue)}`}>
+                                                                    {fmt(order.contribMarginValue)}
+                                                                </span>
+                                                                <span className="text-[9px] text-gray-400 font-medium">
+                                                                    {order.contribMarginPerc?.toFixed(1)}% MC
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-gray-300 text-xs">—</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="w-20 font-bold text-right text-gray-800 text-xs flex-shrink-0">
                                                         {fmt(order.value)}
                                                     </div>
 

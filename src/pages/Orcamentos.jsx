@@ -19,7 +19,7 @@ const TrendingUp = ({ size }) => (
     </svg>
 );
 
-const Orcamentos = ({ materials, setMaterials, readOnly }) => {
+const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [view, setView] = useState('budget'); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
     const [globalQty, setGlobalQty] = useState('1');
@@ -85,6 +85,8 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
+    const [isAddingItem, setIsAddingItem] = useState(false);
+    const [includeNf, setIncludeNf] = useState(true);
 
     const handleSaveBudget = async () => {
         if (budgetItems.length === 0) {
@@ -127,6 +129,9 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const handleUpdateStatus = async (id, newStatus) => {
         await api.updateBudget(id, { status: newStatus });
         setSavedBudgets(savedBudgets.map(b => b.id === id ? { ...b, status: newStatus } : b));
+        if (newStatus === 'Aprovado' && setActiveTab) {
+            setActiveTab('vendas');
+        }
     };
 
     const handleLoadBudget = (budget) => {
@@ -472,7 +477,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     const subtotal = unitPrice * (parseFloat(globalQty) || 1);
 
     // 4. Adicionais
-    const nfValue = subtotal * (parseFloat(nfPercentage) / 100);
+    const nfValue = includeNf ? subtotal * (parseFloat(nfPercentage) / 100) : 0;
     const taxValue = subtotal * (parseFloat(taxPercentage) / 100);
 
     // 5. Valor Final do Item Atual
@@ -485,6 +490,12 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
     // Arredonda para 2 casas para bater exatamente na multiplicação pela quantidade
     const finalUnitWithValueDiscount = Math.round(rawUnitValue * 100) / 100;
     const finalTotalWithDiscount = finalUnitWithValueDiscount * (parseFloat(globalQty) || 1);
+
+    // Custos Variáveis Unitários e Margem de Contribuição do Item
+    const unitNfValue = includeNf ? (nfValue / (parseFloat(globalQty) || 1)) : 0;
+    const unitTaxValue = taxValue / (parseFloat(globalQty) || 1);
+    const contribMarginUnit = finalUnitWithValueDiscount - costPerPiece - unitNfValue - unitTaxValue;
+    const contribMarginPerc = finalUnitWithValueDiscount > 0 ? (contribMarginUnit / finalUnitWithValueDiscount) * 100 : 0;
 
     // O desconto em % é apenas simulação visual sobre o unitário já com desconto em R$
     const discountPerc = parseFloat(discount) || 0;
@@ -527,7 +538,8 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
             unitQtys: { ...unitQtys },
             linearLengths: { ...linearLengths },
             discount: discount,
-            discountValue: discountValue
+            discountValue: discountValue,
+            includeNf: includeNf
         };
 
         if (editingItemId) {
@@ -546,6 +558,8 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
         setGlobalQty('1');
         setDiscount('10');
         setDiscountValue('0');
+        setIncludeNf(true);
+        setIsAddingItem(false);
     };
 
     const handleEditItem = (item) => {
@@ -557,9 +571,25 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
         setLinearLengths(item.linearLengths || {});
         setDiscount(item.discount || '10');
         setDiscountValue(item.discountValue || '0');
+        setIncludeNf(item.includeNf !== undefined ? item.includeNf : true);
         setEditingItemId(item.id);
+        setIsAddingItem(true);
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCancelBuilder = () => {
+        setMeasurements({});
+        setUnitQtys({});
+        setLinearLengths({});
+        setItemName('');
+        setItemDescription('');
+        setGlobalQty('1');
+        setDiscount('10');
+        setDiscountValue('0');
+        setIncludeNf(true);
+        setEditingItemId(null);
+        setIsAddingItem(false);
     };
 
     const handleRemoveItem = (id) => {
@@ -1505,539 +1535,631 @@ const Orcamentos = ({ materials, setMaterials, readOnly }) => {
 
             {/* Application UI */}
             <div className="space-y-6 pb-20 print:hidden">
-                {/* Client Data Form (Collapsible or Block) */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                        <User size={16} /> Dados do Cliente (Para Impressão)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                        <input
-                            type="text"
-                            placeholder="Nome Completo"
-                            value={clientData.name}
-                            onChange={e => setClientData({ ...clientData, name: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="CPF / CNPJ"
-                            value={clientData.doc}
-                            onChange={e => setClientData({ ...clientData, doc: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Telefone"
-                            value={clientData.phone}
-                            onChange={e => setClientData({ ...clientData, phone: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Endereço"
-                            value={clientData.address}
-                            onChange={e => setClientData({ ...clientData, address: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Cidade"
-                            value={clientData.city}
-                            onChange={e => setClientData({ ...clientData, city: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="CEP"
-                            value={clientData.zip}
-                            onChange={e => setClientData({ ...clientData, zip: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Número"
-                            value={clientData.number}
-                            onChange={e => setClientData({ ...clientData, number: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Bairro"
-                            value={clientData.neighborhood}
-                            onChange={e => setClientData({ ...clientData, neighborhood: e.target.value })}
-                            className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                        <input
-                            type="email"
-                            placeholder="E-mail"
-                            value={clientData.email}
-                            onChange={e => setClientData({ ...clientData, email: e.target.value })}
-                            className="lg:col-span-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                        />
-                    </div>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                            <Receipt size={24} />
+                {!isAddingItem ? (
+                    <>
+                        {/* Client Data Form */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-300">
+                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                <User size={16} /> Dados do Cliente (Para Impressão)
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Nome Completo"
+                                    value={clientData.name}
+                                    onChange={e => setClientData({ ...clientData, name: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="CPF / CNPJ"
+                                    value={clientData.doc}
+                                    onChange={e => setClientData({ ...clientData, doc: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Telefone"
+                                    value={clientData.phone}
+                                    onChange={e => setClientData({ ...clientData, phone: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Endereço"
+                                    value={clientData.address}
+                                    onChange={e => setClientData({ ...clientData, address: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Cidade"
+                                    value={clientData.city}
+                                    onChange={e => setClientData({ ...clientData, city: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="CEP"
+                                    value={clientData.zip}
+                                    onChange={e => setClientData({ ...clientData, zip: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Número"
+                                    value={clientData.number}
+                                    onChange={e => setClientData({ ...clientData, number: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Bairro"
+                                    value={clientData.neighborhood}
+                                    onChange={e => setClientData({ ...clientData, neighborhood: e.target.value })}
+                                    className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <input
+                                    type="email"
+                                    placeholder="E-mail"
+                                    value={clientData.email}
+                                    onChange={e => setClientData({ ...clientData, email: e.target.value })}
+                                    className="lg:col-span-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                            </div>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-800">Cálculo de Orçamentos</h2>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setView('saved_list')}
-                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
-                        >
-                            <List size={18} /> Orçamentos Prontos
-                        </button>
-                        <button
-                            onClick={() => setView('register')}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
-                        >
-                            <Settings size={18} /> Cadastro de Materiais
-                        </button>
-                    </div>
-                </div>
 
-                {/* Global Settings Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2 md:col-span-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <Package size={14} className="text-indigo-500" /> Nome e Descrição do Item
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="Ex: Medalha"
-                            value={itemName}
-                            onChange={e => setItemName(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700 mb-2"
-                        />
-                        <textarea
-                            placeholder="Descrição:&#10;- Em acrílico 2mm&#10;- Medida de 10x10cm"
-                            value={itemDescription}
-                            onChange={e => setItemDescription(e.target.value)}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-gray-600 resize-y"
-                        />
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <Plus size={14} className="text-indigo-500" /> Qtd Item
-                        </label>
-                        <input
-                            type="number"
-                            value={globalQty}
-                            onChange={e => setGlobalQty(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                        />
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp size={14} className="text-orange-500" /> Multiplicador
-                        </label>
-                        <input
-                            type="number"
-                            step="0.1"
-                            value={markup}
-                            onChange={e => setMarkup(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                        />
-                    </div>
-                    <div className="col-span-1 md:col-span-2"></div>
-                </div>
-
-                {/* Budget Spreadsheet Table - TWO COLUMNS */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {[
-                        [...orderedMaterials].slice(0, Math.ceil(orderedMaterials.length / 2)),
-                        [...orderedMaterials].slice(Math.ceil(orderedMaterials.length / 2))
-                    ].map((colMaterials, colIdx) => (
-                        <div key={`col-${colIdx}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden self-start">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-indigo-600 text-white">
-                                        <th className="px-3 py-1.5 text-[11px] font-bold uppercase" rowSpan="2">Serviços / Materiais</th>
-                                        <th className="px-2 py-1.5 text-[10px] font-bold uppercase text-center border-l border-indigo-500" colSpan="2">Centímetros</th>
-                                        <th className="px-3 py-1.5 text-[10px] font-bold uppercase text-right border-l border-indigo-500 pr-4" rowSpan="2">Custo (1 pç)</th>
-                                    </tr>
-                                    <tr className="bg-indigo-500 text-white">
-                                        <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400 w-1/5">x</th>
-                                        <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-indigo-400 w-1/5">y</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {colMaterials.map(mat => {
-                                        if (!mat.type || mat.type === 'sheet') {
-                                            const { areaM2, cost } = calculateRow(mat);
-                                            const m = measurements[mat.id] || { x: '', y: '' };
-                                            return (
-                                                <tr key={mat.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                    <td className="px-3 py-1 text-[11px] font-bold text-gray-700 bg-gray-50/50">{mat.name}</td>
-                                                    <td className="px-1 py-1 border-l border-gray-100">
-                                                        <input type="number" value={m.x} onChange={e => handleMeasurementChange(mat.id, 'x', e.target.value)}
-                                                            placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
-                                                    </td>
-                                                    <td className="px-1 py-1 border-l border-gray-100">
-                                                        <input type="number" value={m.y} onChange={e => handleMeasurementChange(mat.id, 'y', e.target.value)}
-                                                            placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
-                                                    </td>
-                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-gray-800 text-[11px] pr-4">
-                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        } else if (mat.type === 'unit') {
-                                            const qty = parseFloat(unitQtys[mat.id]) || 0;
-                                            const cost = qty * mat.price;
-                                            return (
-                                                <tr key={mat.id} className="hover:bg-emerald-50/30 transition-colors">
-                                                    <td className="px-3 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/30">
-                                                        {mat.name} <span className="text-[9px] font-normal text-emerald-500 ml-1">(unid)</span>
-                                                    </td>
-                                                    <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
-                                                        <input type="number" value={unitQtys[mat.id] || ''}
-                                                            onChange={e => setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value }))}
-                                                            placeholder="Qtd" className="w-full px-1 py-0.5 text-center text-[11px] border border-emerald-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none" />
-                                                    </td>
-                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-emerald-700 text-[11px] pr-4">
-                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        } else {
-                                            const lengthCm = parseFloat(linearLengths[mat.id]) || 0;
-                                            const cost = (lengthCm / 100) * mat.price;
-                                            return (
-                                                <tr key={mat.id} className="hover:bg-amber-50/30 transition-colors">
-                                                    <td className="px-3 py-1 text-[11px] font-bold text-amber-700 bg-amber-50/30">
-                                                        {mat.name} <span className="text-[9px] font-normal text-amber-500 ml-1">(m linear)</span>
-                                                    </td>
-                                                    <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
-                                                        <input type="number" value={linearLengths[mat.id] || ''}
-                                                            onChange={e => setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value }))}
-                                                            placeholder="Comp(cm)" className="w-full px-1 py-0.5 text-center text-[11px] border border-amber-200 rounded focus:ring-1 focus:ring-amber-400 outline-none" />
-                                                    </td>
-                                                    <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-amber-700 text-[11px] pr-4">
-                                                        {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-                                    })}
-                                    {colMaterials.length === 0 && (
-                                        <tr>
-                                            <td colSpan="4" className="px-3 py-6 text-[11px] text-center text-gray-400 italic">
-                                                Nenhum material localizado.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                        {/* Top action bar */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                                    <Receipt size={24} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800">Orçamento Atual</h2>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setView('saved_list')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
+                                >
+                                    <List size={18} /> Orçamentos Prontos
+                                </button>
+                                <button
+                                    onClick={() => setView('register')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+                                >
+                                    <Settings size={18} /> Cadastro de Materiais
+                                </button>
+                            </div>
                         </div>
-                    ))}
-                </div>
 
-                <div className="mt-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 flex justify-between items-center shadow-sm">
-                    <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Total Custos Por Item (1 Unid.)</span>
-                    <span className="text-xl font-black text-indigo-700">
-                        {costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </span>
-                </div>
+                        {/* Budget items or Empty state */}
+                        {budgetItems.length === 0 ? (
+                            <div className="p-12 border-2 border-dashed border-gray-200 rounded-3xl text-center bg-gray-50/30 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
+                                <Package size={48} className="text-gray-300" />
+                                <p className="text-gray-500 font-medium">Nenhum item adicionado a este orçamento ainda.</p>
+                                <button
+                                    onClick={() => setIsAddingItem(true)}
+                                    className="px-6 py-4 bg-indigo-600 text-white rounded-2xl text-base font-black shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all flex items-center gap-2 transform hover:scale-[1.02]"
+                                >
+                                    <Plus size={20} /> ADICIONAR PRIMEIRO ITEM
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="flex justify-end animate-in fade-in duration-300">
+                                    <button
+                                        onClick={() => setIsAddingItem(true)}
+                                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
+                                    >
+                                        <Plus size={18} /> ADICIONAR MAIS ITENS
+                                    </button>
+                                </div>
 
-                {/* Results and Detail Section */}
-                {(costPerPiece > 0 || budgetItems.length > 0) && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                        {costPerPiece > 0 && (
-                            <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Resumo do Item Atual</h3>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase border-b pb-2 mb-2">
-                                        <span className="w-1/3">Descrição</span>
-                                        <span className="w-1/3 text-center">Unitário</span>
-                                        <span className="w-1/3 text-right">Total</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[13px]">
-                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Custo Material:</span>
-                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-bold text-gray-700">{(costPerPiece * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[13px]">
-                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Adicional NF ({nfPercentage}%):</span>
-                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(nfPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-bold text-red-500">+{nfValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[13px]">
-                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Parcelam. ({taxPercentage}%):</span>
-                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(taxPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-bold text-red-500">+{taxValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[13px]">
-                                        <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Lucro Estimado:</span>
-                                        <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice - costPerPiece).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-bold text-green-600">
-                                            {(subtotal - (costPerPiece * (parseFloat(globalQty) || 1))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
-                                        <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
-                                        <span className="w-1/3 text-center font-bold text-indigo-600">{finalUnitWithValueDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
-                                            {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </span>
-                                    </div>
-                                    {parseFloat(discount) > 0 && (
-                                        <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
-                                            <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">SIMULAÇÃO ({discount}%):</span>
-                                            <span className="w-1/3 text-center font-bold text-green-600">
-                                                {visualUnitWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </span>
-                                            <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
-                                                {visualTotalWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </span>
+                                {/* Final Budget Items Table */}
+                                <div className="space-y-4 animate-in fade-in duration-300">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                            <Receipt size={20} className="text-indigo-600" /> Itens do Orçamento
+                                        </h3>
+                                        <div className="bg-indigo-50 px-3 py-1 rounded-full text-xs font-bold text-indigo-600 border border-indigo-100">
+                                            {budgetItems.length} {budgetItems.length === 1 ? 'Item' : 'Itens'}
                                         </div>
-                                    )}
-                                    <div className="h-px bg-gray-100 mt-2"></div>
-                                    <div className="flex justify-between items-center py-1 mt-2">
-                                        <span className="text-xs font-bold text-gray-400 uppercase">Quantidade do Item:</span>
-                                        <input
-                                            type="number"
-                                            value={globalQty}
-                                            onChange={e => setGlobalQty(e.target.value)}
-                                            className="w-20 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"
-                                            min="1"
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-gray-50 border-b border-gray-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Item</th>
+                                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-center">Quantidade</th>
+                                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Unitário (c/ encargos)</th>
+                                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Total Item</th>
+                                                    <th className="px-6 py-4 text-center w-16"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {budgetItems.map(item => (
+                                                    <tr key={item.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => handleEditItem(item)}>
+                                                        <td className="px-6 py-4 text-gray-700">
+                                                            <div className="font-bold">{item.name}</div>
+                                                            {item.description && (
+                                                                <div className="text-xs text-gray-400 font-normal mt-0.5 line-clamp-2 whitespace-pre-line">
+                                                                    {item.description}
+                                                                </div>
+                                                            )}
+                                                            <div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-extrabold rounded-md border border-indigo-100/30 shadow-sm">
+                                                                <TrendingUp size={10} className="text-indigo-500" />
+                                                                Margem: {(() => {
+                                                                    const itemNf = item.includeNf !== false ? (item.unitNfValue || 0) : 0;
+                                                                    const itemMarginUnit = item.unitPrice - item.unitMaterialCost - itemNf - (item.unitTaxValue || 0);
+                                                                    const itemMarginPerc = item.unitPrice > 0 ? (itemMarginUnit / item.unitPrice) * 100 : 0;
+                                                                    return itemMarginPerc.toFixed(1);
+                                                                })()}%
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
+                                                            <input
+                                                                type="number"
+                                                                value={item.quantity}
+                                                                onChange={e => handleUpdateItemQty(item.id, e.target.value)}
+                                                                className="w-20 px-2 py-1 text-center bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
+                                                            />
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right font-medium text-gray-600">
+                                                            {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right font-black text-indigo-600 text-lg">
+                                                            {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center flex justify-center items-center gap-2" onClick={e => e.stopPropagation()}>
+                                                            <button
+                                                                onClick={() => handleEditItem(item)}
+                                                                className="p-2 text-gray-300 hover:text-indigo-500 transition-colors"
+                                                                title="Editar item"
+                                                            >
+                                                                <Pencil size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoveItem(item.id)}
+                                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                                                title="Remover item"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="bg-white">
+                                                <tr>
+                                                    <td colSpan="5" className="p-0 border-t border-gray-100">
+                                                        <div className="bg-indigo-600 p-8 text-white w-full rounded-b-2xl shadow-inner flex flex-col md:flex-row items-center justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                            <div className="text-center md:text-left">
+                                                                <p className="text-indigo-200 text-sm font-bold uppercase tracking-widest">Valor Total do Pedido</p>
+                                                                <h2 className="text-5xl md:text-6xl font-black mt-2">
+                                                                    {projectTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                </h2>
+                                                                <div className="flex flex-wrap gap-4 mt-6">
+                                                                    <div className="bg-black/20 px-4 py-2 rounded-xl">
+                                                                        <p className="text-[10px] text-indigo-200 uppercase font-black">Total Mat. Gasto</p>
+                                                                        <p className="text-lg font-bold text-white">
+                                                                            {totalMaterialCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-black/20 px-4 py-2 rounded-xl">
+                                                                        <p className="text-[10px] text-indigo-200 uppercase font-black">Impostos / NF</p>
+                                                                        <p className="text-lg font-bold text-white">
+                                                                            {totalTaxAndNfCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-white/20 px-4 py-2 rounded-xl border border-indigo-400/30">
+                                                                        <p className="text-[10px] text-indigo-100 uppercase font-black">Margem Total (R$)</p>
+                                                                        <p className="text-lg font-bold text-green-300">
+                                                                            {totalProjectProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-white/20 px-4 py-2 rounded-xl border border-indigo-400/30">
+                                                                        <p className="text-[10px] text-indigo-100 uppercase font-black">Margem Total (%)</p>
+                                                                        <p className="text-lg font-bold text-green-300">
+                                                                            {(projectTotal > 0 ? (totalProjectProfit / projectTotal) * 100 : 0).toFixed(1)}%
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col gap-3">
+                                                                <button
+                                                                    onClick={handleSaveBudget}
+                                                                    className="w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                                                                >
+                                                                    <Save size={24} /> SALVAR ORÇAMENTO
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => window.print()}
+                                                                    className="w-full px-8 py-3 bg-white text-indigo-900 rounded-xl text-sm font-bold shadow hover:bg-gray-100 transition-all flex items-center justify-center gap-2 border border-gray-200 hover:shadow-md"
+                                                                >
+                                                                    <DollarSign size={20} /> IMPRIMIR PDF / RECIBO
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* IMAGE ATTACHMENTS UI */}
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-300">
+                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Anexos (Para Impressão)</h3>
+                                    <div className="flex flex-col gap-4">
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            multiple 
+                                            onChange={(e) => {
+                                                const files = Array.from(e.target.files);
+                                                files.forEach(file => {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (event) => {
+                                                        setAttachedImages(prev => [
+                                                            ...prev, 
+                                                            { id: Math.random().toString(36).substr(2, 9), dataUrl: event.target.result, name: file.name }
+                                                        ]);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                });
+                                            }}
+                                            className="block w-full text-sm text-gray-500
+                                            file:mr-4 file:py-2 file:px-4
+                                            file:rounded-full file:border-0
+                                            file:text-sm file:font-semibold
+                                            file:bg-indigo-50 file:text-indigo-700
+                                            hover:file:bg-indigo-100 transition-colors cursor-pointer"
                                         />
-                                    </div>
-                                    <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-2 mt-2">Aplicação de Desconto</div>
-                                    <div className="flex flex-col gap-2 mt-2">
-                                        <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                                <Percent size={12} className="text-red-500" /> Desconto (%)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={discount}
-                                                onChange={e => setDiscount(e.target.value)}
-                                                className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                                <DollarSign size={12} className="text-red-500" /> Desconto (R$)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={discountValue}
-                                                step="0.01"
-                                                onChange={e => setDiscountValue(e.target.value)}
-                                                className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
-                                                placeholder="0,00"
-                                            />
-                                        </div>
+                                        
+                                        {attachedImages.length > 0 && (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                                {attachedImages.map((img, idx) => (
+                                                    <div key={img.id} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+                                                        <img src={img.dataUrl} alt="Anexo" className="w-full h-32 object-cover" />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <button 
+                                                                onClick={() => setAttachedImages(prev => prev.filter(i => i.id !== img.id))}
+                                                                className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                        <div className="p-2 text-[10px] text-center text-gray-500 truncate font-medium">
+                                                            {img.name || `Imagem ${idx + 1}`}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         )}
-
-                        <div className="lg:col-span-2 flex flex-col justify-center items-center gap-4 p-4 md:p-8">
+                    </>
+                ) : (
+                    <>
+                        {/* Builder Header Bar */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between animate-in fade-in duration-300">
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleCancelBuilder}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
+                                    title="Voltar"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    {editingItemId ? 'Editar Item do Orçamento' : 'Novo Item do Orçamento'}
+                                </h2>
+                            </div>
                             <button
-                                onClick={handleAddItem}
-                                className="w-full md:w-2/3 lg:w-1/2 py-5 bg-indigo-600 text-white rounded-2xl text-lg font-black shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 transform hover:scale-[1.02] border-2 border-indigo-500/20"
+                                onClick={handleCancelBuilder}
+                                className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors"
                             >
-                                {editingItemId ? <Save size={24} /> : <Plus size={24} />}
-                                {editingItemId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR AO ORÇAMENTO'}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setMeasurements({});
-                                    setUnitQtys({});
-                                    setLinearLengths({});
-                                    setGlobalQty('1');
-                                    setItemName('');
-                                    setItemDescription('');
-                                    setDiscount('10');
-                                    setDiscountValue('0');
-                                    setEditingItemId(null);
-                                    setBudgetItems([]);
-                                }}
-                                className="w-full md:w-2/3 lg:w-1/2 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-bold transition-colors text-center shadow-sm hover:shadow-md"
-                            >
-                                Reiniciar Orçamento
+                                Voltar / Cancelar
                             </button>
                         </div>
 
-                        {/* Final Budget Items Table */}
-                        {budgetItems.length > 0 && (
-                            <div className="lg:col-span-3 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                        <Receipt size={20} className="text-indigo-600" /> Itens do Orçamento
-                                    </h3>
-                                    <div className="bg-indigo-50 px-3 py-1 rounded-full text-xs font-bold text-indigo-600 border border-indigo-100">
-                                        {budgetItems.length} {budgetItems.length === 1 ? 'Item' : 'Itens'}
-                                    </div>
+                        {/* Item settings grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-2 animate-in fade-in duration-300">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2 md:col-span-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                    <Package size={14} className="text-indigo-500" /> Nome e Descrição do Item
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Medalha"
+                                    value={itemName}
+                                    onChange={e => setItemName(e.target.value)}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700 mb-2"
+                                />
+                                <textarea
+                                    placeholder="Descrição:&#10;- Em acrílico 2mm&#10;- Medida de 10x10cm"
+                                    value={itemDescription}
+                                    onChange={e => setItemDescription(e.target.value)}
+                                    rows={2}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-gray-600 resize-y"
+                                />
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                    <Plus size={14} className="text-indigo-500" /> Qtd Item
+                                </label>
+                                <input
+                                    type="number"
+                                    value={globalQty}
+                                    onChange={e => setGlobalQty(e.target.value)}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
+                                />
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                    <TrendingUp size={14} className="text-orange-500" /> Multiplicador
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={markup}
+                                    onChange={e => setMarkup(e.target.value)}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
+                                />
+                            </div>
+                            {/* Checkbox NF toggle */}
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between md:col-span-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                    <FileText size={14} className="text-indigo-500" /> Adicional de NF
+                                </label>
+                                <div className="flex items-center gap-3 mt-2">
+                                    <input
+                                        type="checkbox"
+                                        id="includeNf"
+                                        checked={includeNf}
+                                        onChange={e => setIncludeNf(e.target.checked)}
+                                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="includeNf" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                                        Cobrar NF (+{nfPercentage}%)
+                                    </label>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-gray-50 border-b border-gray-100">
-                                            <tr>
-                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Item</th>
-                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-center">Quantidade</th>
-                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Unitário (c/ encargos)</th>
-                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Total Item</th>
-                                                <th className="px-6 py-4 text-center w-16"></th>
+                        {/* Budget Spreadsheet Table */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                            {[
+                                [...orderedMaterials].slice(0, Math.ceil(orderedMaterials.length / 2)),
+                                [...orderedMaterials].slice(Math.ceil(orderedMaterials.length / 2))
+                            ].map((colMaterials, colIdx) => (
+                                <div key={`col-${colIdx}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden self-start">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-indigo-600 text-white">
+                                                <th className="px-3 py-1.5 text-[11px] font-bold uppercase" rowSpan="2">Serviços / Materiais</th>
+                                                <th className="px-2 py-1.5 text-[10px] font-bold uppercase text-center border-l border-indigo-500" colSpan="2">Centímetros</th>
+                                                <th className="px-3 py-1.5 text-[10px] font-bold uppercase text-right border-l border-indigo-500 pr-4" rowSpan="2">Custo (1 pç)</th>
+                                            </tr>
+                                            <tr className="bg-indigo-50 text-indigo-900 border-b border-indigo-100">
+                                                <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-gray-200 w-1/5">x</th>
+                                                <th className="px-1 py-1 text-[9px] font-bold uppercase text-center border-l border-gray-200 w-1/5">y</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {budgetItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => handleEditItem(item)}>
-                                                    <td className="px-6 py-4 font-bold text-gray-700">{item.name}</td>
-                                                    <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
-                                                        <input
-                                                            type="number"
-                                                            value={item.quantity}
-                                                            onChange={e => handleUpdateItemQty(item.id, e.target.value)}
-                                                            className="w-20 px-2 py-1 text-center bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right font-medium text-gray-600">
-                                                        {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right font-black text-indigo-600 text-lg">
-                                                        {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center flex justify-center items-center gap-2">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
-                                                            className="p-2 text-gray-300 hover:text-indigo-500 transition-colors"
-                                                            title="Editar item"
-                                                        >
-                                                            <Pencil size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleRemoveItem(item.id); }}
-                                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                                            title="Remover item"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
+                                            {colMaterials.map(mat => {
+                                                if (!mat.type || mat.type === 'sheet') {
+                                                    const { areaM2, cost } = calculateRow(mat);
+                                                    const m = measurements[mat.id] || { x: '', y: '' };
+                                                    return (
+                                                        <tr key={mat.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                            <td className="px-3 py-1 text-[11px] font-bold text-gray-700 bg-gray-50/50">{mat.name}</td>
+                                                            <td className="px-1 py-1 border-l border-gray-100">
+                                                                <input type="number" value={m.x} onChange={e => handleMeasurementChange(mat.id, 'x', e.target.value)}
+                                                                    placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
+                                                            </td>
+                                                            <td className="px-1 py-1 border-l border-gray-100">
+                                                                <input type="number" value={m.y} onChange={e => handleMeasurementChange(mat.id, 'y', e.target.value)}
+                                                                    placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
+                                                            </td>
+                                                            <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-gray-800 text-[11px] pr-4">
+                                                                {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                } else if (mat.type === 'unit') {
+                                                    const qty = parseFloat(unitQtys[mat.id]) || 0;
+                                                    const cost = qty * mat.price;
+                                                    return (
+                                                        <tr key={mat.id} className="hover:bg-emerald-50/30 transition-colors">
+                                                            <td className="px-3 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/30">
+                                                                {mat.name} <span className="text-[9px] font-normal text-emerald-500 ml-1">(unid)</span>
+                                                            </td>
+                                                            <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
+                                                                <input type="number" value={unitQtys[mat.id] || ''}
+                                                                    onChange={e => setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                                    placeholder="Qtd" className="w-full px-1 py-0.5 text-center text-[11px] border border-emerald-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none" />
+                                                            </td>
+                                                            <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-emerald-700 text-[11px] pr-4">
+                                                                {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                } else {
+                                                    const lengthCm = parseFloat(linearLengths[mat.id]) || 0;
+                                                    const cost = (lengthCm / 100) * mat.price;
+                                                    return (
+                                                        <tr key={mat.id} className="hover:bg-amber-50/30 transition-colors">
+                                                            <td className="px-3 py-1 text-[11px] font-bold text-amber-700 bg-amber-50/30">
+                                                                {mat.name} <span className="text-[9px] font-normal text-amber-500 ml-1">(m linear)</span>
+                                                            </td>
+                                                            <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
+                                                                <input type="number" value={linearLengths[mat.id] || ''}
+                                                                    onChange={e => setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                                    placeholder="Comp(cm)" className="w-full px-1 py-0.5 text-center text-[11px] border border-amber-200 rounded focus:ring-1 focus:ring-amber-400 outline-none" />
+                                                            </td>
+                                                            <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-amber-700 text-[11px] pr-4">
+                                                                {cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }
+                                            })}
+                                            {colMaterials.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="4" className="px-3 py-6 text-[11px] text-center text-gray-400 italic">
+                                                        Nenhum material localizado.
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            )}
                                         </tbody>
-                                        <tfoot className="bg-white">
-                                            <tr>
-                                                <td colSpan="5" className="p-0 border-t border-gray-100">
-                                                    <div className="bg-indigo-600 p-8 text-white w-full rounded-b-2xl shadow-inner flex flex-col md:flex-row items-center justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                        <div className="text-center md:text-left">
-                                                            <p className="text-indigo-200 text-sm font-bold uppercase tracking-widest">Valor Total do Pedido</p>
-                                                            <h2 className="text-5xl md:text-6xl font-black mt-2">
-                                                                {projectTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                            </h2>
-                                                            <div className="flex flex-wrap gap-4 mt-6">
-                                                                <div className="bg-black/20 px-4 py-2 rounded-xl">
-                                                                    <p className="text-[10px] text-indigo-200 uppercase font-black">Total Mat. Gasto</p>
-                                                                    <p className="text-lg font-bold text-white">
-                                                                        {totalMaterialCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="bg-black/20 px-4 py-2 rounded-xl">
-                                                                    <p className="text-[10px] text-indigo-200 uppercase font-black">Impostos / NF</p>
-                                                                    <p className="text-lg font-bold text-white">
-                                                                        {totalTaxAndNfCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="bg-white/20 px-4 py-2 rounded-xl border border-indigo-400/30">
-                                                                    <p className="text-[10px] text-indigo-100 uppercase font-black">Lucro Estimado</p>
-                                                                    <p className="text-lg font-bold text-green-300">
-                                                                        {totalProjectProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex flex-col gap-3">
-                                                            <button
-                                                                onClick={handleSaveBudget}
-                                                                className="w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
-                                                            >
-                                                                <Save size={24} /> SALVAR ORÇAMENTO
-                                                            </button>
-                                                            <button
-                                                                onClick={() => window.print()}
-                                                                className="w-full px-8 py-3 bg-white text-indigo-900 rounded-xl text-sm font-bold shadow hover:bg-gray-100 transition-all flex items-center justify-center gap-2 border border-gray-200 hover:shadow-md"
-                                                            >
-                                                                <DollarSign size={20} /> IMPRIMIR PDF / RECIBO
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tfoot>
                                     </table>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 flex justify-between items-center shadow-sm animate-in fade-in duration-300">
+                            <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Total Custos Por Item (1 Unid.)</span>
+                            <span className="text-xl font-black text-indigo-700">
+                                {costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
+
+                        {!costPerPiece && materials.length > 0 && (
+                            <div className="p-10 border-2 border-dashed border-gray-200 rounded-3xl text-center bg-gray-50/30 mt-4 animate-in fade-in duration-300">
+                                <p className="text-gray-400 font-medium">Insira as medidas/quantidades nos materiais acima para calcular o valor do item.</p>
+                            </div>
+                        )}
+
+                        {/* Finance Card and Action Buttons */}
+                        {costPerPiece > 0 && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4 animate-in fade-in duration-300">
+                                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Resumo do Item Atual</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase border-b pb-2 mb-2">
+                                            <span className="w-1/3">Descrição</span>
+                                            <span className="w-1/3 text-center">Unitário</span>
+                                            <span className="w-1/3 text-right">Total</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[13px]">
+                                            <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Custo Material:</span>
+                                            <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{costPerPiece.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right font-bold text-gray-700">{(costPerPiece * (parseFloat(globalQty) || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        </div>
+                                        {includeNf && (
+                                            <div className="flex justify-between items-center text-[13px]">
+                                                <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Adicional NF ({nfPercentage}%):</span>
+                                                <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(nfPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                <span className="w-1/3 text-right font-bold text-red-500">+{nfValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center text-[13px]">
+                                            <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Parcelam. ({taxPercentage}%):</span>
+                                            <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice * (parseFloat(taxPercentage) / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right font-bold text-red-500">+{taxValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[13px]">
+                                            <span className="w-1/3 text-gray-500 uppercase text-[10px] font-bold truncate pr-1">Lucro Estimado:</span>
+                                            <span className="w-1/3 text-center font-medium text-gray-500 text-xs">{(unitPrice - costPerPiece).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right font-bold text-green-600">
+                                                {(subtotal - (costPerPiece * (parseFloat(globalQty) || 1))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
+                                        </div>
+
+                                        {/* EXIBIÇÃO DA MARGEM DE CONTRIBUIÇÃO (%) */}
+                                        <div className="flex justify-between items-center text-[13px] bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                                            <span className="w-1/2 text-indigo-700 uppercase text-[10px] font-black truncate pr-1 flex items-center gap-1">
+                                                <TrendingUp size={12} className="text-indigo-500" /> MARGEM CONTRIBUIÇÃO:
+                                            </span>
+                                            <span className="w-1/2 text-right font-black text-indigo-700 text-sm">
+                                                {contribMarginPerc.toFixed(1)}%
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
+                                            <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
+                                            <span className="w-1/3 text-center font-bold text-indigo-600">{finalUnitWithValueDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
+                                                {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
+                                        </div>
+
+                                        {parseFloat(discount) > 0 && (
+                                            <div className="flex justify-between items-center text-[13px] bg-green-50 p-2 rounded-lg mt-1 border border-green-100">
+                                                <span className="w-1/3 text-green-700 uppercase text-[10px] font-black truncate pr-1">SIMULAÇÃO ({discount}%):</span>
+                                                <span className="w-1/3 text-center font-bold text-green-600">
+                                                    {visualUnitWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </span>
+                                                <span className="w-1/3 text-right font-black text-green-700 text-[15px]">
+                                                    {visualTotalWithPercDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </span>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="h-px bg-gray-100 mt-2"></div>
+                                        <div className="flex justify-between items-center py-1 mt-2">
+                                            <span className="text-xs font-bold text-gray-400 uppercase">Quantidade do Item:</span>
+                                            <input
+                                                type="number"
+                                                value={globalQty}
+                                                onChange={e => setGlobalQty(e.target.value)}
+                                                className="w-20 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                                                min="1"
+                                            />
+                                        </div>
+                                        <div className="h-px bg-gray-100 italic font-medium text-[9px] text-gray-400 text-center py-2 mt-2">Aplicação de Desconto</div>
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                                    <Percent size={12} className="text-red-500" /> Desconto (%)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={discount}
+                                                    onChange={e => setDiscount(e.target.value)}
+                                                    className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                                    <DollarSign size={12} className="text-red-500" /> Desconto (R$)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={discountValue}
+                                                    step="0.01"
+                                                    onChange={e => setDiscountValue(e.target.value)}
+                                                    className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="lg:col-span-2 flex flex-col justify-center items-center gap-4 p-4 md:p-8">
+                                    <button
+                                        onClick={handleAddItem}
+                                        className="w-full md:w-2/3 lg:w-1/2 py-5 bg-indigo-600 text-white rounded-2xl text-lg font-black shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 transform hover:scale-[1.02] border-2 border-indigo-500/20"
+                                    >
+                                        {editingItemId ? <Save size={24} /> : <Plus size={24} />}
+                                        {editingItemId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR AO ORÇAMENTO'}
+                                    </button>
+                                    <button
+                                        onClick={handleCancelBuilder}
+                                        className="w-full md:w-2/3 lg:w-1/2 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-bold transition-colors text-center shadow-sm hover:shadow-md"
+                                    >
+                                        Cancelar
+                                    </button>
                                 </div>
                             </div>
                         )}
-                    </div>
-                )}
-
-                {/* IMAGE ATTACHMENTS UI */}
-                {budgetItems.length > 0 && (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-500">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Anexos (Para Impressão)</h3>
-                        <div className="flex flex-col gap-4">
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                multiple 
-                                onChange={(e) => {
-                                    const files = Array.from(e.target.files);
-                                    files.forEach(file => {
-                                        const reader = new FileReader();
-                                        reader.onload = (event) => {
-                                            setAttachedImages(prev => [
-                                                ...prev, 
-                                                { id: Math.random().toString(36).substr(2, 9), dataUrl: event.target.result, name: file.name }
-                                            ]);
-                                        };
-                                        reader.readAsDataURL(file);
-                                    });
-                                }}
-                                className="block w-full text-sm text-gray-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-full file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-indigo-50 file:text-indigo-700
-                                hover:file:bg-indigo-100 transition-colors cursor-pointer"
-                            />
-                            
-                            {attachedImages.length > 0 && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                                    {attachedImages.map((img, idx) => (
-                                        <div key={img.id} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-                                            <img src={img.dataUrl} alt="Anexo" className="w-full h-32 object-cover" />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <button 
-                                                    onClick={() => setAttachedImages(prev => prev.filter(i => i.id !== img.id))}
-                                                    className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                            <div className="p-2 text-[10px] text-center text-gray-500 truncate font-medium">
-                                                {img.name || `Imagem ${idx + 1}`}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {!costPerPiece && materials.length > 0 && budgetItems.length === 0 && (
-                    <div className="p-10 border-2 border-dashed border-gray-200 rounded-3xl text-center bg-gray-50/30">
-                        <p className="text-gray-400 font-medium">Insira as medidas nos materiais acima para calcular o orçamento inicial.</p>
-                    </div>
+                    </>
                 )}
             </div >
         </>

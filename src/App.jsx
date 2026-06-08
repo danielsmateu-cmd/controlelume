@@ -272,7 +272,7 @@ function AppContent() {
             case 'contas':
                 return <Anotacoes readOnly={!canEdit('contas')} />;
             case 'orcamentos':
-                return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} />;
+                return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={setActiveTab} />;
             case 'ecommerce':
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
             case 'simulacao':

@@ -260,6 +260,10 @@ export const localApi = {
             boletoNumber: o.boletoNumber,
             nf_number: o.nfNumber,
             nfNumber: o.nfNumber,
+            contrib_margin_value: o.contribMarginValue !== undefined ? o.contribMarginValue : null,
+            contribMarginValue: o.contribMarginValue !== undefined ? o.contribMarginValue : null,
+            contrib_margin_perc: o.contribMarginPerc !== undefined ? o.contribMarginPerc : null,
+            contribMarginPerc: o.contribMarginPerc !== undefined ? o.contribMarginPerc : null,
             created_at: new Date().toISOString()
         }));
 
@@ -304,6 +308,14 @@ export const localApi = {
         if (updates.nfNumber !== undefined) {
             order.nf_number = updates.nfNumber;
             order.nfNumber = updates.nfNumber;
+        }
+        if (updates.contribMarginValue !== undefined) {
+            order.contrib_margin_value = updates.contribMarginValue;
+            order.contribMarginValue = updates.contribMarginValue;
+        }
+        if (updates.contribMarginPerc !== undefined) {
+            order.contrib_margin_perc = updates.contribMarginPerc;
+            order.contribMarginPerc = updates.contribMarginPerc;
         }
 
         setLocal('orders', current);

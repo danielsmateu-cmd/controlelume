@@ -355,7 +355,9 @@ const supabaseApi = {
                 isPaid: o.is_paid,
                 paymentMethod: o.payment_method,
                 boletoNumber: o.boleto_number,
-                nfNumber: o.nf_number
+                nfNumber: o.nf_number,
+                contribMarginValue: o.contrib_margin_value,
+                contribMarginPerc: o.contrib_margin_perc
             }));
         } catch (err) {
             console.error('Supabase getOrders:', err);
@@ -390,7 +392,9 @@ const supabaseApi = {
                 payment_method: o.paymentMethod,
                 year: o.year,
                 boleto_number: o.boletoNumber,
-                nf_number: o.nfNumber
+                nf_number: o.nfNumber,
+                contrib_margin_value: o.contribMarginValue !== undefined ? o.contribMarginValue : null,
+                contrib_margin_perc: o.contribMarginPerc !== undefined ? o.contribMarginPerc : null
             });
 
             const { data, error } = await supabase
@@ -398,7 +402,48 @@ const supabaseApi = {
                 .insert(newOrdersArray.map(toMap))
                 .select();
 
-            if (error) throw error;
+            if (error) {
+                // Se der erro de coluna não encontrada, tenta novamente sem as colunas de margem
+                if (error.code === 'PGRST204' || error.message?.includes('contrib_margin') || error.message?.includes('column') || error.code === '42703') {
+                    console.warn('Colunas contrib_margin_value/perc ausentes no Supabase. Salvando sem elas...');
+                    const fallbackToMap = (o) => ({
+                        client_name: o.clientName,
+                        description: o.description,
+                        order_date: o.orderDate,
+                        value: o.value,
+                        payment_date: o.paymentDate,
+                        is_paid: Boolean(o.isPaid),
+                        payment_method: o.paymentMethod,
+                        year: o.year,
+                        boleto_number: o.boletoNumber,
+                        nf_number: o.nfNumber
+                    });
+
+                    const retryResult = await supabase
+                        .from('orders')
+                        .insert(newOrdersArray.map(fallbackToMap))
+                        .select();
+
+                    if (retryResult.error) throw retryResult.error;
+
+                    alert("Aviso: O pedido foi salvo com sucesso, mas a Margem de Contribuição NÃO pôde ser guardada no banco de dados porque as colunas 'contrib_margin_value' e 'contrib_margin_perc' ainda não foram criadas na tabela 'orders' do seu Supabase. Lembre-se de rodar a query SQL fornecida no plano.");
+
+                    return retryResult.data.map(o => ({
+                        ...o,
+                        clientName: o.client_name,
+                        orderDate: o.order_date,
+                        paymentDate: o.payment_date,
+                        isPaid: o.is_paid,
+                        paymentMethod: o.payment_method,
+                        boletoNumber: o.boleto_number,
+                        nfNumber: o.nf_number,
+                        contribMarginValue: null,
+                        contribMarginPerc: null
+                    }));
+                }
+                throw error;
+            }
+
             return data.map(o => ({
                 ...o,
                 clientName: o.client_name,
@@ -407,7 +452,9 @@ const supabaseApi = {
                 isPaid: o.is_paid,
                 paymentMethod: o.payment_method,
                 boletoNumber: o.boleto_number,
-                nfNumber: o.nf_number
+                nfNumber: o.nf_number,
+                contribMarginValue: o.contrib_margin_value,
+                contribMarginPerc: o.contrib_margin_perc
             }));
         } catch (err) {
             console.error('Supabase addOrders:', err);
@@ -428,13 +475,28 @@ const supabaseApi = {
             if (updates.year !== undefined) dbUpdates.year = updates.year;
             if (updates.boletoNumber !== undefined) dbUpdates.boleto_number = updates.boletoNumber;
             if (updates.nfNumber !== undefined) dbUpdates.nf_number = updates.nfNumber;
+            if (updates.contribMarginValue !== undefined) dbUpdates.contrib_margin_value = updates.contribMarginValue;
+            if (updates.contribMarginPerc !== undefined) dbUpdates.contrib_margin_perc = updates.contribMarginPerc;
 
             const { error } = await supabase
                 .from('orders')
                 .update(dbUpdates)
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === 'PGRST204' || error.message?.includes('contrib_margin') || error.message?.includes('column') || error.code === '42703') {
+                    console.warn('Colunas contrib_margin_value/perc ausentes no Supabase. Atualizando sem elas...');
+                    delete dbUpdates.contrib_margin_value;
+                    delete dbUpdates.contrib_margin_perc;
+                    const retryResult = await supabase
+                        .from('orders')
+                        .update(dbUpdates)
+                        .eq('id', id);
+                    if (retryResult.error) throw retryResult.error;
+                    return true;
+                }
+                throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase updateOrder:', err);
