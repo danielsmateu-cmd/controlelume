@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -293,8 +293,11 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const matchesName = order.clientName?.toLowerCase().includes(q);
         const matchesDesc = order.description?.toLowerCase().includes(q);
         const matchesVal = order.value?.toString().includes(q);
+        const matchesBoleto = order.boletoNumber?.toLowerCase().includes(q);
+        const matchesNF = order.nfNumber?.toLowerCase().includes(q);
+        const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
 
-        return matchesYear && (matchesName || matchesDesc || matchesVal);
+        return matchesYear && (matchesName || matchesDesc || matchesVal || matchesBoleto || matchesNF || matchesPayment);
     });
 
     return (
@@ -312,7 +315,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar nome ou valor..."
+                                placeholder="Buscar nome, valor, boleto, NF..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
@@ -479,6 +482,105 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 </div>
             )}
 
+            {/* Resumo Anual - 12 meses */}
+            {(() => {
+                const MONTHS = [
+                    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+                ];
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+
+                const monthlyData = MONTHS.map((name, idx) => {
+                    const monthOrders = orders.filter(o => {
+                        const oYear = o.year || new Date(o.orderDate + 'T00:00:00').getUTCFullYear();
+                        const oMonth = new Date(o.orderDate + 'T00:00:00').getUTCMonth();
+                        return oYear === selectedYear && oMonth === idx;
+                    });
+                    const total = monthOrders.reduce((s, o) => s + (o.value || 0), 0);
+                    const paid = monthOrders.filter(o => o.isPaid).reduce((s, o) => s + (o.value || 0), 0);
+                    const pending = total - paid;
+                    return { name, total, paid, pending, count: monthOrders.length };
+                });
+
+                const yearTotal = monthlyData.reduce((s, m) => s + m.total, 0);
+                const yearPaid = monthlyData.reduce((s, m) => s + m.paid, 0);
+                const yearPending = monthlyData.reduce((s, m) => s + m.pending, 0);
+
+                const scrollToMonth = (monthName) => {
+                    const el = document.getElementById(`month-section-${monthName.toLowerCase()}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+
+                return (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        {/* Header do resumo anual */}
+                        <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp size={16} className="text-indigo-200" />
+                                <span className="text-sm font-bold text-white">Resumo Anual {selectedYear}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-[11px]">
+                                <span className="text-indigo-200">Total: <span className="font-bold text-white">{fmt(yearTotal)}</span></span>
+                                <span className="text-green-300">Pago: <span className="font-bold text-white">{fmt(yearPaid)}</span></span>
+                                {yearPending > 0 && <span className="text-red-300">Pendente: <span className="font-bold text-white">{fmt(yearPending)}</span></span>}
+                            </div>
+                        </div>
+
+                        {/* Grid dos 12 meses */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 divide-x divide-y divide-gray-100">
+                            {monthlyData.map((m, idx) => {
+                                const isCurrent = idx === currentMonth && selectedYear === currentYear;
+                                const hasData = m.total > 0;
+                                return (
+                                    <button
+                                        key={m.name}
+                                        onClick={() => scrollToMonth(m.name)}
+                                        title={`Ir para ${m.name}`}
+                                        className={clsx(
+                                            'flex flex-col items-start p-2.5 text-left transition-all hover:z-10 relative group',
+                                            isCurrent
+                                                ? 'bg-green-50 hover:bg-green-100'
+                                                : hasData
+                                                    ? 'bg-white hover:bg-indigo-50'
+                                                    : 'bg-gray-50 hover:bg-gray-100'
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-1 mb-1 w-full">
+                                            <span className={clsx(
+                                                'text-[9px] font-bold uppercase tracking-widest truncate',
+                                                isCurrent ? 'text-green-600' : 'text-gray-500'
+                                            )}>
+                                                {m.name.slice(0, 3)}
+                                            </span>
+                                            {isCurrent && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                            )}
+                                        </div>
+                                        {hasData ? (
+                                            <>
+                                                <span className="text-[10px] font-bold text-gray-800 leading-tight">{fmt(m.total)}</span>
+                                                <span className="text-[9px] text-green-600 leading-tight mt-0.5">{fmt(m.paid)}</span>
+                                                {m.pending > 0 && (
+                                                    <span className="text-[9px] text-red-500 leading-tight">{fmt(m.pending)}</span>
+                                                )}
+                                                <span className="text-[8px] text-gray-400 mt-0.5">{m.count} {m.count === 1 ? 'item' : 'itens'}</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-[9px] text-gray-300 italic">—</span>
+                                        )}
+                                        <div className={clsx(
+                                            'absolute bottom-0 left-0 right-0 h-0.5 transition-all group-hover:opacity-100',
+                                            isCurrent ? 'bg-green-400 opacity-100' : 'bg-indigo-400 opacity-0'
+                                        )} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* Lista agrupada por mês */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(filteredOrders.reduce((acc, order) => {
@@ -497,11 +599,18 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
                     const isCurrentMonth = month === capitalize(currentMonthYear);
 
+                    // Extrair o nome do mês para usar como id de âncora
+                    const monthNameOnly = month.split(' ')[0]; // ex: "Janeiro"
+
                     return (
-                        <div key={month} className={clsx(
-                            "bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col transition-all",
-                            isCurrentMonth ? "border-green-300 ring-1 ring-green-100 shadow-md" : "border-gray-100"
-                        )}>
+                        <div
+                            key={month}
+                            id={`month-section-${monthNameOnly.toLowerCase()}`}
+                            className={clsx(
+                                "bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col transition-all scroll-mt-4",
+                                isCurrentMonth ? "border-green-300 ring-1 ring-green-100 shadow-md" : "border-gray-100"
+                            )}
+                        >
                             <div className={clsx(
                                 "px-4 py-2 border-b flex justify-between items-center shrink-0",
                                 isCurrentMonth ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"

@@ -43,6 +43,7 @@ const Parcerias = ({ readOnly, printMonth }) => {
     const [vendasData, setVendasData] = useState({});
     const [custosData, setCustosData] = useState({});
     const [ftsData, setFtsData] = useState([]);
+    const [mktFtsData, setMktFtsData] = useState({});
     const [isLoading, setIsLoading] = useState(true);
 
     // percentConfig: { [month]: { percentLume: number, percentBureau: number } }
@@ -65,6 +66,13 @@ const Parcerias = ({ readOnly, printMonth }) => {
             try {
                 const fts = await api.getFts();
                 setFtsData(fts);
+
+                const mktFts = {};
+                ['meli', 'shopee', 'tiktok', 'amazon', 'site'].forEach(pid => {
+                    const raw = localStorage.getItem(`fts_mkt_${pid}`);
+                    mktFts[pid] = raw ? JSON.parse(raw) : fts;
+                });
+                setMktFtsData(mktFts);
 
                 let dbSales = await api.getMonthlySales();
                 const savedVendas = localStorage.getItem('ecommerce_vendas');
@@ -97,9 +105,8 @@ const Parcerias = ({ readOnly, printMonth }) => {
     const calcCost = (ft) => calcMaterials(ft) + calcDirectCosts(ft);
 
     // --- Dados de Vendas + Lucro Líquido por mês ---
-    // --- Dados de Vendas + Lucro Líquido por mês ---
     const getVendasSummary = (month) => {
-        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretosRS = 0, totalCustosDiretosPerc = 0;
+        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretos = 0;
         const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
 
         PLATFORMS_ID.forEach(pid => {
@@ -107,27 +114,35 @@ const Parcerias = ({ readOnly, printMonth }) => {
             const rows = Array.isArray(vendasData[key]) ? vendasData[key] : [];
 
             rows.forEach(row => {
-                const ft = ftsData.find(f => f.id === row.ftId);
-                if (!ft) return;
+                const fts = mktFtsData[pid] || ftsData;
+                const ft = fts.find(f => f.id === row.ftId);
+                if (!ft && !row.snapshot) return;
                 const qty = parseInt(row.quantity) || 0;
-                const precoBase = p(ft.salePrice);
+
+                const resolvedFt = row.snapshot || ft;
+                const precoBase = p(resolvedFt.salePrice);
                 const desconto = p(row.discountPercent);
                 const precoEfetivo = precoBase * (1 - desconto / 100);
 
                 totalFaturamento += precoEfetivo * qty;
-                totalMateriais += calcMaterials(ft) * qty;
-                totalCustosDiretosRS += calcDirectCostsRS(ft) * qty;
-                totalCustosDiretosPerc += calcDirectCostsPerc(ft, precoEfetivo) * qty;
+
+                if (row.snapshot) {
+                    totalMateriais += p(row.snapshot.materialsTotal) * qty;
+                    totalCustosDiretos += p(row.snapshot.directCostsTotal) * qty;
+                } else {
+                    totalMateriais += calcMaterials(ft) * qty;
+                    totalCustosDiretos += (calcDirectCostsRS(ft) + calcDirectCostsPerc(ft, precoEfetivo)) * qty;
+                }
             });
         });
 
-        return { totalFaturamento, totalMateriais, totalCustosDiretosRS, totalCustosDiretosPerc };
+        return { totalFaturamento, totalMateriais, totalCustosDiretos };
     };
 
     // --- Custos inevitáveis reais por mês (Horas + Rateio) ---
     const getMonthCustoInev = (month) => {
         const costData = custosData[month];
-        if (!costData) return { lumeRS: 0, bureauRS: 0, custosExtrasRS: 0 };
+        if (!costData) return { lumeRS: 0, custosExtrasRS: 0 };
 
         const monthHours = getWorkHoursInMonth(month);
         const empresas = costData.empresas || [];
@@ -137,19 +152,9 @@ const Parcerias = ({ readOnly, printMonth }) => {
         if (empresas.length > 0) {
             const emp1 = empresas[0];
             const totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
-            const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
+            const factor = emp1.productionFactor || 0;
+            const dispEmp1 = factor * monthHours;
             custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
-        }
-
-        // 2. Rateio das demais empresas (Bureau e outras)
-        let rateioRestantesTotal = 0;
-        if (empresas.length > 1) {
-            empresas.forEach((emp, idx) => {
-                if (idx === 0) return;
-                const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
-                const perc = emp.ecommerceShare || 0;
-                rateioRestantesTotal += totalEmp * (perc / 100);
-            });
         }
 
         // 3. Custos Extras Genéricos + Ads (agrupado aqui)
@@ -164,31 +169,30 @@ const Parcerias = ({ readOnly, printMonth }) => {
 
         PLATFORMS.forEach(pid => {
             const key = `${pid}_${month}`;
-            const ftsLocal = ftsData; // Usa FTs globais para cálculo geral
+            const ftsLocal = mktFtsData[pid] || ftsData;
             const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
 
             vendas.forEach(row => {
                 const ft = ftsLocal.find(f => f.id === row.ftId);
-                if (ft) {
-                    const tempoMin = parseFloat(ft.productionTime) || 0;
-                    const qtd = parseInt(row.quantity) || 0;
-                    horasTotaisConsumidas += (tempoMin / 60) * qtd;
-                }
+                if (!ft && !row.snapshot) return;
+                const resolvedFt = row.snapshot || ft;
+                const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+                const qtd = parseInt(row.quantity) || 0;
+                horasTotaisConsumidas += (tempoMin / 60) * qtd;
             });
         });
 
         const lumeRS = horasTotaisConsumidas * custoHoraEmp1;
-        const bureauRS = rateioRestantesTotal;
 
-        return { lumeRS, bureauRS, custosExtrasRS };
+        return { lumeRS, custosExtrasRS };
     };
 
     // --- Lucro Líquido ---
     const getLucroLiquido = (month) => {
         const v = getVendasSummary(month);
         const c = getMonthCustoInev(month);
-        const custoTotal = v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + c.custosExtrasRS;
-        const custoInevitavel = c.lumeRS + c.bureauRS;
+        const custoTotal = v.totalMateriais + v.totalCustosDiretos + c.custosExtrasRS;
+        const custoInevitavel = c.lumeRS;
         return v.totalFaturamento - custoTotal - custoInevitavel;
     };
 
@@ -197,12 +201,11 @@ const Parcerias = ({ readOnly, printMonth }) => {
     const formatMonthName = (monthStr) => {
         if (!monthStr) return '';
         const [y, m] = monthStr.split('-').map(Number);
-        const date = new Date(y, m - 1);
-        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
         const prevDate = new Date(y, m - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prevYear = prevDate.getFullYear();
         const lastDayPrev = new Date(y, m - 1, 0).getDate();
-        return `${monthName} DE ${y} — VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
+        return `VENDAS DE 01 A ${lastDayPrev} DE ${prevMonthName} DE ${prevYear}`;
     };
 
     const currentMonthStr = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -236,14 +239,14 @@ const Parcerias = ({ readOnly, printMonth }) => {
                         const c = getMonthCustoInev(month);
                         const lucroLiquido = getLucroLiquido(month);
                         const isCurrent = month === currentMonthStr;
-                        const hasData = v.totalFaturamento > 0 || c.lumeRS > 0 || c.bureauRS > 0;
+                        const hasData = v.totalFaturamento > 0 || c.lumeRS > 0;
 
                         const pLume = percentConfig[month]?.percentLume || 0;
                         const pBureau = percentConfig[month]?.percentBureau || 0;
 
                         // Cálculos E-Commerce
-                        const lumeEcomm = c.lumeRS + c.custosExtrasRS + v.totalMateriais + v.totalCustosDiretosRS + v.totalCustosDiretosPerc + (pLume / 100) * lucroLiquido;
-                        const bureauEcomm = c.bureauRS + (pBureau / 100) * lucroLiquido;
+                        const lumeEcomm = c.lumeRS + c.custosExtrasRS + v.totalMateriais + v.totalCustosDiretos + (pLume / 100) * lucroLiquido;
+                        const bureauEcomm = (pBureau / 100) * lucroLiquido;
 
                         return (
                             <div
@@ -298,12 +301,8 @@ const Parcerias = ({ readOnly, printMonth }) => {
 
                                         {/* Total C. Diretos */}
                                         <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
-                                            <span className="text-xs text-gray-600 font-medium">Custos Diretos (R$)</span>
-                                            <span className="text-sm font-bold text-blue-700">{fmt(v.totalCustosDiretosRS)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
-                                            <span className="text-xs text-gray-600 font-medium">Custos Diretos (%)</span>
-                                            <span className="text-sm font-bold text-blue-700">{fmt(v.totalCustosDiretosPerc)}</span>
+                                            <span className="text-xs text-gray-600 font-medium">Custos Diretos (R$ + %)</span>
+                                            <span className="text-sm font-bold text-blue-700">{fmt(v.totalCustosDiretos)}</span>
                                         </div>
 
                                         {/* Ads+Extras */}
@@ -319,15 +318,6 @@ const Parcerias = ({ readOnly, printMonth }) => {
                                                 <span className="text-xs text-gray-600 font-medium">Inev. Lume</span>
                                             </div>
                                             <span className="text-sm font-bold text-blue-700">{fmt(c.lumeRS)}</span>
-                                        </div>
-
-                                        {/* BUREAU R$ */}
-                                        <div className="flex justify-between items-center px-3 py-2 bg-purple-50 rounded-lg border border-purple-100">
-                                            <div className="flex items-center gap-1.5">
-                                                <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                                                <span className="text-xs text-gray-600 font-medium">Inev. Bureau</span>
-                                            </div>
-                                            <span className="text-sm font-bold text-purple-700">{fmt(c.bureauRS)}</span>
                                         </div>
 
                                         {/* Lucro Líquido */}
@@ -358,8 +348,7 @@ const Parcerias = ({ readOnly, printMonth }) => {
                                                 <div className="flex justify-between"><span>Inev. Lume</span><span className="text-gray-700 font-medium">{fmt(c.lumeRS)}</span></div>
                                                 <div className="flex justify-between"><span>+ Ads+Extras</span><span className="text-gray-700 font-medium">{fmt(c.custosExtrasRS)}</span></div>
                                                 <div className="flex justify-between"><span>+ Custo Materiais</span><span className="text-gray-700 font-medium">{fmt(v.totalMateriais)}</span></div>
-                                                <div className="flex justify-between"><span>+ Custos Diretos (R$)</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretosRS)}</span></div>
-                                                <div className="flex justify-between"><span>+ Custos Diretos (%)</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretosPerc)}</span></div>
+                                                <div className="flex justify-between"><span>+ Custos Diretos (R$ + %)</span><span className="text-gray-700 font-medium">{fmt(v.totalCustosDiretos)}</span></div>
 
                                                 {/* % Lucro Líquido LUME */}
                                                 <div className="flex justify-between items-center pt-1 border-t border-indigo-100">
@@ -392,11 +381,9 @@ const Parcerias = ({ readOnly, printMonth }) => {
                                                 <span className="text-white text-xs font-bold uppercase tracking-wide">BUREAU</span>
                                             </div>
                                             <div className="p-3 space-y-1.5 text-xs text-gray-500">
-                                                <div className="flex justify-between"><span>Inev. Bureau</span><span className="text-gray-700 font-medium">{fmt(c.bureauRS)}</span></div>
-
                                                 {/* % Lucro Líquido BUREAU */}
-                                                <div className="flex justify-between items-center pt-1 border-t border-purple-100">
-                                                    <span>+ % do Lucro Líquido</span>
+                                                <div className="flex justify-between items-center pt-1">
+                                                    <span>% do Lucro Líquido</span>
                                                     <div className="flex items-center gap-1">
                                                         <input
                                                             type="number"

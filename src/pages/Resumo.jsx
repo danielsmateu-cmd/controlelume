@@ -1,5 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
+import { api } from '../services/api';
+
+const getWorkHoursInMonth = (monthStr) => {
+    if (!monthStr) return 0;
+    const [year, month] = monthStr.split('-').map(Number);
+    const prevDate = new Date(year, month - 2, 1);
+    const targetYear = prevDate.getFullYear();
+    const targetMonthIndex = prevDate.getMonth();
+    const daysInMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
+    let weekdays = 0;
+    for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(targetYear, targetMonthIndex, i).getDay();
+        if (d !== 0 && d !== 6) weekdays++;
+    }
+    return weekdays * 7;
+};
+
+const p = (v) => {
+    if (typeof v === 'number') return v;
+    if (!v) return 0;
+    let clean = String(v).replace(/[R$\s]/g, '');
+    if (clean.includes(',') && clean.includes('.')) {
+        clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (clean.includes(',')) {
+        clean = clean.replace(',', '.');
+    }
+    return parseFloat(clean) || 0;
+};
+
+const calcMaterials = (ft) => ft?.materials?.reduce((a, c) => a + p(c.value), 0) || 0;
+const calcDirectCostsRS = (ft) => ft?.directCostsRS?.reduce((a, c) => a + p(c.value), 0) || 0;
+const calcDirectCostsPerc = (ft, precoEfet) => {
+    if (!ft) return 0;
+    const percTotal = ft.directCostsPercent?.reduce((a, c) => a + p(c.percentage), 0) || 0;
+    return (percTotal / 100) * (p(ft.salePrice) || precoEfet);
+};
 
 const StatCard = ({ title, value, type }) => {
     const isPositive = type === 'positive';
@@ -27,6 +63,166 @@ const Resumo = ({ expenses, orders }) => {
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
+
+    const [ftsData, setFtsData] = useState([]);
+    const [mktFtsData, setMktFtsData] = useState({});
+    const [vendasData, setVendasData] = useState({});
+    const [custosData, setCustosData] = useState({});
+    const [percentConfig, setPercentConfig] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('parcerias_percent_config')) || {}; }
+        catch { return {}; }
+    });
+
+    useEffect(() => {
+        const loadEcomData = async () => {
+            try {
+                const fts = await api.getFts();
+                setFtsData(fts);
+
+                const mktFts = {};
+                ['meli', 'shopee', 'tiktok', 'amazon', 'site'].forEach(pid => {
+                    const raw = localStorage.getItem(`fts_mkt_${pid}`);
+                    mktFts[pid] = raw ? JSON.parse(raw) : fts;
+                });
+                setMktFtsData(mktFts);
+
+                let dbSales = await api.getMonthlySales();
+                const savedVendas = localStorage.getItem('ecommerce_vendas');
+                if (savedVendas && Object.keys(dbSales).length === 0) dbSales = JSON.parse(savedVendas);
+                setVendasData(dbSales);
+
+                let dbCosts = await api.getMonthlyCosts();
+                const savedCustos = localStorage.getItem('ecommerce_empresas_custos_mensal');
+                if (savedCustos && Object.keys(dbCosts).length === 0) dbCosts = JSON.parse(savedCustos);
+                setCustosData(dbCosts);
+                
+                try {
+                    setPercentConfig(JSON.parse(localStorage.getItem('parcerias_percent_config')) || {});
+                } catch (e) {}
+            } catch (err) {
+                console.error("Erro ao carregar ecom:", err);
+            }
+        };
+        loadEcomData();
+        
+        const updateStorage = () => {
+            try {
+                setPercentConfig(JSON.parse(localStorage.getItem('parcerias_percent_config')) || {});
+            } catch(e) {}
+        };
+        window.addEventListener('focus', updateStorage);
+        return () => window.removeEventListener('focus', updateStorage);
+    }, []);
+
+    const getEcommTotalLume = (monthIndex, year) => {
+        // No Parcerias, as vendas de um mês (ex: Abril, index 3) ficam registradas no mês seguinte (Maio, '05')
+        let targetMonth = monthIndex + 2; 
+        let targetYear = year;
+        if (targetMonth > 12) {
+            targetMonth -= 12;
+            targetYear += 1;
+        }
+        const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+        
+        let totalFaturamento = 0, totalMateriais = 0, totalCustosDiretos = 0;
+        const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+
+        PLATFORMS_ID.forEach(pid => {
+            const key = `${pid}_${monthStr}`;
+            const rows = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+
+            rows.forEach(row => {
+                const fts = mktFtsData[pid] || ftsData;
+                const ft = fts.find(f => f.id === row.ftId);
+                if (!ft && !row.snapshot) return;
+                const qty = parseInt(row.quantity) || 0;
+
+                const resolvedFt = row.snapshot || ft;
+                const precoBase = p(resolvedFt.salePrice);
+                const desconto = p(row.discountPercent);
+                const precoEfetivo = precoBase * (1 - desconto / 100);
+
+                totalFaturamento += precoEfetivo * qty;
+
+                if (row.snapshot) {
+                    totalMateriais += p(row.snapshot.materialsTotal) * qty;
+                    totalCustosDiretos += p(row.snapshot.directCostsTotal) * qty;
+                } else {
+                    totalMateriais += calcMaterials(ft) * qty;
+                    totalCustosDiretos += (calcDirectCostsRS(ft) + calcDirectCostsPerc(ft, precoEfetivo)) * qty;
+                }
+            });
+        });
+
+        const costData = custosData[monthStr];
+        let lumeRS = 0, bureauRS = 0, custosExtrasRS = 0;
+
+        if (costData) {
+            const empresas = costData.empresas || [];
+            const monthHours = getWorkHoursInMonth(monthStr);
+
+            // 1. Custo Lume baseado diretamente na porcentagem de produção
+            let totalEmp1 = 0;
+            let custoHoraEmp1 = 0;
+            if (empresas.length > 0) {
+                const emp1 = empresas[0];
+                totalEmp1 = (emp1.expenses || []).reduce((a, c) => a + p(c.value), 0);
+                const factor = emp1.productionFactor || 0;
+                const dispEmp1 = factor * monthHours;
+                custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
+            }
+
+            // Somar horas consumidas de todas as vendas deste mês
+            let horasTotaisConsumidas = 0;
+            PLATFORMS_ID.forEach(pid => {
+                const key = `${pid}_${monthStr}`;
+                const ftsLocal = mktFtsData[pid] || ftsData;
+                const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+
+                vendas.forEach(row => {
+                    const ft = ftsLocal.find(f => f.id === row.ftId);
+                    if (!ft && !row.snapshot) return;
+                    const resolvedFt = row.snapshot || ft;
+                    const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+                    const qtd = parseInt(row.quantity) || 0;
+                    horasTotaisConsumidas += (tempoMin / 60) * qtd;
+                });
+            });
+
+            lumeRS = horasTotaisConsumidas * custoHoraEmp1;
+
+            let rateioRestantesTotal = 0;
+            if (empresas.length > 1) {
+                empresas.forEach((emp, idx) => {
+                    if (idx === 0) return;
+                    const totalEmp = (emp.expenses || []).reduce((a, c) => a + p(c.value), 0);
+                    const perc = emp.ecommerceShare || 0;
+                    rateioRestantesTotal += totalEmp * (perc / 100);
+                });
+            }
+
+            const adsArr = Array.isArray(costData?.ads) ? costData.ads : [];
+            const extrasArr = Array.isArray(costData?.gastosExtras) ? costData.gastosExtras : [];
+            custosExtrasRS = adsArr.reduce((a, c) => a + p(c.value), 0) +
+                extrasArr.reduce((a, c) => a + p(c.value), 0);
+
+            bureauRS = rateioRestantesTotal;
+        }
+
+        const custoTotal = totalMateriais + totalCustosDiretos + custosExtrasRS;
+        const custoInevitavel = lumeRS + bureauRS;
+        const lucroLiquido = totalFaturamento - custoTotal - custoInevitavel;
+
+        const pLume = parseFloat(percentConfig[monthStr]?.percentLume) || 0;
+        const lucroLiquidoPerc = (pLume / 100) * (parseFloat(lucroLiquido) || 0);
+        const lumeEcomm = (parseFloat(lumeRS) || 0) + 
+                          (parseFloat(custosExtrasRS) || 0) + 
+                          (parseFloat(totalMateriais) || 0) + 
+                          (parseFloat(totalCustosDiretos) || 0) + 
+                          lucroLiquidoPerc;
+        
+        return lumeEcomm || 0;
+    };
 
     const getMonthlyData = (monthIndex, year) => {
         // INCOME
@@ -78,21 +274,23 @@ const Resumo = ({ expenses, orders }) => {
             .reduce((sum, e) => sum + e.amount, 0);
 
         const totalSaidas = fixos + mercado + fornecedores + retirada;
-        const saldo = entradas - totalSaidas;
+        const lumeEcomm = getEcommTotalLume(monthIndex, year);
+        const saldo = entradas + lumeEcomm - totalSaidas;
 
-        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo };
+        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo, lumeEcomm };
     };
 
     // Calcular totais anuais
     const annualTotals = months.reduce((acc, _, index) => {
         const data = getMonthlyData(index, selectedYear);
-        acc.entradas += data.entradas;
-        acc.entradasPendentes += data.entradasPendentes;
-        acc.totalSaidas += data.totalSaidas;
-        acc.saidasPendentes += data.saidasPendentes;
-        acc.saldo += data.saldo;
+        acc.entradas += parseFloat(data.entradas) || 0;
+        acc.entradasEcomm += parseFloat(data.lumeEcomm) || 0;
+        acc.entradasPendentes += parseFloat(data.entradasPendentes) || 0;
+        acc.totalSaidas += parseFloat(data.totalSaidas) || 0;
+        acc.saidasPendentes += parseFloat(data.saidasPendentes) || 0;
+        acc.saldo += parseFloat(data.saldo) || 0;
         return acc;
-    }, { entradas: 0, entradasPendentes: 0, totalSaidas: 0, saidasPendentes: 0, saldo: 0 });
+    }, { entradas: 0, entradasEcomm: 0, entradasPendentes: 0, totalSaidas: 0, saidasPendentes: 0, saldo: 0 });
 
     return (
         <div className="space-y-3">
@@ -109,10 +307,15 @@ const Resumo = ({ expenses, orders }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                 <StatCard
                     title={`Total Entradas (Pagas) - Ano ${selectedYear}`}
                     value={annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    type="positive"
+                />
+                <StatCard
+                    title={`Total E-Commerce - Ano ${selectedYear}`}
+                    value={annualTotals.entradasEcomm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     type="positive"
                 />
                 <StatCard
@@ -151,6 +354,7 @@ const Resumo = ({ expenses, orders }) => {
                             <tr className="bg-gray-50/50 text-gray-500 text-[10px] font-bold uppercase tracking-wider border-b border-gray-100">
                                 <th className="px-6 py-4">Mês</th>
                                 <th className="px-6 py-4 text-right text-green-600">Entradas (+)</th>
+                                <th className="px-6 py-4 text-right text-indigo-600">Entrada E-Commerce</th>
                                 <th className="px-6 py-4 text-right text-orange-500">Entradas Pendentes</th>
                                 <th className="px-6 py-4 text-right">Fixo/Extra</th>
                                 <th className="px-6 py-4 text-right">Extras (Avulso)</th>
@@ -185,6 +389,9 @@ const Resumo = ({ expenses, orders }) => {
                                         </td>
                                         <td className="px-6 py-4 text-right text-green-600 font-medium">
                                             {data.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-indigo-600 font-medium">
+                                            {data.lumeEcomm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right text-orange-500 font-medium">
                                             {data.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

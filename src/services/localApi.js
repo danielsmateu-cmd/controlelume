@@ -437,6 +437,13 @@ export const localApi = {
         return true;
     },
 
+    async updateFtProductionTime(id, productionTime) {
+        const current = getLocal('fts', []);
+        const next = current.map(ft => ft.id === id ? { ...ft, productionTime: productionTime, production_time: productionTime } : ft);
+        setLocal('fts', next);
+        return true;
+    },
+
     // ==================== COST MODELS (Fichas Técnicas) ====================
     async getFtCostModels() {
         return getLocal('ft_cost_models', []);

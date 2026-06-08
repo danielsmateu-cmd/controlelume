@@ -33,45 +33,41 @@ const getInitData = () => ({
                 { id: '1-f', name: 'Folha', value: 0 },
                 { id: '1-al', name: 'Aluguel', value: 0 },
             ]
-        },
-        { id: 'emp-2', name: 'Bureau', expenses: [] },
+        }
     ],
     ads: [],
     gastosExtras: [],
 });
 
 const migrateData = (saved) => {
-    if (!saved || typeof saved !== 'object') return getInitData();
-
-    // Já está no novo formato com empresas válidas
-    if (Array.isArray(saved.empresas) && saved.empresas.length > 0) {
-        return {
-            empresas: saved.empresas,
-            ads: Array.isArray(saved.ads) ? saved.ads : [],
-            gastosExtras: Array.isArray(saved.gastosExtras) ? saved.gastosExtras : [],
-        };
-    }
-
-    // Migrar formato legado (empresa1 / empresa2 / somatoria)
     const defaults = getInitData();
-    const empresas = [];
-    if (saved.empresa1) {
-        empresas.push({
-            id: 'emp-1',
-            name: saved.empresa1.name || 'LUME',
-            expenses: Array.isArray(saved.empresa1.expenses) ? saved.empresa1.expenses : defaults.empresas[0].expenses,
-        });
+    if (!saved || typeof saved !== 'object') return defaults;
+
+    let empresas = [];
+    if (Array.isArray(saved.empresas)) {
+        empresas = saved.empresas.filter(emp => emp.id === 'emp-1' || emp.name.toUpperCase() === 'LUME');
     }
-    if (saved.empresa2) {
-        empresas.push({
-            id: 'emp-2',
-            name: saved.empresa2.name || 'Bureau',
-            expenses: Array.isArray(saved.empresa2.expenses) ? saved.empresa2.expenses : [],
-        });
+
+    if (empresas.length === 0) {
+        if (saved.empresa1) {
+            empresas.push({
+                id: 'emp-1',
+                name: 'LUME',
+                expenses: Array.isArray(saved.empresa1.expenses) ? saved.empresa1.expenses : defaults.empresas[0].expenses,
+            });
+        } else {
+            empresas = defaults.empresas;
+        }
+    }
+
+    // Force check: ensure ONLY emp-1 (LUME) exists
+    empresas = empresas.slice(0, 1);
+    if (empresas[0]) {
+        empresas[0].name = 'LUME';
     }
 
     return {
-        empresas: empresas.length > 0 ? empresas : defaults.empresas,
+        empresas,
         ads: Array.isArray(saved.ads) ? saved.ads : [],
         gastosExtras: Array.isArray(saved.gastosExtras) ? saved.gastosExtras : [],
     };
@@ -126,24 +122,13 @@ const getWorkHoursInMonth = (monthStr) => {
 
 const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasData, ftsData, mktFtsData }) => {
     const monthHours = getWorkHoursInMonth(currentMonth);
-
-    // Cálculo dos Rateios das Empresas (BUREAU e outras)
-    // Tudo que não é a Empresa 0 (Lume) entra no grupo de Rateio
-    let rateioRestantesPorMkt = 0;
     const mktsAtivos = MARKETPLACES.filter(m => m.id !== 'geral');
 
-    if (empresas.length > 1 && mktsAtivos.length > 0) {
-        empresas.forEach((emp, idx) => {
-            if (idx === 0) return; // Pula Lume
-            const totalEmp = getEmpTotal(emp);
-            const percentualRepasse = emp.ecommerceShare || 0;
-            const valorIrParaEcommerce = totalEmp * (percentualRepasse / 100);
-            rateioRestantesPorMkt += valorIrParaEcommerce / mktsAtivos.length;
-        });
-    }
+    // 1. Calcular total de horas consumidas de todos os marketplaces ativos
+    let horasTotaisConsumidas = 0;
+    const mktHoursMap = {};
 
-    // Resumo de produção por marketplace
-    const marketplacesResumo = mktsAtivos.map(mkt => {
+    mktsAtivos.forEach(mkt => {
         const key = `${mkt.id}_${currentMonth}`;
         const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
         const fts = mktFtsData[mkt.id] || ftsData;
@@ -151,47 +136,40 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
         let horasConsumidas = 0;
         vendas.forEach(venda => {
             const ft = fts.find(f => f.id === venda.ftId);
-            if (ft) {
-                const tempoMin = parseFloat(ft.productionTime) || 0;
-                const qtd = parseInt(venda.quantity) || 0;
-                // Tempo na FT está em minutos. Dividimos por 60 para obter horas.
-                horasConsumidas += (tempoMin / 60) * qtd;
-            }
+            if (!ft && !venda.snapshot) return;
+            const resolvedFt = venda.snapshot || ft;
+            const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+            const qtd = parseInt(venda.quantity) || 0;
+            horasConsumidas += (tempoMin / 60) * qtd;
         });
 
-        let custoHoraEmp1 = 0;
-        let emp1Name = 'Empresa 1';
-        if (empresas.length > 0) {
-            const emp1 = empresas[0]; // Empresa 1 (Lume)
-            emp1Name = emp1.name || 'Empresa 1';
-            const totalEmp1 = getEmpTotal(emp1);
-            const dispEmp1 = (emp1.productionFactor || 0) * monthHours;
-            custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
-        }
+        mktHoursMap[mkt.id] = horasConsumidas;
+        horasTotaisConsumidas += horasConsumidas;
+    });
 
-        const valorEmp1 = horasConsumidas * custoHoraEmp1;
-        const valorEmp2 = rateioRestantesPorMkt;
-        const emp2Name = "BUREAU (Total Rateios)";
+    // 2. Calcular custoHoraEmp1 baseado nas horas disponíveis
+    let custoHoraEmp1 = 0;
+    let emp1Name = 'LUME';
+    if (empresas.length > 0) {
+        const emp1 = empresas[0];
+        emp1Name = emp1.name || 'LUME';
+        const totalEmp1 = getEmpTotal(emp1);
+        const factor = emp1.productionFactor || 0;
+        const dispEmp1 = factor * monthHours;
+        custoHoraEmp1 = dispEmp1 > 0 ? totalEmp1 / dispEmp1 : 0;
+    }
 
-        const custoTotalMkt = valorEmp1 + valorEmp2;
+    // Resumo de produção por marketplace
+    const marketplacesResumo = mktsAtivos.map(mkt => {
+        const horasConsumidas = mktHoursMap[mkt.id] || 0;
+        const custoTotalMkt = horasConsumidas * custoHoraEmp1;
 
-        return { ...mkt, horasConsumidas, custoTotalMkt, valorEmp1, valorEmp2, emp1Name, emp2Name };
+        return { ...mkt, horasConsumidas, custoTotalMkt, valorEmp1: custoTotalMkt, emp1Name };
     });
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 print:gap-2">
-            {/* Botão Add Empresa no topo */}
-            <div className="md:col-span-2 xl:col-span-3 flex justify-end print:hidden">
-                <button
-                    onClick={() => mutateData(d => ({
-                        ...d,
-                        empresas: [...d.empresas, { id: `emp-${Date.now()}`, name: `Empresa ${d.empresas.length + 1}`, expenses: [] }],
-                    }))}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg font-bold border border-indigo-200"
-                >
-                    <Plus size={13} /> Adicionar Empresa
-                </button>
-            </div>
+
 
             {empresas.map((emp, idx) => {
                 const c = getColor(idx);
@@ -233,7 +211,10 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             <div className="text-right flex-1">
                                 <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Tempo Disp. (Mês)</div>
                                 <div className="text-base font-bold text-indigo-700">
-                                    {fmtNum((emp.productionFactor || 0) * monthHours)} <span className="text-[10px] font-normal text-gray-500">hrs</span>
+                                    {(() => {
+                                        const factor = emp.productionFactor || 0;
+                                        return fmtNum(factor * monthHours);
+                                    })()} <span className="text-[10px] font-normal text-gray-500">hrs</span>
                                 </div>
                             </div>
                         </div>
@@ -242,7 +223,8 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                         {(() => {
                             if (idx === 0) {
                                 // Empresa 1: Custo por Hora
-                                const horasDisp = (emp.productionFactor || 0) * monthHours;
+                                const factor = emp.productionFactor || 0;
+                                const horasDisp = factor * monthHours;
                                 const custoPorHora = horasDisp > 0 ? total / horasDisp : 0;
                                 return (
                                     <div className="bg-indigo-50/50 p-2 rounded mb-2 border border-indigo-100 flex justify-between items-center">
@@ -351,7 +333,7 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
             {/* Nova Coluna: Custo Inevitável Total por Marketplace */}
             <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col print:hidden">
                 <div className="bg-gray-100 p-2 rounded mb-3 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800 text-sm">Custo Inevitável (Rateios)</h3>
+                    <h3 className="font-bold text-gray-800 text-sm">Custo Inevitável (LUME)</h3>
                 </div>
                 <div className="space-y-3 flex-grow max-h-[40vh] overflow-y-auto pr-1">
                     {marketplacesResumo.map(res => (
@@ -369,10 +351,6 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             <div className="flex justify-between items-center px-1">
                                 <span className="text-[10px] font-bold text-gray-600 uppercase">{res.emp1Name}</span>
                                 <span className="text-xs font-bold text-gray-700">{fmt(res.valorEmp1)}</span>
-                            </div>
-                            <div className="flex justify-between items-center px-1">
-                                <span className="text-[10px] font-bold text-gray-600 uppercase">{res.emp2Name}</span>
-                                <span className="text-xs font-bold text-orange-600">+{fmt(res.valorEmp2)}</span>
                             </div>
                         </div>
                     ))}
@@ -610,9 +588,10 @@ const EmpresasCustos = ({ readOnly, printMonth, forceTab }) => {
         const [yearStr, monthNumStr] = monthStr.split('-');
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthNumStr, 10);
-        const monthName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-        const prevMonth = new Date(year, month - 2).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-        return `FECHAMENTO ${monthName} DE ${year} - CONTAS DE ${prevMonth}`;
+        const prevDate = new Date(year, month - 2);
+        const prevMonth = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prevYear = prevDate.getFullYear();
+        return `CONTAS DE ${prevMonth} DE ${prevYear}`;
     };
 
     const empresas = Array.isArray(data.empresas) ? data.empresas : [];

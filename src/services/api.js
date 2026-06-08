@@ -710,6 +710,20 @@ const supabaseApi = {
         }
     },
 
+    async updateFtProductionTime(id, productionTime) {
+        try {
+            const { error } = await supabase
+                .from('fts')
+                .update({ production_time: productionTime || null, updated_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase updateFtProductionTime:', err);
+            return false;
+        }
+    },
+
     // ==================== COST MODELS (Fichas Técnicas) ====================
     async getFtCostModels() {
         try {

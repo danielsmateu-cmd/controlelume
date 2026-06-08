@@ -21,7 +21,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         installments: 1,
         installmentDates: [new Date().toISOString().split('T')[0]]
     });
-    const [retiradaForm, setRetiradaForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], people: [] });
+    const [retiradaForm, setRetiradaForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], people: [], notes: '' });
 
     const withdrawalPeople = ['Juliana', 'Daniel', 'Bruno', 'Outros'];
 
@@ -327,6 +327,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             id: Date.now() + index,
             type: 'retirada',
             description: `Retirada: ${person}`,
+            notes: retiradaForm.notes,
             amount: parseFloat(retiradaForm.value),
             date: retiradaForm.date,
             year: new Date(retiradaForm.date + 'T00:00:00').getUTCFullYear(),
@@ -335,7 +336,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         }));
 
         setExpenses([...newExpenses, ...expenses]);
-        setRetiradaForm({ ...retiradaForm, value: '', date: new Date().toISOString().split('T')[0], people: [] });
+        setRetiradaForm({ ...retiradaForm, value: '', date: new Date().toISOString().split('T')[0], people: [], notes: '' });
     };
 
     const toggleRetiradaPerson = (person) => {
@@ -479,6 +480,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             <td className="px-6 py-2 text-sm text-gray-900">
                                 {expense.category ? <span className="font-semibold text-indigo-600">{expense.category}</span> : expense.description}
                                 {expense.month !== undefined && <span className="ml-2 text-[10px] text-gray-400">({months[expense.month]})</span>}
+                                {expense.notes && <span className="block text-[10px] text-gray-400 mt-0.5 italic">{expense.notes}</span>}
                             </td>
                             {activeTab === 'fornecedores' && (
                                 <td className="px-6 py-2 text-sm">
@@ -812,16 +814,21 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-2">
-                                                        <input
-                                                            type="number" step="0.01"
-                                                            value={expense.amount || ''}
-                                                            onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                                                            onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                                                            readOnly={readOnly}
-                                                            disabled={readOnly}
-                                                            className="w-full max-w-[120px] p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                                            placeholder="0,00"
-                                                        />
+                                                        <div className="relative w-full max-w-[120px]">
+                                                            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                                                <span className="text-gray-500 text-sm font-medium">R$</span>
+                                                            </div>
+                                                            <input
+                                                                type="number" step="0.01"
+                                                                value={expense.amount || ''}
+                                                                onChange={(e) => !readOnly && updateExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                                onBlur={(e) => !readOnly && saveExpenseField(expense.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                                readOnly={readOnly}
+                                                                disabled={readOnly}
+                                                                className="w-full pl-7 p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-gray-900"
+                                                                placeholder="0,00"
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
                                                         {confirmingId === expense.id ? (
@@ -1126,6 +1133,17 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                             className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                                         />
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição (opcional)</label>
+                                    <input
+                                        type="text"
+                                        value={retiradaForm.notes}
+                                        onChange={(e) => setRetiradaForm({ ...retiradaForm, notes: e.target.value })}
+                                        className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        placeholder="Ex: Adiantamento, Pró-labore, etc."
+                                    />
                                 </div>
 
                                 <div>

@@ -104,17 +104,15 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     const formatMonthDisplay = (monthStr) => {
         if (!monthStr) return '';
         const [yearStr, monthStrPart] = monthStr.split('-');
-        const year = parseInt(yearStr);
-        const month = parseInt(monthStrPart);
-
-        const date = new Date(year, month - 1);
-        const monthName = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStrPart, 10);
 
         const prevDate = new Date(year, month - 2);
-        const prevMonthNum = String(prevDate.getMonth() + 1).padStart(2, '0');
+        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+        const prevYear = prevDate.getFullYear();
         const lastDayPrev = new Date(year, month - 1, 0).getDate();
 
-        return `FECHAMENTO ${monthName} DE ${year} - VENDAS DE 01/${prevMonthNum} A ${lastDayPrev}/${prevMonthNum}`;
+        return `VENDAS DE 01 A ${lastDayPrev} DE ${prevMonthName} DE ${prevYear}`;
     };
 
     const isCurrentMonthLocked = lockedMonths.includes(`${marketplace}_${currentMonth}`);
@@ -216,7 +214,7 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         if (isCurrentMonthLocked || readOnly) return;
 
         const mktName = marketplace.toUpperCase();
-        const monthDisplay = formatMonthDisplay(currentMonth).split(' - ')[0]; // Pega so "FECHAMENTO MARCO DE 2026"
+        const monthDisplay = formatMonthDisplay(currentMonth); // Pega o mês formatado de vendas
 
         const confirmMsg = `ATENÇÃO: Você está prestes a TRAVAR os dados de vendas de ${mktName} para o mês de ${monthDisplay}.\n\nAo travar:\n1. Os valores de Preço, Custos e Tempo de Produção atuais serão fixados para este mês.\n2. Nenhuma alteração futura nas Fichas Técnicas afetará este mês.\n3. A edição será BLOQUEADA para este mês.\n\nDeseja continuar?`;
 
@@ -272,7 +270,7 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
         if (!isCurrentMonthLocked || readOnly) return;
 
         const mktName = marketplace.toUpperCase();
-        const monthDisplay = formatMonthDisplay(currentMonth).split(' - ')[0];
+        const monthDisplay = formatMonthDisplay(currentMonth);
 
         const confirmMsg = `ATENÇÃO: Você está prestes a DESTRAVAR os dados de vendas de ${mktName} para o mês de ${monthDisplay}.\n\nAo destravar:\n1. Os valores das Fichas Técnicas VOLTARÃO aos valores cadastrados no momento atual.\n2. A "foto" (snapshot) dos valores antigos será PERDIDA.\n3. A edição será LIBERADA para este mês.\n\nDeseja continuar?`;
 
