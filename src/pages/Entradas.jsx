@@ -566,12 +566,27 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const total = monthOrders.reduce((s, o) => s + (o.value || 0), 0);
                     const paid = monthOrders.filter(o => o.isPaid).reduce((s, o) => s + (o.value || 0), 0);
                     const pending = total - paid;
-                    return { name, total, paid, pending, count: monthOrders.length };
+
+                    // MC calculations for annual summary month block
+                    const ordersWithMc = monthOrders.filter(o => o.contribMarginValue !== null && o.contribMarginValue !== undefined);
+                    const mcValue = ordersWithMc.reduce((s, o) => s + o.contribMarginValue, 0);
+                    const mcBaseValue = ordersWithMc.reduce((s, o) => s + o.value, 0);
+                    const mcPerc = mcBaseValue > 0 ? (mcValue / mcBaseValue) * 100 : 0;
+
+                    return { name, total, paid, pending, count: monthOrders.length, mcValue, mcPerc };
                 });
 
                 const yearTotal = monthlyData.reduce((s, m) => s + m.total, 0);
                 const yearPaid = monthlyData.reduce((s, m) => s + m.paid, 0);
                 const yearPending = monthlyData.reduce((s, m) => s + m.pending, 0);
+
+                // Annual MC values
+                const yearMcValue = monthlyData.reduce((s, m) => s + m.mcValue, 0);
+                const yearMcBaseValue = orders.filter(o => {
+                    const oYear = o.year || new Date(o.orderDate + 'T00:00:00').getUTCFullYear();
+                    return oYear === selectedYear && o.contribMarginValue !== null && o.contribMarginValue !== undefined;
+                }).reduce((s, o) => s + o.value, 0);
+                const yearMcPerc = yearMcBaseValue > 0 ? (yearMcValue / yearMcBaseValue) * 100 : 0;
 
                 const scrollToMonth = (monthName) => {
                     const el = document.getElementById(`month-section-${monthName.toLowerCase()}`);
@@ -586,7 +601,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                 <TrendingUp size={16} className="text-indigo-200" />
                                 <span className="text-sm font-bold text-white">Resumo Anual {selectedYear}</span>
                             </div>
-                            <div className="flex items-center gap-4 text-[11px]">
+                            <div className="flex items-center gap-4 text-[11px] flex-wrap justify-end">
+                                {yearMcValue > 0 && (
+                                    <span className="text-indigo-100 bg-indigo-700/40 px-2 py-0.5 rounded font-bold">
+                                        MC: {fmt(yearMcValue)} ({yearMcPerc.toFixed(1)}%)
+                                    </span>
+                                )}
                                 <span className="text-indigo-200">Total: <span className="font-bold text-white">{fmt(yearTotal)}</span></span>
                                 <span className="text-green-300">Pago: <span className="font-bold text-white">{fmt(yearPaid)}</span></span>
                                 {yearPending > 0 && <span className="text-red-300">Pendente: <span className="font-bold text-white">{fmt(yearPending)}</span></span>}
@@ -626,6 +646,11 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                         {hasData ? (
                                             <>
                                                 <span className="text-[10px] font-bold text-gray-800 leading-tight">{fmt(m.total)}</span>
+                                                {m.mcValue > 0 && (
+                                                    <span className="text-[9px] text-indigo-600 font-semibold leading-tight mt-0.5">
+                                                        MC: {fmt(m.mcValue)} ({m.mcPerc.toFixed(0)}%)
+                                                    </span>
+                                                )}
                                                 <span className="text-[9px] text-green-600 leading-tight mt-0.5">{fmt(m.paid)}</span>
                                                 {m.pending > 0 && (
                                                     <span className="text-[9px] text-red-500 leading-tight">{fmt(m.pending)}</span>
