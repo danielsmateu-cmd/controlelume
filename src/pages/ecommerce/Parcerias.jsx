@@ -67,10 +67,25 @@ const Parcerias = ({ readOnly, printMonth }) => {
                 const fts = await api.getFts();
                 setFtsData(fts);
 
+                const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+                const overridesList = await Promise.all(
+                    PLATFORMS_ID.map(pid => 
+                        api.getSettings(`ft_overrides_${pid}`).catch(err => {
+                            console.error(`Erro ao carregar overrides para ${pid}:`, err);
+                            return null;
+                        })
+                    )
+                );
+
                 const mktFts = {};
-                ['meli', 'shopee', 'tiktok', 'amazon', 'site'].forEach(pid => {
-                    const raw = localStorage.getItem(`fts_mkt_${pid}`);
-                    mktFts[pid] = raw ? JSON.parse(raw) : fts;
+                PLATFORMS_ID.forEach((pid, idx) => {
+                    const overridesData = overridesList[idx] || {};
+                    mktFts[pid] = fts.map(ft => {
+                        if (overridesData[ft.ftCode]) {
+                            return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                        }
+                        return ft;
+                    });
                 });
                 setMktFtsData(mktFts);
 

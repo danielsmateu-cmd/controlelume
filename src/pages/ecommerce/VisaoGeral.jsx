@@ -59,10 +59,24 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                 const fts = await api.getFts();
                 setFtsData(fts);
 
+                const overridesList = await Promise.all(
+                    PLATFORMS.map(pObj => 
+                        api.getSettings(`ft_overrides_${pObj.id}`).catch(err => {
+                            console.error(`Erro ao carregar overrides para ${pObj.id}:`, err);
+                            return null;
+                        })
+                    )
+                );
+
                 const mktFts = {};
-                PLATFORMS.forEach(p => {
-                    const raw = localStorage.getItem(`fts_mkt_${p.id}`);
-                    mktFts[p.id] = raw ? JSON.parse(raw) : fts;
+                PLATFORMS.forEach((pObj, idx) => {
+                    const overridesData = overridesList[idx] || {};
+                    mktFts[pObj.id] = fts.map(ft => {
+                        if (overridesData[ft.ftCode]) {
+                            return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                        }
+                        return ft;
+                    });
                 });
                 setMktFtsData(mktFts);
 

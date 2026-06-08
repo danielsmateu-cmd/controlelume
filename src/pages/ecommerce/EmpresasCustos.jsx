@@ -549,12 +549,27 @@ const EmpresasCustos = ({ readOnly, printMonth, forceTab }) => {
 
                 if (cancelled) return;
 
-                // Fichas técnicas (globais e locais de cada marketplace)
+                const overridesList = await Promise.all(
+                    MARKETPLACES.map(pObj => 
+                        api.getSettings(`ft_overrides_${pObj.id}`).catch(err => {
+                            console.error(`Erro ao carregar overrides para ${pObj.id}:`, err);
+                            return null;
+                        })
+                    )
+                );
+
+                if (cancelled) return;
+
                 setFtsData(fts);
                 const mktFts = {};
-                MARKETPLACES.forEach(p => {
-                    const raw = localStorage.getItem(`fts_mkt_${p.id}`);
-                    mktFts[p.id] = raw ? JSON.parse(raw) : fts;
+                MARKETPLACES.forEach((pObj, idx) => {
+                    const overridesData = overridesList[idx] || {};
+                    mktFts[pObj.id] = fts.map(ft => {
+                        if (overridesData[ft.ftCode]) {
+                            return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                        }
+                        return ft;
+                    });
                 });
                 setMktFtsData(mktFts);
 

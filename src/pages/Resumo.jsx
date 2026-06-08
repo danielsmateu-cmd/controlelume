@@ -79,10 +79,25 @@ const Resumo = ({ expenses, orders }) => {
                 const fts = await api.getFts();
                 setFtsData(fts);
 
+                const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+                const overridesList = await Promise.all(
+                    PLATFORMS_ID.map(pid => 
+                        api.getSettings(`ft_overrides_${pid}`).catch(err => {
+                            console.error(`Erro ao carregar overrides para ${pid}:`, err);
+                            return null;
+                        })
+                    )
+                );
+
                 const mktFts = {};
-                ['meli', 'shopee', 'tiktok', 'amazon', 'site'].forEach(pid => {
-                    const raw = localStorage.getItem(`fts_mkt_${pid}`);
-                    mktFts[pid] = raw ? JSON.parse(raw) : fts;
+                PLATFORMS_ID.forEach((pid, idx) => {
+                    const overridesData = overridesList[idx] || {};
+                    mktFts[pid] = fts.map(ft => {
+                        if (overridesData[ft.ftCode]) {
+                            return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
+                        }
+                        return ft;
+                    });
                 });
                 setMktFtsData(mktFts);
 
@@ -286,11 +301,26 @@ const Resumo = ({ expenses, orders }) => {
         acc.entradas += parseFloat(data.entradas) || 0;
         acc.entradasEcomm += parseFloat(data.lumeEcomm) || 0;
         acc.entradasPendentes += parseFloat(data.entradasPendentes) || 0;
+        acc.fixos += parseFloat(data.fixos) || 0;
+        acc.mercado += parseFloat(data.mercado) || 0;
+        acc.fornecedores += parseFloat(data.fornecedores) || 0;
+        acc.retirada += parseFloat(data.retirada) || 0;
         acc.totalSaidas += parseFloat(data.totalSaidas) || 0;
         acc.saidasPendentes += parseFloat(data.saidasPendentes) || 0;
         acc.saldo += parseFloat(data.saldo) || 0;
         return acc;
-    }, { entradas: 0, entradasEcomm: 0, entradasPendentes: 0, totalSaidas: 0, saidasPendentes: 0, saldo: 0 });
+    }, { 
+        entradas: 0, 
+        entradasEcomm: 0, 
+        entradasPendentes: 0, 
+        fixos: 0, 
+        mercado: 0, 
+        fornecedores: 0, 
+        retirada: 0, 
+        totalSaidas: 0, 
+        saidasPendentes: 0, 
+        saldo: 0 
+    });
 
     return (
         <div className="space-y-3">
@@ -310,7 +340,7 @@ const Resumo = ({ expenses, orders }) => {
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                 <StatCard
                     title={`Total Entradas (Pagas) - Ano ${selectedYear}`}
-                    value={annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    value={(annualTotals.entradas + annualTotals.entradasEcomm).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     type="positive"
                 />
                 <StatCard
@@ -424,6 +454,44 @@ const Resumo = ({ expenses, orders }) => {
                                 );
                             })}
                         </tbody>
+                        <tfoot>
+                            <tr className="bg-indigo-600 text-white font-bold border-t-2 border-indigo-700 text-xs">
+                                <td className="px-6 py-4 uppercase font-semibold">Total Geral</td>
+                                <td className="px-6 py-4 text-right font-medium">
+                                    {annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-medium">
+                                    {annualTotals.entradasEcomm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-medium">
+                                    {annualTotals.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-normal">
+                                    {annualTotals.fixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-normal">
+                                    {annualTotals.mercado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-normal">
+                                    {annualTotals.fornecedores.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-normal">
+                                    {annualTotals.retirada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-bold border-l border-indigo-700 bg-indigo-700/30">
+                                    {annualTotals.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-bold bg-indigo-700/30">
+                                    {annualTotals.saidasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className={clsx(
+                                    "px-6 py-4 text-right font-bold border-l border-indigo-700",
+                                    annualTotals.saldo >= 0 ? "text-emerald-300 bg-emerald-700/30" : "text-red-300 bg-red-700/30"
+                                )}>
+                                    {annualTotals.saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
