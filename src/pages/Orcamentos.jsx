@@ -118,11 +118,11 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
         const styleEl = document.createElement('style');
         styleEl.innerHTML = `
             .print-page {
-                width: 210mm !important;
-                height: 297mm !important;
-                max-height: 297mm !important;
+                width: 794px !important;
+                height: 1123px !important;
+                max-height: 1123px !important;
                 overflow: hidden !important;
-                padding: 12mm 15mm !important;
+                padding: 45px 55px !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -131,10 +131,10 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                 position: relative !important;
             }
             .print-image-page {
-                width: 210mm !important;
-                height: 297mm !important;
-                max-height: 297mm !important;
-                padding: 12mm 15mm !important;
+                width: 794px !important;
+                height: 1123px !important;
+                max-height: 1123px !important;
+                padding: 45px 55px !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -174,13 +174,16 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
         `;
         clone.appendChild(styleEl);
 
-        // Remove Tailwind "hidden" e força exibição
+        // Remove Tailwind "hidden", fixa fora de vista mas no fluxo de renderização
         clone.className = '';
-        clone.style.position = 'absolute';
-        clone.style.top = '-9999px';
-        clone.style.left = '-9999px';
+        clone.style.position = 'fixed';
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.width = '794px';
+        clone.style.zIndex = '-9999';
+        clone.style.pointerEvents = 'none';
+        clone.style.visibility = 'visible';
         clone.style.display = 'block';
-        clone.style.width = '210mm';
 
         document.body.appendChild(clone);
 
@@ -188,37 +191,53 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
             // Aguarda renderização de imagens e fontes
             await new Promise(resolve => setTimeout(resolve, 500));
 
+            // Determina a altura esperada com base nas páginas necessárias
+            const imagesCount = budget && budget.attachedImages 
+                ? budget.attachedImages.length 
+                : attachedImages.length;
+            const pageCount = 1 + imagesCount;
+            const expectedHeight = 1123 * pageCount;
+
             // Captura com html2canvas
             const canvas = await html2canvas(clone, {
                 scale: 2, // maior qualidade
                 useCORS: true,
                 logging: false,
                 allowTaint: true,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                width: 794,
+                height: expectedHeight
             });
 
             // Remove o clone do DOM
             document.body.removeChild(clone);
 
+            if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                throw new Error(`Dimensões do canvas inválidas: ${canvas ? canvas.width : 0}x${canvas ? canvas.height : 0}`);
+            }
+
             // Calcula proporção A4
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgWidth = 210;
             const pageHeight = 297;
-            const canvasPageHeight = canvas.width * 1.414;
+            const canvasPageHeight = Math.round(canvas.width * 1.4142);
 
             let remainingHeight = canvas.height;
             let position = 0;
 
             while (remainingHeight > 0) {
+                const targetWidth = canvas.width;
+                const targetHeight = Math.max(1, Math.min(canvasPageHeight, remainingHeight));
+
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = Math.min(canvasPageHeight, remainingHeight);
+                tempCanvas.width = targetWidth;
+                tempCanvas.height = targetHeight;
 
                 const ctx = tempCanvas.getContext('2d');
                 ctx.drawImage(
                     canvas,
-                    0, position, canvas.width, tempCanvas.height,
-                    0, 0, tempCanvas.width, tempCanvas.height
+                    0, position, targetWidth, targetHeight,
+                    0, 0, targetWidth, targetHeight
                 );
 
                 const pageImgData = tempCanvas.toDataURL('image/jpeg', 0.95);
@@ -227,8 +246,12 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                     pdf.addPage();
                 }
 
-                const destHeight = (tempCanvas.height * imgWidth) / tempCanvas.width;
-                pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidth, destHeight);
+                const rawDestHeight = targetWidth > 0 ? (targetHeight * imgWidth) / targetWidth : pageHeight;
+                const safeDestHeight = (isNaN(rawDestHeight) || !isFinite(rawDestHeight) || rawDestHeight <= 0) 
+                    ? pageHeight 
+                    : rawDestHeight;
+
+                pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidth, safeDestHeight);
 
                 position += canvasPageHeight;
                 remainingHeight -= canvasPageHeight;
