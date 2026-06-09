@@ -375,6 +375,230 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         }
     };
 
+    const renderPrintLayout = () => {
+        return (
+            <div id="print-area-container" className="hidden print:block">
+
+                {/* ── PÁGINA 1: Orçamento principal ── */}
+                {(() => {
+                    const totalPages = 1 + attachedImages.length;
+                    return (
+                        <div className="print-page bg-white text-black font-sans leading-tight text-[10.5px]">
+
+                            {/* Cabeçalho */}
+                            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-200">
+                                <div className="flex-1">
+                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-28 object-contain" />
+                                </div>
+                                <div className="flex-1 text-right">
+                                    <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
+                                    <div className="text-[9px] text-slate-600 space-y-0.5 leading-relaxed">
+                                        <p className="font-bold text-slate-800 text-xs mb-0.5">{new Date().toLocaleDateString('pt-BR')}</p>
+                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
+                                        <p>CNPJ: 66.022.922/0001-08</p>
+                                        <p>Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP</p>
+                                        <p>CEP: 13.347-458 | WhatsApp: (19) 99916-2239</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dados Cliente */}
+                            <div className="mb-4">
+                                <div className="section-title">Informações do Cliente</div>
+                                <div className="grid grid-cols-4 gap-y-3">
+                                    <div className="col-span-2">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Nome / Razão Social</span>
+                                        <span className="text-xs font-bold text-slate-800 uppercase">{clientData.name}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">CPF / CNPJ</span>
+                                        <span className="text-xs text-slate-800">{clientData.doc}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Telefone</span>
+                                        <span className="text-xs text-slate-800">{clientData.phone}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Email</span>
+                                        <span className="text-xs text-slate-800">{clientData.email || '-'}</span>
+                                    </div>
+                                    <div className="col-span-2 text-right">
+                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Endereço</span>
+                                        <span className="text-xs text-slate-800">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Itens */}
+                            <div className="mb-3">
+                                <div className="section-title">Descrição dos Serviços</div>
+                                <table className="print-table w-full">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-12 text-center text-[8px] uppercase tracking-widest">Qtd</th>
+                                            <th className="text-left text-[8px] uppercase tracking-widest pl-4">Item / Descrição</th>
+                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Unitário</th>
+                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-slate-600">
+                                        {budgetItems.map(item => (
+                                            <tr key={item.id}>
+                                                <td className="text-center font-bold align-top pt-1.5">{item.quantity}</td>
+                                                <td className="px-2 text-slate-800 align-top pt-1.5">
+                                                    <div className="font-bold uppercase">{item.name}</div>
+                                                    {item.description && (
+                                                        <div className="text-[9px] font-normal text-slate-600 mt-0.5 whitespace-pre-wrap leading-tight">{item.description}</div>
+                                                    )}
+                                                </td>
+                                                <td className="text-right text-slate-800 align-top pt-1.5">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                <td className="text-right font-black text-slate-900 align-top pt-1.5">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        ))}
+                                        {Array.from({ length: Math.max(0, 4 - budgetItems.length) }).map((_, i) => (
+                                            <tr key={`empty-${i}`} className="h-5">
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                                <td className="border-b border-slate-200"></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colSpan="2" className="border-none"></td>
+                                            <td className="text-slate-600 font-bold text-right py-4 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
+                                            <td className="font-black text-xl text-right text-slate-900 py-4 border-none whitespace-nowrap">
+                                                R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            {/* Pagamento + Prazo */}
+                            <div className="grid grid-cols-12 gap-8 mt-2">
+                                <div className="col-span-8">
+                                    <div className="section-title">Condições de Pagamento</div>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
+                                                <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-base font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <div className="text-[9px] text-green-700 uppercase mt-0.5 leading-tight text-right font-bold">
+                                                    Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
+                                                    + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
+                                                <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-base font-black text-slate-900">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">Sem juros no cartão</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="section-title mt-3">Dados Bancários / Pagamento</div>
+                                    <div className="flex gap-8">
+                                        <div className="flex-1">
+                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Banco Itaú</span>
+                                            <div className="text-[10px] text-slate-800 space-y-0.5">
+                                                <p><span className="font-black">Ag:</span> 5396</p>
+                                                <p><span className="font-black">Cc:</span> 97680-4</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Transferência PIX</span>
+                                            <div className="text-[10px] text-slate-800">
+                                                <p className="font-black text-slate-900">comercial@lumeacrilicos.com.br</p>
+                                                <p className="text-[8px] opacity-90 mt-0.5 font-bold uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-span-4 flex flex-col pt-1">
+                                    <div className="border-l border-slate-300 pl-5 h-full flex flex-col justify-start">
+                                        <div className="section-title border-none mb-3 text-slate-600 font-bold">Prazo de Produção</div>
+                                        <div className="text-3xl font-black text-slate-900 leading-none">10</div>
+                                        <div className="text-[9px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
+                                        <div className="text-[10px] italic text-slate-700 mt-2 leading-relaxed font-medium">
+                                            Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1">Descrição</div>
+                                            <div className="text-[9px] text-slate-700 leading-relaxed font-medium">
+                                                Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:<br />
+                                                Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP<br />
+                                                CEP: 13.347-458<br />
+                                                <strong>Não fazemos instalação.</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Rodapé */}
+                            <div className="mt-4 text-center text-[10px] text-slate-600 font-bold border-t border-slate-300 pt-2">
+                                Orçamento válido por 7 dias.
+                            </div>
+
+                            {/* Paginação */}
+                            {totalPages > 1 && (
+                                <div className="page-number">Pág 1 de {totalPages}</div>
+                            )}
+                        </div>
+                    );
+                })()}
+
+                {/* ── PÁGINAS DE IMAGENS ── */}
+                {attachedImages.map((img, idx) => {
+                    const totalPages = 1 + attachedImages.length;
+                    const pageNum = idx + 2;
+                    return (
+                        <div key={img.id} className="print-image-page bg-white text-black font-sans">
+                            {/* Cabeçalho igual */}
+                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
+                                <div className="flex-1">
+                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-20 object-contain" />
+                                </div>
+                                <div className="flex-1 text-right">
+                                    <h1 className="text-xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
+                                    <div className="text-[9px] text-slate-600 space-y-0.5">
+                                        <p className="font-bold text-slate-800 text-[10px]">{new Date().toLocaleDateString('pt-BR')}</p>
+                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
+                                        <p>CNPJ: 66.022.922/0001-08 | WhatsApp: (19) 99916-2239</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Cliente resumido */}
+                            <div className="text-[9px] text-slate-600 mb-4 font-bold">
+                                Cliente: <span className="text-slate-800 uppercase">{clientData.name}</span>
+                                {img.name && <span className="ml-4 text-slate-500 font-normal">Referência: {img.name}</span>}
+                            </div>
+                            {/* Imagem ocupa o restante */}
+                            <div className="flex-1 flex items-center justify-center">
+                                <img
+                                    src={img.dataUrl}
+                                    alt={img.name || `Imagem ${idx + 1}`}
+                                    style={{ maxWidth: '100%', maxHeight: '210mm', objectFit: 'contain' }}
+                                />
+                            </div>
+                            {/* Paginação */}
+                            <div className="page-number">Pág {pageNum} de {totalPages}</div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     const handleSaveBudget = async () => {
         if (budgetItems.length === 0) {
             alert("Adicione itens ao orçamento antes de salvar.");
@@ -908,7 +1132,18 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         };
 
         return (
-            <div className="max-w-6xl mx-auto p-4 md:p-8">
+            <>
+                {isGeneratingPdf && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center gap-4 text-white">
+                        <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                        <div className="text-center space-y-1">
+                            <h3 className="text-xl font-bold">Gerando e Enviando PDF</h3>
+                            <p className="text-sm text-gray-300">Enviando orçamento para a nuvem. Por favor, aguarde...</p>
+                        </div>
+                    </div>
+                )}
+                {renderPrintLayout()}
+                <div className="max-w-6xl mx-auto p-4 md:p-8">
                 <button
                     onClick={() => setView('budget')}
                     className="flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors mb-6"
@@ -1044,8 +1279,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     )}
                 </div>
             </div>
-        );
-    }
+        </>
+    );
+}
 
     if (view === 'register') {
         return (
@@ -1620,225 +1856,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     }
                 `}
             </style>
-            <div id="print-area-container" className="hidden print:block">
-
-                {/* ── PÁGINA 1: Orçamento principal ── */}
-                {(() => {
-                    const totalPages = 1 + attachedImages.length;
-                    return (
-                        <div className="print-page bg-white text-black font-sans leading-tight text-[10.5px]">
-
-                            {/* Cabeçalho */}
-                            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-200">
-                                <div className="flex-1">
-                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-28 object-contain" />
-                                </div>
-                                <div className="flex-1 text-right">
-                                    <h1 className="text-2xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
-                                    <div className="text-[9px] text-slate-600 space-y-0.5 leading-relaxed">
-                                        <p className="font-bold text-slate-800 text-xs mb-0.5">{new Date().toLocaleDateString('pt-BR')}</p>
-                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
-                                        <p>CNPJ: 66.022.922/0001-08</p>
-                                        <p>Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP</p>
-                                        <p>CEP: 13.347-458 | WhatsApp: (19) 99916-2239</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dados Cliente */}
-                            <div className="mb-4">
-                                <div className="section-title">Informações do Cliente</div>
-                                <div className="grid grid-cols-4 gap-y-3">
-                                    <div className="col-span-2">
-                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Nome / Razão Social</span>
-                                        <span className="text-xs font-bold text-slate-800 uppercase">{clientData.name}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">CPF / CNPJ</span>
-                                        <span className="text-xs text-slate-800">{clientData.doc}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Telefone</span>
-                                        <span className="text-xs text-slate-800">{clientData.phone}</span>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Email</span>
-                                        <span className="text-xs text-slate-800">{clientData.email || '-'}</span>
-                                    </div>
-                                    <div className="col-span-2 text-right">
-                                        <span className="text-[8px] uppercase text-slate-500 block mb-0.5">Endereço</span>
-                                        <span className="text-xs text-slate-800">{clientData.address}{clientData.number ? `, ${clientData.number}` : ''} - {clientData.neighborhood}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Itens */}
-                            <div className="mb-3">
-                                <div className="section-title">Descrição dos Serviços</div>
-                                <table className="print-table w-full">
-                                    <thead>
-                                        <tr>
-                                            <th className="w-12 text-center text-[8px] uppercase tracking-widest">Qtd</th>
-                                            <th className="text-left text-[8px] uppercase tracking-widest pl-4">Item / Descrição</th>
-                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Unitário</th>
-                                            <th className="w-28 text-right text-[8px] uppercase tracking-widest">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-slate-600">
-                                        {budgetItems.map(item => (
-                                            <tr key={item.id}>
-                                                <td className="text-center font-bold align-top pt-1.5">{item.quantity}</td>
-                                                <td className="px-2 text-slate-800 align-top pt-1.5">
-                                                    <div className="font-bold uppercase">{item.name}</div>
-                                                    {item.description && (
-                                                        <div className="text-[9px] font-normal text-slate-600 mt-0.5 whitespace-pre-wrap leading-tight">{item.description}</div>
-                                                    )}
-                                                </td>
-                                                <td className="text-right text-slate-800 align-top pt-1.5">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                <td className="text-right font-black text-slate-900 align-top pt-1.5">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                            </tr>
-                                        ))}
-                                        {Array.from({ length: Math.max(0, 4 - budgetItems.length) }).map((_, i) => (
-                                            <tr key={`empty-${i}`} className="h-5">
-                                                <td className="border-b border-slate-200"></td>
-                                                <td className="border-b border-slate-200"></td>
-                                                <td className="border-b border-slate-200"></td>
-                                                <td className="border-b border-slate-200"></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colSpan="2" className="border-none"></td>
-                                            <td className="text-slate-600 font-bold text-right py-4 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
-                                            <td className="font-black text-xl text-right text-slate-900 py-4 border-none whitespace-nowrap">
-                                                R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-
-                            {/* Pagamento + Prazo */}
-                            <div className="grid grid-cols-12 gap-8 mt-2">
-                                <div className="col-span-8">
-                                    <div className="section-title">Condições de Pagamento</div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-                                            <div>
-                                                <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
-                                                <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-base font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                <div className="text-[9px] text-green-700 uppercase mt-0.5 leading-tight text-right font-bold">
-                                                    Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
-                                                    + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
-                                                <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-base font-black text-slate-900">6x de R$ {(projectTotal / 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">Sem juros no cartão</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="section-title mt-3">Dados Bancários / Pagamento</div>
-                                    <div className="flex gap-8">
-                                        <div className="flex-1">
-                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Banco Itaú</span>
-                                            <div className="text-[10px] text-slate-800 space-y-0.5">
-                                                <p><span className="font-black">Ag:</span> 5396</p>
-                                                <p><span className="font-black">Cc:</span> 97680-4</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex-1">
-                                            <span className="text-[8px] uppercase text-slate-600 font-bold block mb-0.5">Transferência PIX</span>
-                                            <div className="text-[10px] text-slate-800">
-                                                <p className="font-black text-slate-900">comercial@lumeacrilicos.com.br</p>
-                                                <p className="text-[8px] opacity-90 mt-0.5 font-bold uppercase">MATEU ACRILICOS E MARCENARIA LTDA.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-span-4 flex flex-col pt-1">
-                                    <div className="border-l border-slate-300 pl-5 h-full flex flex-col justify-start">
-                                        <div className="section-title border-none mb-3 text-slate-600 font-bold">Prazo de Produção</div>
-                                        <div className="text-3xl font-black text-slate-900 leading-none">10</div>
-                                        <div className="text-[9px] font-bold text-slate-600 uppercase mt-1 tracking-widest">Dias Úteis</div>
-                                        <div className="text-[10px] italic text-slate-700 mt-2 leading-relaxed font-medium">
-                                            Prazo estimado contado a partir da aprovação do orçamento e confirmação do sinal.
-                                        </div>
-                                        <div className="mt-3 pt-3 border-t border-slate-200">
-                                            <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1">Descrição</div>
-                                            <div className="text-[9px] text-slate-700 leading-relaxed font-medium">
-                                                Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:<br />
-                                                Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP<br />
-                                                CEP: 13.347-458<br />
-                                                <strong>Não fazemos instalação.</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Rodapé */}
-                            <div className="mt-4 text-center text-[10px] text-slate-600 font-bold border-t border-slate-300 pt-2">
-                                Orçamento válido por 7 dias.
-                            </div>
-
-                            {/* Paginação */}
-                            {totalPages > 1 && (
-                                <div className="page-number">Pág 1 de {totalPages}</div>
-                            )}
-                        </div>
-                    );
-                })()}
-
-                {/* ── PÁGINAS DE IMAGENS ── */}
-                {attachedImages.map((img, idx) => {
-                    const totalPages = 1 + attachedImages.length;
-                    const pageNum = idx + 2;
-                    return (
-                        <div key={img.id} className="print-image-page bg-white text-black font-sans">
-                            {/* Cabeçalho igual */}
-                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
-                                <div className="flex-1">
-                                    <img src="/Logo%20LUME.png" alt="Logo LUME" className="h-20 object-contain" />
-                                </div>
-                                <div className="flex-1 text-right">
-                                    <h1 className="text-xl font-light text-slate-800 tracking-tight mb-1">PROPOSTA COMERCIAL</h1>
-                                    <div className="text-[9px] text-slate-600 space-y-0.5">
-                                        <p className="font-bold text-slate-800 text-[10px]">{new Date().toLocaleDateString('pt-BR')}</p>
-                                        <p className="font-bold text-slate-800 uppercase">MATEU ACRILICOS E MARCENARIA INDUSTRIA E COMERCIO LTDA.</p>
-                                        <p>CNPJ: 66.022.922/0001-08 | WhatsApp: (19) 99916-2239</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Cliente resumido */}
-                            <div className="text-[9px] text-slate-600 mb-4 font-bold">
-                                Cliente: <span className="text-slate-800 uppercase">{clientData.name}</span>
-                                {img.name && <span className="ml-4 text-slate-500 font-normal">Referência: {img.name}</span>}
-                            </div>
-                            {/* Imagem ocupa o restante */}
-                            <div className="flex-1 flex items-center justify-center">
-                                <img
-                                    src={img.dataUrl}
-                                    alt={img.name || `Imagem ${idx + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: '210mm', objectFit: 'contain' }}
-                                />
-                            </div>
-                            {/* Paginação */}
-                            <div className="page-number">Pág {pageNum} de {totalPages}</div>
-                        </div>
-                    );
-                })}
-            </div>
+            {renderPrintLayout()}
 
             {/* Application UI */}
             <div className="space-y-6 pb-20 print:hidden">
