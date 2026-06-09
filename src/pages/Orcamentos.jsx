@@ -259,14 +259,14 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
 
             const pdfBlob = pdf.output('blob');
             const fileId = budget.id || Date.now();
-            const fileName = `orcamento_${fileId}.pdf`;
+            const timestamp = Date.now();
+            const fileName = `orcamento_${fileId}_${timestamp}.pdf`;
 
-            // Envia para o Supabase Storage
+            // Envia para o Supabase Storage (sempre novo arquivo, sem necessidade de upsert)
             const { error } = await supabase.storage
                 .from('orcamentos')
                 .upload(fileName, pdfBlob, {
-                    contentType: 'application/pdf',
-                    upsert: true
+                    contentType: 'application/pdf'
                 });
 
             if (error) throw error;
