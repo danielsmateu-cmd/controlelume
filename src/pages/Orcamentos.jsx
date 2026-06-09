@@ -301,6 +301,9 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
             return;
         }
 
+        // ✅ Abre a janela IMEDIATAMENTE (antes de qualquer await) para evitar bloqueio de popup
+        const waWindow = window.open('about:blank', '_blank');
+
         const originalClientData = { ...clientData };
         const originalBudgetItems = [...budgetItems];
         const originalAttachedImages = [...attachedImages];
@@ -312,7 +315,8 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                 setClientData(budget.clientData || {});
                 setBudgetItems(budget.items || []);
                 setAttachedImages(budget.attachedImages || []);
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // Aguarda 800ms para garantir que o React re-renderizou o layout de impressão
+                await new Promise(resolve => setTimeout(resolve, 800));
             }
 
             const pdfUrl = await generateAndUploadPDF(budget || { id: 'atual' });
@@ -354,10 +358,21 @@ ${pdfUrl}`;
 
             const encodedText = encodeURIComponent(message);
             const waUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
-            window.open(waUrl, '_blank');
+
+            // Redireciona a janela já aberta para o WhatsApp (evita bloqueio de popup)
+            if (waWindow && !waWindow.closed) {
+                waWindow.location.href = waUrl;
+            } else {
+                window.open(waUrl, '_blank');
+            }
         } catch (err) {
             console.error("Erro ao gerar/enviar o PDF:", err);
-            
+
+            // Fecha a janela em branco se houve erro
+            if (waWindow && !waWindow.closed) {
+                waWindow.close();
+            }
+
             if (budget) {
                 setClientData(originalClientData);
                 setBudgetItems(originalBudgetItems);
