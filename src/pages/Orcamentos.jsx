@@ -337,7 +337,8 @@ ${pdfUrl}`;
                 setAttachedImages(originalAttachedImages);
             }
 
-            if (confirm("Não foi possível gerar ou hospedar o PDF na nuvem (erro de rede ou configuração).\n\nDeseja enviar apenas o resumo do orçamento por texto via WhatsApp e anexar o PDF manualmente?")) {
+            const errMsg = err?.message || String(err) || "Erro desconhecido";
+            if (confirm(`Não foi possível gerar ou hospedar o PDF na nuvem.\nDetalhes: ${errMsg}\n\nDeseja enviar apenas o resumo do orçamento por texto via WhatsApp e anexar o PDF manualmente?`)) {
                 const clientName = cData?.name || "Cliente";
                 const itemsSummary = items
                     .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
