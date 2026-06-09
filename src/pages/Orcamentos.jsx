@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { supabase } from '../lib/supabase';
 
 const TrendingUp = ({ size }) => (
     <svg
@@ -16,6 +19,18 @@ const TrendingUp = ({ size }) => (
     >
         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
         <polyline points="17 6 23 6 23 12"></polyline>
+    </svg>
+);
+
+const WhatsAppIcon = ({ size = 20, className }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+    >
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.473 1.452 5.38 1.453 5.568 0 10.103-4.52 10.107-10.09.002-2.7-1.047-5.24-2.951-7.147C17.28 1.467 14.74 .419 12.008.419c-5.57 0-10.108 4.522-10.111 10.093-.001 1.897.498 3.754 1.446 5.372L2.35 21.755l6.096-1.601zm10.741-7.195c-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.521-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.569-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347z"/>
     </svg>
 );
 
@@ -87,6 +102,277 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+    const generateAndUploadPDF = async (budget) => {
+        const printElement = document.getElementById('print-area-container');
+        if (!printElement) {
+            throw new Error("Elemento de impressão não encontrado no DOM.");
+        }
+
+        // Clone o elemento
+        const clone = printElement.cloneNode(true);
+        clone.id = 'print-area-clone';
+
+        // Estilos para forçar renderização A4 exata na tela dentro do clone
+        const styleEl = document.createElement('style');
+        styleEl.innerHTML = `
+            .print-page {
+                width: 210mm !important;
+                height: 297mm !important;
+                max-height: 297mm !important;
+                overflow: hidden !important;
+                padding: 12mm 15mm !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
+                background-color: white !important;
+                color: black !important;
+                position: relative !important;
+            }
+            .print-image-page {
+                width: 210mm !important;
+                height: 297mm !important;
+                max-height: 297mm !important;
+                padding: 12mm 15mm !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
+                background-color: white !important;
+                color: black !important;
+                position: relative !important;
+            }
+            .print-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            .print-table th, .print-table td {
+                border-bottom: 0.5pt solid #e2e8f0 !important;
+                padding: 7px 4px !important;
+            }
+            .print-table th {
+                border-bottom: 1pt solid #0f172a !important;
+                color: #475569 !important;
+            }
+            .section-title {
+                font-size: 8px !important;
+                font-weight: 800 !important;
+                color: #475569 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.1em !important;
+                margin-bottom: 6px !important;
+                border-bottom: 0.5pt solid #cbd5e1 !important;
+                padding-bottom: 3px !important;
+            }
+            .page-number {
+                margin-top: auto !important;
+                text-align: right !important;
+                font-size: 8px !important;
+                color: #94a3b8 !important;
+                font-weight: 700 !important;
+            }
+        `;
+        clone.appendChild(styleEl);
+
+        // Remove Tailwind "hidden" e força exibição
+        clone.className = '';
+        clone.style.position = 'absolute';
+        clone.style.top = '-9999px';
+        clone.style.left = '-9999px';
+        clone.style.display = 'block';
+        clone.style.width = '210mm';
+
+        document.body.appendChild(clone);
+
+        try {
+            // Aguarda renderização de imagens e fontes
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Captura com html2canvas
+            const canvas = await html2canvas(clone, {
+                scale: 2, // maior qualidade
+                useCORS: true,
+                logging: false,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            });
+
+            // Remove o clone do DOM
+            document.body.removeChild(clone);
+
+            // Calcula proporção A4
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const canvasPageHeight = canvas.width * 1.414;
+
+            let remainingHeight = canvas.height;
+            let position = 0;
+
+            while (remainingHeight > 0) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = Math.min(canvasPageHeight, remainingHeight);
+
+                const ctx = tempCanvas.getContext('2d');
+                ctx.drawImage(
+                    canvas,
+                    0, position, canvas.width, tempCanvas.height,
+                    0, 0, tempCanvas.width, tempCanvas.height
+                );
+
+                const pageImgData = tempCanvas.toDataURL('image/jpeg', 0.95);
+
+                if (position > 0) {
+                    pdf.addPage();
+                }
+
+                const destHeight = (tempCanvas.height * imgWidth) / tempCanvas.width;
+                pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidth, destHeight);
+
+                position += canvasPageHeight;
+                remainingHeight -= canvasPageHeight;
+            }
+
+            const pdfBlob = pdf.output('blob');
+            const fileId = budget.id || Date.now();
+            const fileName = `orcamento_${fileId}.pdf`;
+
+            // Envia para o Supabase Storage
+            const { error } = await supabase.storage
+                .from('orcamentos')
+                .upload(fileName, pdfBlob, {
+                    contentType: 'application/pdf',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            // Pega a URL pública
+            const { data } = supabase.storage
+                .from('orcamentos')
+                .getPublicUrl(fileName);
+
+            return data.publicUrl;
+        } catch (err) {
+            if (document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
+            throw err;
+        }
+    };
+
+    const handleSendWhatsApp = async (budget) => {
+        if (isGeneratingPdf) return;
+
+        const cData = budget ? budget.clientData : clientData;
+        const items = budget ? budget.items : budgetItems;
+        const total = budget ? budget.total : projectTotal;
+
+        if (items.length === 0) {
+            alert("O orçamento não possui itens.");
+            return;
+        }
+
+        const originalClientData = { ...clientData };
+        const originalBudgetItems = [...budgetItems];
+        const originalAttachedImages = [...attachedImages];
+
+        setIsGeneratingPdf(true);
+
+        try {
+            if (budget) {
+                setClientData(budget.clientData || {});
+                setBudgetItems(budget.items || []);
+                setAttachedImages(budget.attachedImages || []);
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            const pdfUrl = await generateAndUploadPDF(budget || { id: 'atual' });
+
+            if (budget) {
+                setClientData(originalClientData);
+                setBudgetItems(originalBudgetItems);
+                setAttachedImages(originalAttachedImages);
+            }
+
+            const clientName = cData?.name || "Cliente";
+            const itemsSummary = items
+                .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
+                .join('\n');
+
+            const totalPix = total * 0.9;
+            const signalPix = totalPix / 2;
+            const cardInstallment = total / 6;
+
+            const message = `Olá, *${clientName}*!
+Segue o orçamento da *LUME Acrílicos & Design*:
+
+*Itens do Orçamento:*
+${itemsSummary}
+
+*Valor Total:* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+*Condições de Pagamento:*
+💵 *À Vista (PIX com 10% de desconto):* R$ ${totalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+   ↳ Sinal de 50% (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) + Saldo na Retirada (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+
+💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+⏱️ *Prazo de Produção:* 10 dias úteis (a partir da aprovação do sinal).
+📍 *Retirada:* Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba/SP.
+
+📄 *Visualize ou baixe o PDF completo aqui:*
+${pdfUrl}`;
+
+            const encodedText = encodeURIComponent(message);
+            const waUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+            window.open(waUrl, '_blank');
+        } catch (err) {
+            console.error("Erro ao gerar/enviar o PDF:", err);
+            
+            if (budget) {
+                setClientData(originalClientData);
+                setBudgetItems(originalBudgetItems);
+                setAttachedImages(originalAttachedImages);
+            }
+
+            if (confirm("Não foi possível gerar ou hospedar o PDF na nuvem (erro de rede ou configuração).\n\nDeseja enviar apenas o resumo do orçamento por texto via WhatsApp e anexar o PDF manualmente?")) {
+                const clientName = cData?.name || "Cliente";
+                const itemsSummary = items
+                    .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
+                    .join('\n');
+                const totalPix = total * 0.9;
+                const signalPix = totalPix / 2;
+                const cardInstallment = total / 6;
+
+                const fallbackMessage = `Olá, *${clientName}*!
+Segue o resumo do orçamento da *LUME Acrílicos & Design*:
+
+*Itens do Orçamento:*
+${itemsSummary}
+
+*Valor Total:* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+*Condições de Pagamento:*
+💵 *À Vista (PIX com 10% de desconto):* R$ ${totalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+   ↳ Sinal de 50% (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) + Saldo na Retirada (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+
+💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+⏱️ *Prazo de Produção:* 10 dias úteis (a partir da aprovação do sinal).
+📍 *Retirada:* Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba/SP.
+
+_Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
+
+                const encodedText = encodeURIComponent(fallbackMessage);
+                const waUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+                window.open(waUrl, '_blank');
+            }
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
 
     const handleSaveBudget = async () => {
         if (budgetItems.length === 0) {
@@ -109,13 +395,17 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
         const saved = await api.addBudget(newBudget);
         if (saved) {
             setSavedBudgets([saved, ...savedBudgets]);
-            alert("Orçamento salvo com sucesso!");
+            if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                handleSendWhatsApp(saved);
+            }
         } else {
             // Fallback
             const fallback = { ...newBudget, id: Date.now() };
             const updated = [fallback, ...savedBudgets];
             setSavedBudgets(updated);
-            alert("Erro ao salvar no servidor.");
+            if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                handleSendWhatsApp(fallback);
+            }
         }
     };
 
@@ -722,6 +1012,13 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="flex justify-center gap-2">
                                                         <button
+                                                            onClick={() => handleSendWhatsApp(budget)}
+                                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                            title="Enviar pelo WhatsApp"
+                                                        >
+                                                            <WhatsAppIcon size={18} />
+                                                        </button>
+                                                        <button
                                                             onClick={() => handleLoadBudget(budget)}
                                                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                                             title="Ver / Editar"
@@ -1229,6 +1526,15 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
 
     return (
         <>
+            {isGeneratingPdf && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center gap-4 text-white">
+                    <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <div className="text-center space-y-1">
+                        <h3 className="text-xl font-bold">Gerando e Enviando PDF</h3>
+                        <p className="text-sm text-gray-300">Enviando orçamento para a nuvem. Por favor, aguarde...</p>
+                    </div>
+                </div>
+            )}
             {/* Print Layout - A4 Optimized */}
             <style>
                 {`
@@ -1313,7 +1619,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                     }
                 `}
             </style>
-            <div className="hidden print:block">
+            <div id="print-area-container" className="hidden print:block">
 
                 {/* ── PÁGINA 1: Orçamento principal ── */}
                 {(() => {
@@ -1773,6 +2079,12 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                                                                     className="w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
                                                                 >
                                                                     <Save size={24} /> SALVAR ORÇAMENTO
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleSendWhatsApp()}
+                                                                    className="w-full px-8 py-3 bg-[#25D366] text-white rounded-xl text-sm font-bold shadow hover:bg-[#20ba56] transition-all flex items-center justify-center gap-2 border border-[#20ba56] hover:shadow-md"
+                                                                >
+                                                                    <WhatsAppIcon size={20} /> ENVIAR P/ WHATSAPP
                                                                 </button>
                                                                 <button
                                                                     onClick={() => window.print()}
