@@ -176,7 +176,8 @@ const supabaseApi = {
             return data.map(b => ({
                 ...b,
                 clientData: b.client_data,
-                items: b.items
+                items: b.items,
+                deliveryDate: b.delivery_date
             }));
         } catch (err) {
             console.error('Supabase getBudgets:', err);
@@ -224,7 +225,24 @@ const supabaseApi = {
                 .update(dbUpdates)
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error) {
+                // Fallback: se a atualização com delivery_date falhar (ex: coluna não criada no schema),
+                // tenta atualizar os demais campos sem o delivery_date para que o orçamento mude de status e entre em produção.
+                if (updates.deliveryDate !== undefined) {
+                    console.warn('Erro ao atualizar orçamento com delivery_date. Tentando fallback sem a data...', error);
+                    const fallbackUpdates = { ...dbUpdates };
+                    delete fallbackUpdates.delivery_date;
+                    
+                    const { error: fallbackError } = await supabase
+                        .from('budgets')
+                        .update(fallbackUpdates)
+                        .eq('id', id);
+                        
+                    if (fallbackError) throw fallbackError;
+                    return true;
+                }
+                throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase updateBudget:', err);
