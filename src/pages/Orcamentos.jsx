@@ -700,11 +700,25 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         if (!deliveryModal) return;
         const { id, newStatus } = deliveryModal;
         await api.updateBudget(id, { status: newStatus, deliveryDate });
+        
+        // Salva a data de entrega no cache de producao_data no localStorage para garantir resiliência
+        try {
+            const savedProducao = localStorage.getItem('producao_data');
+            const producaoData = savedProducao ? JSON.parse(savedProducao) : {};
+            producaoData[id] = {
+                ...(producaoData[id] || {}),
+                deliveryDate
+            };
+            localStorage.setItem('producao_data', JSON.stringify(producaoData));
+        } catch (e) {
+            console.error('Erro ao salvar data de entrega localmente:', e);
+        }
+
         setSavedBudgets(savedBudgets.map(b =>
             b.id === id ? { ...b, status: newStatus, deliveryDate } : b
         ));
         setDeliveryModal(null);
-        if (newStatus === 'Aprovado' && setActiveTab) {
+        if ((newStatus === 'Aprovado' || newStatus === 'Faturado') && setActiveTab) {
             setActiveTab('contas');
         }
     };
