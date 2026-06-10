@@ -303,7 +303,7 @@ function AppContent() {
                 onImportBackup={handleImportBackup}
                 onExportExcel={handleExportExcel}
             />
-            <main className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible print:block print:h-auto">
+            <main className="flex-1 ml-0 md:ml-16 overflow-y-auto p-8 print:p-0 print:overflow-visible print:block print:h-auto print:ml-0">
                 {renderContent()}
             </main>
         </div>
