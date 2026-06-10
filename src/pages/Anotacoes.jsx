@@ -1,29 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, User, Package, Calendar } from 'lucide-react';
+import { Factory, ChevronDown, ChevronUp, User, Package, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
-const ETAPAS = [
-    { id: 'arte_final', label: 'Arte Final' },
-    { id: 'projeto_final', label: 'Projeto Final' },
-    { id: 'corte', label: 'Corte' },
-    { id: 'montagem', label: 'Montagem' },
-    { id: 'entrega', label: 'Pronto para Entrega' },
-];
-
-const STATUS_ETAPA = {
-    pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-500 border-gray-200', icon: Clock },
-    em_andamento: { label: 'Em andamento', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: AlertCircle },
-    concluido: { label: 'Concluído', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
-};
-
-const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
+const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, readOnly }) => {
     const [expanded, setExpanded] = useState(false);
-    const etapas = producaoData?.etapas || {};
+    const itemsStatus = producaoData?.items || {};
 
-    const totalEtapas = ETAPAS.length;
-    const concluidas = ETAPAS.filter(e => etapas[e.id] === 'concluido').length;
-    const progresso = Math.round((concluidas / totalEtapas) * 100);
+    const totalItens = budget.items?.length || 0;
+    const concluidos = budget.items?.reduce((acc, _, index) => {
+        return acc + (itemsStatus[index] === 'concluido' ? 1 : 0);
+    }, 0) || 0;
+
+    const progresso = totalItens > 0 ? Math.round((concluidos / totalItens) * 100) : 0;
 
     const getProgressColor = () => {
         if (progresso === 100) return 'bg-green-500';
@@ -60,12 +49,12 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                                <User size={14} className="text-indigo-500 flex-shrink-0" />
-                                <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
-                                {budget.status === 'Faturado' && (
-                                    <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Faturado</span>
-                                )}
-                            </div>
+                            <User size={14} className="text-indigo-500 flex-shrink-0" />
+                            <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
+                            {budget.status === 'Faturado' && (
+                                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Faturado</span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                                 <Calendar size={12} />
@@ -91,7 +80,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
                             <div className="text-xs font-bold text-gray-700">{progresso}%</div>
-                            <div className="text-[10px] text-gray-400">{concluidas}/{totalEtapas} etapas</div>
+                            <div className="text-[10px] text-gray-400">{concluidos}/{totalItens} {totalItens === 1 ? 'item' : 'itens'}</div>
                         </div>
                         {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                     </div>
@@ -109,54 +98,50 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
 
             {expanded && (
                 <div className="border-t border-gray-100 p-5 space-y-4">
-                    {/* Itens do pedido - sem valores */}
+                    {/* Itens do pedido - em amarelo e clicáveis para concluir */}
                     {budget.items?.length > 0 && (
                         <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Itens do Pedido</p>
-                            <div className="space-y-1">
-                                {budget.items.map((item, i) => (
-                                    <div key={i} className="flex items-center gap-2 text-sm py-1 border-b border-gray-50">
-                                        <span className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                                            {item.quantity}x
-                                        </span>
-                                        <span className="text-gray-700 font-medium">{item.name}</span>
-                                    </div>
-                                ))}
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Itens do Pedido (Clique para alternar pronto)</p>
+                            <div className="grid grid-cols-1 gap-2">
+                                {budget.items.map((item, i) => {
+                                    const isConcluido = itemsStatus[i] === 'concluido';
+                                    return (
+                                        <button
+                                            key={i}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (!readOnly) onUpdateItemStatus(budget.id, i, !isConcluido);
+                                            }}
+                                            disabled={readOnly}
+                                            className={clsx(
+                                                "w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-sm",
+                                                isConcluido
+                                                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-800 line-through opacity-70"
+                                                    : "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950 font-medium"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className={clsx(
+                                                    "w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center flex-shrink-0 transition-colors",
+                                                    isConcluido ? "bg-emerald-100 text-emerald-700" : "bg-amber-200 text-amber-900 border border-amber-300"
+                                                )}>
+                                                    {item.quantity}x
+                                                </span>
+                                                <span className="text-sm">{item.name}</span>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                {isConcluido ? (
+                                                    <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg uppercase tracking-wider border border-emerald-200">Pronto</span>
+                                                ) : (
+                                                    <span className="text-[10px] font-extrabold bg-amber-200 text-amber-900 px-2 py-1 rounded-lg uppercase tracking-wider border border-amber-300">Pendente</span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
-
-                    {/* Etapas */}
-                    <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Etapas de Produção</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {ETAPAS.map(etapa => {
-                                const statusAtual = etapas[etapa.id] || 'pendente';
-                                const statusInfo = STATUS_ETAPA[statusAtual];
-                                const Icon = statusInfo.icon;
-
-                                return (
-                                    <div key={etapa.id} className={clsx("rounded-xl border p-3 flex items-center justify-between", statusInfo.color)}>
-                                        <div className="flex items-center gap-2">
-                                            <Icon size={14} />
-                                            <span className="text-xs font-semibold">{etapa.label}</span>
-                                        </div>
-                                        <select
-                                            value={statusAtual}
-                                            onChange={e => onUpdateEtapa(budget.id, etapa.id, e.target.value)}
-                                            disabled={readOnly}
-                                            className={`text-[10px] font-bold bg-transparent border-none outline-none ${readOnly ? 'cursor-default' : 'cursor-pointer'} ml-1`}
-                                            onClick={e => e.stopPropagation()}
-                                        >
-                                            <option value="pendente">Pendente</option>
-                                            <option value="em_andamento">Em andamento</option>
-                                            <option value="concluido">Concluído</option>
-                                        </select>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
 
                     {/* Observações */}
                     <div>
@@ -166,7 +151,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
                             rows={2}
                             placeholder={readOnly ? "Sem observações" : "Anotações internas de produção..."}
                             value={producaoData?.obs || ''}
-                            onChange={e => onUpdateEtapa(budget.id, '__obs__', e.target.value)}
+                            onChange={e => onUpdateObs(budget.id, e.target.value)}
                             readOnly={readOnly}
                         />
                     </div>
@@ -191,16 +176,34 @@ const Producao = ({ readOnly }) => {
         });
     }, []);
 
-    const handleUpdateEtapa = (budgetId, etapaId, valor) => {
+    const handleUpdateItemStatus = (budgetId, itemIndex, isConcluido) => {
+        setProducaoData(prev => {
+            const budgetData = prev[budgetId] || {};
+            const itemsStatus = { ...(budgetData.items || {}) };
+            if (isConcluido) {
+                itemsStatus[itemIndex] = 'concluido';
+            } else {
+                delete itemsStatus[itemIndex];
+            }
+            const updated = {
+                ...prev,
+                [budgetId]: {
+                    ...budgetData,
+                    items: itemsStatus
+                }
+            };
+            localStorage.setItem('producao_data', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    const handleUpdateObs = (budgetId, obs) => {
         setProducaoData(prev => {
             const updated = {
                 ...prev,
                 [budgetId]: {
-                    ...prev[budgetId],
-                    ...(etapaId === '__obs__'
-                        ? { obs: valor }
-                        : { etapas: { ...(prev[budgetId]?.etapas || {}), [etapaId]: valor } }
-                    )
+                    ...(prev[budgetId] || {}),
+                    obs
                 }
             };
             localStorage.setItem('producao_data', JSON.stringify(updated));
@@ -209,8 +212,13 @@ const Producao = ({ readOnly }) => {
     };
 
     const totalConcluidos = budgetsAprovados.filter(b => {
-        const etapas = producaoData[b.id]?.etapas || {};
-        return ETAPAS.every(e => etapas[e.id] === 'concluido');
+        const itemsStatus = producaoData[b.id]?.items || {};
+        const totalItens = b.items?.length || 0;
+        if (totalItens === 0) return true;
+        const concluidosCount = b.items.reduce((acc, _, index) => {
+            return acc + (itemsStatus[index] === 'concluido' ? 1 : 0);
+        }, 0);
+        return concluidosCount === totalItens;
     }).length;
 
     return (
@@ -253,6 +261,8 @@ const Producao = ({ readOnly }) => {
                             key={budget.id}
                             budget={budget}
                             producaoData={producaoData[budget.id]}
+                            onUpdateItemStatus={handleUpdateItemStatus}
+                            onUpdateObs={handleUpdateObs}
                             readOnly={readOnly}
                         />
                     ))}
