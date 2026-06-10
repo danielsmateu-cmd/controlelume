@@ -346,7 +346,23 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const matchesNF = order.nfNumber?.toLowerCase().includes(q);
         const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
 
-        return matchesYear && (matchesName || matchesDesc || matchesVal || matchesBoleto || matchesNF || matchesPayment);
+        // Busca por status de pagamento (pendente vs pago)
+        let matchesStatus = false;
+        if (q === 'pendente' || q === 'pendentes' || q === 'aguardando') {
+            matchesStatus = !order.isPaid;
+        } else if (q === 'pago' || q === 'pagos' || q === 'concluido' || q === 'concluído') {
+            matchesStatus = order.isPaid;
+        }
+
+        return matchesYear && (
+            matchesName || 
+            matchesDesc || 
+            matchesVal || 
+            matchesBoleto || 
+            matchesNF || 
+            matchesPayment || 
+            matchesStatus
+        );
     });
 
     return (
