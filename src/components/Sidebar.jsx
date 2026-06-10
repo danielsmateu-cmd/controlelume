@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2, Users } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2, Users, Database, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,6 +7,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
     const fileInputRef = useRef(null);
     const { currentUser, logout, canView, permissions } = useAuth();
     const [expanded, setExpanded] = useState(false);
+    const [backupOpen, setBackupOpen] = useState(false);
     const leaveTimerRef = useRef(null);
 
     const handleMouseEnter = () => {
@@ -135,35 +136,9 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
                     </div>
                 )}
 
-                {/* Backup buttons */}
+                {/* Backup buttons — dropdown único */}
                 {permissions?.canExportImport && currentUser?.login !== 'teste' && (
-                    <div className="px-2 border-t border-gray-100 pt-2 pb-1 space-y-1">
-                        <button
-                            onClick={onExportExcel}
-                            title={!expanded ? 'Exportar Planilha' : undefined}
-                            className="flex items-center w-full px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-3"
-                        >
-                            <FileSpreadsheet size={14} className="text-emerald-600 flex-shrink-0" />
-                            <span className={clsx(
-                                'whitespace-nowrap transition-all duration-200',
-                                expanded ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
-                            )}>
-                                Exportar Planilha
-                            </span>
-                        </button>
-                        <button
-                            onClick={onExportBackup}
-                            title={!expanded ? 'Exportar Backup' : undefined}
-                            className="flex items-center w-full px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-3"
-                        >
-                            <Download size={14} className="text-green-500 flex-shrink-0" />
-                            <span className={clsx(
-                                'whitespace-nowrap transition-all duration-200',
-                                expanded ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
-                            )}>
-                                Exportar Backup
-                            </span>
-                        </button>
+                    <div className="px-2 border-t border-gray-100 pt-2 pb-1">
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -171,19 +146,72 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
                             className="hidden"
                             accept=".json"
                         />
-                        <button
-                            onClick={() => fileInputRef.current.click()}
-                            title={!expanded ? 'Restaurar Backup' : undefined}
-                            className="flex items-center w-full px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors gap-3"
+                        <div
+                            className="relative"
+                            onMouseEnter={() => setBackupOpen(true)}
+                            onMouseLeave={() => setBackupOpen(false)}
                         >
-                            <Upload size={14} className="text-orange-500 flex-shrink-0" />
-                            <span className={clsx(
-                                'whitespace-nowrap transition-all duration-200',
-                                expanded ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
-                            )}>
-                                Restaurar Backup
-                            </span>
-                        </button>
+                            {/* Botão principal */}
+                            <button
+                                onClick={() => setBackupOpen(v => !v)}
+                                title={!expanded ? 'Dados & Backup' : undefined}
+                                className={clsx(
+                                    'flex items-center w-full px-3 py-2 text-xs font-semibold rounded-lg transition-colors gap-3',
+                                    backupOpen
+                                        ? 'bg-gray-100 text-gray-800'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                )}
+                            >
+                                <Database size={14} className="text-indigo-500 flex-shrink-0" />
+                                <span className={clsx(
+                                    'whitespace-nowrap transition-all duration-200 flex-1 text-left',
+                                    expanded ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
+                                )}>
+                                    Dados & Backup
+                                </span>
+                                <ChevronRight
+                                    size={12}
+                                    className={clsx(
+                                        'flex-shrink-0 transition-transform duration-200',
+                                        expanded ? 'opacity-60' : 'opacity-0 w-0',
+                                        backupOpen ? 'rotate-90' : 'rotate-0'
+                                    )}
+                                />
+                            </button>
+
+                            {/* Dropdown — aparece à direita quando recolhida, abaixo quando expandida */}
+                            {backupOpen && (
+                                <div className={clsx(
+                                    'absolute z-[60] bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[180px]',
+                                    expanded
+                                        ? 'left-0 top-full mt-1'
+                                        : 'left-full top-0 ml-2'
+                                )}>
+                                    <button
+                                        onClick={() => { onExportExcel(); setBackupOpen(false); }}
+                                        className="flex items-center w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors gap-3"
+                                    >
+                                        <FileSpreadsheet size={14} className="text-emerald-600 flex-shrink-0" />
+                                        Exportar Planilha
+                                    </button>
+                                    <button
+                                        onClick={() => { onExportBackup(); setBackupOpen(false); }}
+                                        className="flex items-center w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors gap-3"
+                                    >
+                                        <Download size={14} className="text-green-500 flex-shrink-0" />
+                                        Exportar Backup
+                                    </button>
+                                    <div className="my-1 border-t border-gray-100" />
+                                    <button
+                                        onClick={() => { fileInputRef.current.click(); setBackupOpen(false); }}
+                                        className="flex items-center w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors gap-3"
+                                    >
+                                        <Upload size={14} className="text-orange-500 flex-shrink-0" />
+                                        Restaurar Backup
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
