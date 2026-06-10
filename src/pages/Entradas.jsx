@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -9,6 +9,14 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
     const [searchQuery, setSearchQuery] = useState('');
+    const [layoutMode, setLayoutMode] = useState(() => {
+        return localStorage.getItem('entradas_layout_mode') || 'single';
+    });
+
+    const toggleLayoutMode = (mode) => {
+        setLayoutMode(mode);
+        localStorage.setItem('entradas_layout_mode', mode);
+    };
 
     // Orçamentos aprovados disponíveis para importar
     const [approvedBudgets, setApprovedBudgets] = useState([]);
@@ -386,15 +394,47 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                 className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
                             />
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <span className="font-bold uppercase tracking-widest text-[10px]">Filtrar por Ano:</span>
-                            <select
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                                className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-semibold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-                            >
-                                {years.map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <span className="font-bold uppercase tracking-widest text-[10px]">Filtrar por Ano:</span>
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                    className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-semibold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+                                >
+                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                            
+                            {/* Alternador de Layout de Meses */}
+                            <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 shadow-inner">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleLayoutMode('single')}
+                                    title="Visualizar um mês por linha (Notebook / Telas menores)"
+                                    className={clsx(
+                                        "p-1.5 rounded-md transition-all flex items-center justify-center",
+                                        layoutMode === 'single'
+                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            : "text-gray-400 hover:text-gray-600"
+                                    )}
+                                >
+                                    <LayoutList size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleLayoutMode('grid')}
+                                    title="Visualizar meses lado a lado (Monitor Grande)"
+                                    className={clsx(
+                                        "p-1.5 rounded-md transition-all flex items-center justify-center",
+                                        layoutMode === 'grid'
+                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            : "text-gray-400 hover:text-gray-600"
+                                    )}
+                                >
+                                    <Grid size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -689,7 +729,10 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             })()}
 
             {/* Lista agrupada por mês */}
-            <div className="grid grid-cols-1 gap-4">
+            <div className={clsx(
+                "grid gap-4",
+                layoutMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            )}>
                 {Object.entries(filteredOrders.reduce((acc, order) => {
                     const monthYear = new Date(order.orderDate + 'T00:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
