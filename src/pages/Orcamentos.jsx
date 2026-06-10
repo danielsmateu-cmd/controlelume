@@ -2028,6 +2028,30 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             <div className="space-y-6 pb-20 print:hidden">
                 {!isAddingItem ? (
                     <>
+                        {/* Top action bar */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                                    <Receipt size={24} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800">Orçamento Atual</h2>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setView('saved_list')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
+                                >
+                                    <List size={18} /> Orçamentos Prontos
+                                </button>
+                                <button
+                                    onClick={() => setView('register')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+                                >
+                                    <Settings size={18} /> Cadastro de Materiais
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Client Data Form */}
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-300">
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4">
@@ -2097,30 +2121,6 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     onChange={e => setClientData({ ...clientData, email: e.target.value })}
                                     className="lg:col-span-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                                 />
-                            </div>
-                        </div>
-
-                        {/* Top action bar */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                                    <Receipt size={24} />
-                                </div>
-                                <h2 className="text-2xl font-bold text-gray-800">Orçamento Atual</h2>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setView('saved_list')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
-                                >
-                                    <List size={18} /> Orçamentos Prontos
-                                </button>
-                                <button
-                                    onClick={() => setView('register')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
-                                >
-                                    <Settings size={18} /> Cadastro de Materiais
-                                </button>
                             </div>
                         </div>
 
