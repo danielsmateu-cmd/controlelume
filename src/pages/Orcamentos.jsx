@@ -1349,37 +1349,25 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                         const isCurrentMonth = budgetDate.getMonth() === new Date().getMonth() && budgetDate.getFullYear() === new Date().getFullYear();
 
                                         return (
-                                            <tr key={budget.id} className={clsx(
-                                                "transition-colors",
-                                                isCurrentMonth ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"
-                                            )}>
+                                            <tr key={budget.id} className="transition-colors hover:bg-gray-50">
                                                 <td className="px-6 py-4 text-gray-500">
                                                     <div className="flex items-center gap-2">
                                                         {new Date(budget.date).toLocaleDateString()}
                                                         {isCurrentMonth && (
-                                                            <span className="text-[9px] font-bold bg-green-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter">
+                                                            <span className="text-[9px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-green-200">
                                                                 Mês Atual
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
                                                 </td>
-                                                <td className={clsx(
-                                                    "px-6 py-4 font-bold",
-                                                    isCurrentMonth ? "text-green-800" : "text-gray-800"
-                                                )}>{budget.clientData.name}</td>
+                                                <td className="px-6 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className={clsx(
-                                                        "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold",
-                                                        isCurrentMonth ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                                                    )}>
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
                                                         {budget.items.length}
                                                     </span>
                                                 </td>
-                                                <td className={clsx(
-                                                    "px-6 py-4 text-right font-bold",
-                                                    isCurrentMonth ? "text-green-700" : "text-gray-800"
-                                                )}>
+                                                <td className="px-6 py-4 text-right font-bold text-gray-800">
                                                     {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
