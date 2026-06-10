@@ -213,10 +213,11 @@ const supabaseApi = {
     async updateBudget(id, updates) {
         try {
             const dbUpdates = {};
-            if (updates.status) dbUpdates.status = updates.status;
+            if (updates.status !== undefined) dbUpdates.status = updates.status;
             if (updates.clientData) dbUpdates.client_data = updates.clientData;
             if (updates.items) dbUpdates.items = updates.items;
             if (updates.total) dbUpdates.total = updates.total;
+            if (updates.deliveryDate !== undefined) dbUpdates.delivery_date = updates.deliveryDate || null;
 
             const { error } = await supabase
                 .from('budgets')

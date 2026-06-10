@@ -31,6 +31,26 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
         return 'bg-amber-500';
     };
 
+    const getDeliveryAlert = () => {
+        if (!budget.deliveryDate) return null;
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const delivery = new Date(budget.deliveryDate + 'T00:00:00');
+        const diffDays = Math.ceil((delivery - today) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 'overdue';
+        if (diffDays <= 3) return 'urgent';
+        if (diffDays <= 7) return 'warning';
+        return 'ok';
+    };
+
+    const deliveryAlert = getDeliveryAlert();
+    const deliveryAlertColors = {
+        overdue: 'bg-red-100 text-red-700 border-red-200',
+        urgent:  'bg-orange-100 text-orange-700 border-orange-200',
+        warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        ok:      'bg-green-100 text-green-700 border-green-200',
+    };
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div
@@ -40,19 +60,33 @@ const ProducaoCard = ({ budget, producaoData, onUpdateEtapa, readOnly }) => {
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <User size={14} className="text-indigo-500 flex-shrink-0" />
-                            <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
-                        </div>
+                                <User size={14} className="text-indigo-500 flex-shrink-0" />
+                                <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
+                                {budget.status === 'Faturado' && (
+                                    <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Faturado</span>
+                                )}
+                            </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                                 <Calendar size={12} />
-                                {new Date(budget.date).toLocaleDateString('pt-BR')}
+                                Pedido: {new Date(budget.date).toLocaleDateString('pt-BR')}
                             </span>
                             <span className="flex items-center gap-1">
                                 <Package size={12} />
                                 {budget.items?.length} {budget.items?.length === 1 ? 'item' : 'itens'}
                             </span>
                         </div>
+                        {budget.deliveryDate && (
+                            <div className={clsx(
+                                'inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-xs font-bold',
+                                deliveryAlertColors[deliveryAlert]
+                            )}>
+                                <Calendar size={11} />
+                                Entrega: {new Date(budget.deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
+                                {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
@@ -152,7 +186,7 @@ const Producao = ({ readOnly }) => {
 
     useEffect(() => {
         api.getBudgets().then(data => {
-            if (data) setBudgetsAprovados(data.filter(b => b.status === 'Aprovado'));
+            if (data) setBudgetsAprovados(data.filter(b => b.status === 'Aprovado' || b.status === 'Faturado'));
             setLoading(false);
         });
     }, []);

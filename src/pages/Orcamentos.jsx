@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import jsPDF from 'jspdf';
@@ -100,6 +100,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
     const [budgetSearch, setBudgetSearch] = useState('');
+    const [deliveryModal, setDeliveryModal] = useState(null); // { id, newStatus }
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
@@ -685,10 +686,26 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleUpdateStatus = async (id, newStatus) => {
+        // Para Aprovado e Faturado, pede data de entrega antes de salvar
+        if (newStatus === 'Aprovado' || newStatus === 'Faturado') {
+            setDeliveryModal({ id, newStatus });
+            return;
+        }
+        // Para demais status (Aguardando, Recusado) salva diretamente
         await api.updateBudget(id, { status: newStatus });
         setSavedBudgets(savedBudgets.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    };
+
+    const handleConfirmDelivery = async (deliveryDate) => {
+        if (!deliveryModal) return;
+        const { id, newStatus } = deliveryModal;
+        await api.updateBudget(id, { status: newStatus, deliveryDate });
+        setSavedBudgets(savedBudgets.map(b =>
+            b.id === id ? { ...b, status: newStatus, deliveryDate } : b
+        ));
+        setDeliveryModal(null);
         if (newStatus === 'Aprovado' && setActiveTab) {
-            setActiveTab('vendas');
+            setActiveTab('contas');
         }
     };
 
@@ -1174,6 +1191,56 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             }
         };
 
+        const DeliveryModal = () => {
+            const [date, setDate] = React.useState(() => {
+                // Pré-preenche com 10 dias úteis a partir de hoje
+                const d = new Date();
+                d.setDate(d.getDate() + 14);
+                return d.toISOString().split('T')[0];
+            });
+            if (!deliveryModal) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="bg-indigo-600 px-6 py-5 text-white">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <Calendar size={20} />
+                                {deliveryModal.newStatus === 'Aprovado' ? 'Orçamento Aprovado' : 'Orçamento Faturado'}
+                            </h3>
+                            <p className="text-indigo-200 text-sm mt-1">Defina a data prevista de entrega para este pedido</p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Data de Entrega</label>
+                                <input
+                                    type="date"
+                                    value={date}
+                                    onChange={e => setDate(e.target.value)}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    autoFocus
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Prazo padrão: 10 dias úteis (~14 dias corridos)</p>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setDeliveryModal(null)}
+                                    className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleConfirmDelivery(date)}
+                                    className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+                                >
+                                    Confirmar →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         return (
             <>
                 {isGeneratingPdf && (
@@ -1185,6 +1252,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                         </div>
                     </div>
                 )}
+                <DeliveryModal />
                 {renderPrintLayout()}
                 <div className="max-w-6xl mx-auto p-4 md:p-8">
                 <button
