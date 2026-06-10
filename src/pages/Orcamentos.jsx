@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import jsPDF from 'jspdf';
@@ -99,6 +99,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [budgetItems, setBudgetItems] = useState([]);
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
+    const [budgetSearch, setBudgetSearch] = useState('');
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
@@ -1194,11 +1195,44 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                 </button>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <List className="text-indigo-600" /> Meus Orçamentos
-                        </h2>
-                        <span className="text-sm text-gray-500 font-bold">{savedBudgets.length} salvos</span>
+                    <div className="p-6 border-b border-gray-100 bg-gray-50">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <List className="text-indigo-600" /> Meus Orçamentos
+                            </h2>
+                            <span className="text-sm text-gray-500 font-bold">{savedBudgets.length} salvos</span>
+                        </div>
+                        <div className="relative">
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por cliente, data ou valor..."
+                                value={budgetSearch}
+                                onChange={e => setBudgetSearch(e.target.value)}
+                                className="w-full pl-9 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none shadow-sm transition-all placeholder-gray-400"
+                            />
+                            {budgetSearch && (
+                                <button
+                                    onClick={() => setBudgetSearch('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    title="Limpar busca"
+                                >
+                                    <X size={15} />
+                                </button>
+                            )}
+                        </div>
+                        {budgetSearch && (
+                            <p className="mt-2 text-xs text-gray-400 font-medium">
+                                {savedBudgets.filter(b => {
+                                    const q = budgetSearch.toLowerCase();
+                                    return (
+                                        (b.clientData?.name || '').toLowerCase().includes(q) ||
+                                        new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
+                                        b.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).includes(q)
+                                    );
+                                }).length} resultado(s) encontrado(s)
+                            </p>
+                        )}
                     </div>
 
                     {savedBudgets.length === 0 ? (
@@ -1220,7 +1254,15 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {savedBudgets.map(budget => {
+                                    {savedBudgets.filter(b => {
+                                        if (!budgetSearch.trim()) return true;
+                                        const q = budgetSearch.toLowerCase();
+                                        return (
+                                            (b.clientData?.name || '').toLowerCase().includes(q) ||
+                                            new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
+                                            b.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).includes(q)
+                                        );
+                                    }).map(budget => {
                                         const budgetDate = new Date(budget.date);
                                         const isCurrentMonth = budgetDate.getMonth() === new Date().getMonth() && budgetDate.getFullYear() === new Date().getFullYear();
 
