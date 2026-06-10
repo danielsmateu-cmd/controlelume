@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, ChevronDown, ChevronUp, User, Package, Calendar } from 'lucide-react';
+import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
-const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, readOnly }) => {
+const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, readOnly }) => {
     const [expanded, setExpanded] = useState(false);
     const itemsStatus = producaoData?.items || {};
 
@@ -20,11 +20,13 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, r
         return 'bg-amber-500';
     };
 
+    const deliveryDate = budget.deliveryDate || producaoData?.deliveryDate;
+
     const getDeliveryAlert = () => {
-        if (!budget.deliveryDate) return null;
+        if (!deliveryDate) return null;
         const today = new Date();
         today.setHours(0,0,0,0);
-        const delivery = new Date(budget.deliveryDate + 'T00:00:00');
+        const delivery = new Date(deliveryDate + 'T00:00:00');
         const diffDays = Math.ceil((delivery - today) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return 'overdue';
         if (diffDays <= 3) return 'urgent';
@@ -39,6 +41,13 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, r
         warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
         ok:      'bg-green-100 text-green-700 border-green-200',
     };
+
+    const [isEditingDate, setIsEditingDate] = useState(false);
+    const [tempDate, setTempDate] = useState(deliveryDate || '');
+
+    useEffect(() => {
+        setTempDate(deliveryDate || '');
+    }, [deliveryDate]);
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -65,15 +74,71 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, r
                                 {budget.items?.length} {budget.items?.length === 1 ? 'item' : 'itens'}
                             </span>
                         </div>
-                        {budget.deliveryDate && (
-                            <div className={clsx(
-                                'inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-xs font-bold',
-                                deliveryAlertColors[deliveryAlert]
-                            )}>
-                                <Calendar size={11} />
-                                Entrega: {new Date(budget.deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
-                                {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                        
+                        {isEditingDate ? (
+                            <div className="flex items-center gap-2 mt-2" onClick={e => e.stopPropagation()}>
+                                <input
+                                    type="date"
+                                    value={tempDate}
+                                    onChange={e => setTempDate(e.target.value)}
+                                    className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                                <button
+                                    onClick={() => {
+                                        onUpdateDeliveryDate(budget.id, tempDate);
+                                        setIsEditingDate(false);
+                                    }}
+                                    className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                >
+                                    Salvar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsEditingDate(false);
+                                        setTempDate(deliveryDate || '');
+                                    }}
+                                    className="p-1 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mt-2 flex items-center gap-2">
+                                {deliveryDate ? (
+                                    <div className={clsx(
+                                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold',
+                                        deliveryAlertColors[deliveryAlert]
+                                    )}>
+                                        <Calendar size={11} />
+                                        Entrega: {new Date(deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                        {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
+                                        {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsEditingDate(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-bold transition-all"
+                                    >
+                                        <Calendar size={11} />
+                                        + Adicionar Entrega
+                                    </button>
+                                )}
+                                
+                                {deliveryDate && !readOnly && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsEditingDate(true);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                        title="Editar data de entrega"
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -168,6 +233,7 @@ const Producao = ({ readOnly }) => {
         return saved ? JSON.parse(saved) : {};
     });
     const [loading, setLoading] = useState(true);
+    const [viewTab, setViewTab] = useState('pendentes'); // 'pendentes' ou 'finalizados'
 
     useEffect(() => {
         api.getBudgets().then(data => {
@@ -211,7 +277,25 @@ const Producao = ({ readOnly }) => {
         });
     };
 
-    const totalConcluidos = budgetsAprovados.filter(b => {
+    const handleUpdateDeliveryDate = async (budgetId, date) => {
+        await api.updateBudget(budgetId, { deliveryDate: date });
+        
+        setBudgetsAprovados(prev => prev.map(b => b.id === budgetId ? { ...b, deliveryDate: date } : b));
+
+        setProducaoData(prev => {
+            const updated = {
+                ...prev,
+                [budgetId]: {
+                    ...(prev[budgetId] || {}),
+                    deliveryDate: date
+                }
+            };
+            localStorage.setItem('producao_data', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    const isBudgetConcluido = (b) => {
         const itemsStatus = producaoData[b.id]?.items || {};
         const totalItens = b.items?.length || 0;
         if (totalItens === 0) return true;
@@ -219,7 +303,12 @@ const Producao = ({ readOnly }) => {
             return acc + (itemsStatus[index] === 'concluido' ? 1 : 0);
         }, 0);
         return concluidosCount === totalItens;
-    }).length;
+    };
+
+    const budgetsPendentes = budgetsAprovados.filter(b => !isBudgetConcluido(b));
+    const budgetsFinalizados = budgetsAprovados.filter(b => isBudgetConcluido(b));
+
+    const totalConcluidosCount = budgetsFinalizados.length;
 
     return (
         <div className="space-y-6">
@@ -234,14 +323,53 @@ const Producao = ({ readOnly }) => {
                 <div className="flex gap-3">
                     <div className="text-center px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
                         <div className="text-xl font-black text-indigo-600">{budgetsAprovados.length}</div>
-                        <div className="text-[10px] text-indigo-400 font-bold uppercase">Em produção</div>
+                        <div className="text-[10px] text-indigo-400 font-bold uppercase">Total em produção</div>
                     </div>
                     <div className="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
-                        <div className="text-xl font-black text-green-600">{totalConcluidos}</div>
+                        <div className="text-xl font-black text-green-600">{totalConcluidosCount}</div>
                         <div className="text-[10px] text-green-400 font-bold uppercase">Concluídos</div>
                     </div>
                 </div>
             </div>
+
+            {!loading && budgetsAprovados.length > 0 && (
+                <div className="flex border-b border-gray-200">
+                    <button
+                        onClick={() => setViewTab('pendentes')}
+                        className={clsx(
+                            "py-3 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
+                            viewTab === 'pendentes'
+                                ? "border-indigo-600 text-indigo-600 font-extrabold"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        )}
+                    >
+                        A Produzir
+                        <span className={clsx(
+                            "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
+                            viewTab === 'pendentes' ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
+                        )}>
+                            {budgetsPendentes.length}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => setViewTab('finalizados')}
+                        className={clsx(
+                            "py-3 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
+                            viewTab === 'finalizados'
+                                ? "border-green-600 text-green-600 font-extrabold"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        )}
+                    >
+                        Finalizados
+                        <span className={clsx(
+                            "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
+                            viewTab === 'finalizados' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                        )}>
+                            {budgetsFinalizados.length}
+                        </span>
+                    </button>
+                </div>
+            )}
 
             {loading ? (
                 <div className="text-center py-16 text-gray-400">
@@ -254,15 +382,28 @@ const Producao = ({ readOnly }) => {
                     <p className="text-gray-500 font-medium">Nenhum orçamento aprovado ainda.</p>
                     <p className="text-sm text-gray-400 mt-1">Aprove um orçamento na tela de <strong>Orçamentos</strong> para ele aparecer aqui.</p>
                 </div>
+            ) : viewTab === 'pendentes' && budgetsPendentes.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <Factory size={48} className="mx-auto mb-4 text-emerald-200" />
+                    <p className="text-gray-500 font-medium">Todos os itens de produção foram finalizados! 🎉</p>
+                    <p className="text-sm text-gray-400 mt-1">Veja a lista de itens concluídos clicando na aba <strong>Finalizados</strong> acima.</p>
+                </div>
+            ) : viewTab === 'finalizados' && budgetsFinalizados.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <Factory size={48} className="mx-auto mb-4 text-gray-200" />
+                    <p className="text-gray-500 font-medium">Nenhum item finalizado ainda.</p>
+                    <p className="text-sm text-gray-400 mt-1">Marque os itens dos pedidos em produção como concluídos para finalizá-los.</p>
+                </div>
             ) : (
                 <div className="space-y-4">
-                    {budgetsAprovados.map(budget => (
+                    {(viewTab === 'pendentes' ? budgetsPendentes : budgetsFinalizados).map(budget => (
                         <ProducaoCard
                             key={budget.id}
                             budget={budget}
                             producaoData={producaoData[budget.id]}
                             onUpdateItemStatus={handleUpdateItemStatus}
                             onUpdateObs={handleUpdateObs}
+                            onUpdateDeliveryDate={handleUpdateDeliveryDate}
                             readOnly={readOnly}
                         />
                     ))}
