@@ -673,7 +673,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             })()}
 
             {/* Lista agrupada por mês */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 {Object.entries(filteredOrders.reduce((acc, order) => {
                     const monthYear = new Date(order.orderDate + 'T00:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
