@@ -1329,7 +1329,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     <tr>
                                         <th className="px-6 py-4 font-bold">Data</th>
                                         <th className="px-6 py-4 font-bold">Cliente</th>
-                                        <th className="px-6 py-4 font-bold text-center">Itens</th>
+                                        <th className="px-6 py-4 font-bold text-left">Itens</th>
                                         <th className="px-6 py-4 font-bold text-right">Total</th>
                                         <th className="px-6 py-4 font-bold text-center">Status</th>
                                         <th className="px-6 py-4 font-bold text-center">Ações</th>
@@ -1362,11 +1362,20 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
                                                 </td>
                                                 <td className="px-6 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
-                                                        {budget.items.length}
-                                                    </span>
-                                                </td>
+                                                <td className="px-6 py-4">
+                                                     <div className="flex flex-wrap gap-1.5 max-w-md">
+                                                         {budget.items && budget.items.map((item, idx) => (
+                                                             <div key={item.id || idx} className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 px-2 py-1 rounded-md border border-slate-100 text-xs font-medium">
+                                                                 <span className="font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded text-[10px] shrink-0">
+                                                                     {item.quantity}x
+                                                                 </span>
+                                                                 <span className="truncate max-w-[150px]" title={item.name}>
+                                                                     {item.name}
+                                                                 </span>
+                                                             </div>
+                                                         ))}
+                                                     </div>
+                                                 </td>
                                                 <td className="px-6 py-4 text-right font-bold text-gray-800">
                                                     {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
