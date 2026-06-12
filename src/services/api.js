@@ -177,7 +177,7 @@ const supabaseApi = {
                 ...b,
                 clientData: b.client_data,
                 items: b.items,
-                deliveryDate: b.delivery_date
+                deliveryDate: b.delivery_date || b.client_data?.deliveryDate
             }));
         } catch (err) {
             console.error('Supabase getBudgets:', err);

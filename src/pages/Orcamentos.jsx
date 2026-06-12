@@ -699,23 +699,26 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     const handleConfirmDelivery = async (deliveryDate) => {
         if (!deliveryModal) return;
         const { id, newStatus } = deliveryModal;
-        await api.updateBudget(id, { status: newStatus, deliveryDate });
         
-        // Salva a data de entrega no cache de producao_data no localStorage para garantir resiliência
-        try {
-            const savedProducao = localStorage.getItem('producao_data');
-            const producaoData = savedProducao ? JSON.parse(savedProducao) : {};
-            producaoData[id] = {
-                ...(producaoData[id] || {}),
-                deliveryDate
-            };
-            localStorage.setItem('producao_data', JSON.stringify(producaoData));
-        } catch (e) {
-            console.error('Erro ao salvar data de entrega localmente:', e);
-        }
+        const budget = savedBudgets.find(b => b.id === id);
+        const updatedClientData = budget ? {
+            ...(budget.clientData || {}),
+            deliveryDate
+        } : null;
+
+        await api.updateBudget(id, { 
+            status: newStatus, 
+            deliveryDate,
+            clientData: updatedClientData || undefined
+        });
 
         setSavedBudgets(savedBudgets.map(b =>
-            b.id === id ? { ...b, status: newStatus, deliveryDate } : b
+            b.id === id ? { 
+                ...b, 
+                status: newStatus, 
+                deliveryDate,
+                clientData: updatedClientData || b.clientData
+            } : b
         ));
         setDeliveryModal(null);
         if ((newStatus === 'Aprovado' || newStatus === 'Faturado') && setActiveTab) {

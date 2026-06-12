@@ -3,13 +3,39 @@ import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil } from
 import clsx from 'clsx';
 import { api } from '../services/api';
 
-const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, readOnly }) => {
+const ProducaoCardObs = ({ budgetId, initialObs, onUpdateObs, readOnly }) => {
+    const [tempObs, setTempObs] = useState(initialObs);
+
+    useEffect(() => {
+        setTempObs(initialObs);
+    }, [initialObs]);
+
+    return (
+        <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações</p>
+            <textarea
+                className={`w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none ${readOnly ? 'cursor-default' : ''}`}
+                rows={2}
+                placeholder={readOnly ? "Sem observações" : "Anotações internas de produção..."}
+                value={tempObs}
+                onChange={e => setTempObs(e.target.value)}
+                onBlur={() => {
+                    if (tempObs !== initialObs) {
+                        onUpdateObs(budgetId, tempObs);
+                    }
+                }}
+                readOnly={readOnly}
+            />
+        </div>
+    );
+};
+
+const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, readOnly }) => {
     const [expanded, setExpanded] = useState(false);
-    const itemsStatus = producaoData?.items || {};
 
     const totalItens = budget.items?.length || 0;
-    const concluidos = budget.items?.reduce((acc, _, index) => {
-        return acc + (itemsStatus[index] === 'concluido' ? 1 : 0);
+    const concluidos = budget.items?.reduce((acc, item) => {
+        return acc + (item.concluido ? 1 : 0);
     }, 0) || 0;
 
     const progresso = totalItens > 0 ? Math.round((concluidos / totalItens) * 100) : 0;
@@ -20,7 +46,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, o
         return 'bg-amber-500';
     };
 
-    const deliveryDate = budget.deliveryDate || producaoData?.deliveryDate;
+    const deliveryDate = budget.deliveryDate;
 
     const getDeliveryAlert = () => {
         if (!deliveryDate) return null;
@@ -169,7 +195,7 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, o
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Itens do Pedido (Clique para alternar pronto)</p>
                             <div className="grid grid-cols-1 gap-2">
                                 {budget.items.map((item, i) => {
-                                    const isConcluido = itemsStatus[i] === 'concluido';
+                                    const isConcluido = !!item.concluido;
                                     return (
                                         <button
                                             key={i}
@@ -209,17 +235,12 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, o
                     )}
 
                     {/* Observações */}
-                    <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observações</p>
-                        <textarea
-                            className={`w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none ${readOnly ? 'cursor-default' : ''}`}
-                            rows={2}
-                            placeholder={readOnly ? "Sem observações" : "Anotações internas de produção..."}
-                            value={producaoData?.obs || ''}
-                            onChange={e => onUpdateObs(budget.id, e.target.value)}
-                            readOnly={readOnly}
-                        />
-                    </div>
+                    <ProducaoCardObs
+                        budgetId={budget.id}
+                        initialObs={budget.clientData?.productionObs || ''}
+                        onUpdateObs={onUpdateObs}
+                        readOnly={readOnly}
+                    />
                 </div>
             )}
         </div>
@@ -228,10 +249,6 @@ const ProducaoCard = ({ budget, producaoData, onUpdateItemStatus, onUpdateObs, o
 
 const Producao = ({ readOnly }) => {
     const [budgetsAprovados, setBudgetsAprovados] = useState([]);
-    const [producaoData, setProducaoData] = useState(() => {
-        const saved = localStorage.getItem('producao_data');
-        return saved ? JSON.parse(saved) : {};
-    });
     const [loading, setLoading] = useState(true);
     const [viewTab, setViewTab] = useState('pendentes'); // 'pendentes' ou 'finalizados'
 
@@ -242,65 +259,92 @@ const Producao = ({ readOnly }) => {
         });
     }, []);
 
-    const handleUpdateItemStatus = (budgetId, itemIndex, isConcluido) => {
-        setProducaoData(prev => {
-            const budgetData = prev[budgetId] || {};
-            const itemsStatus = { ...(budgetData.items || {}) };
-            if (isConcluido) {
-                itemsStatus[itemIndex] = 'concluido';
-            } else {
-                delete itemsStatus[itemIndex];
-            }
-            const updated = {
-                ...prev,
-                [budgetId]: {
-                    ...budgetData,
-                    items: itemsStatus
-                }
-            };
-            localStorage.setItem('producao_data', JSON.stringify(updated));
-            return updated;
-        });
+    const handleUpdateItemStatus = async (budgetId, itemIndex, isConcluido) => {
+        const budget = budgetsAprovados.find(b => b.id === budgetId);
+        if (!budget) return;
+
+        const updatedItems = (budget.items || []).map((item, idx) => 
+            idx === itemIndex ? { ...item, concluido: isConcluido } : item
+        );
+
+        // Atualização local imediata
+        setBudgetsAprovados(prev => prev.map(b => 
+            b.id === budgetId ? { ...b, items: updatedItems } : b
+        ));
+
+        // Sincroniza com banco
+        const success = await api.updateBudget(budgetId, { items: updatedItems });
+        if (!success) {
+            alert("Erro ao salvar status do item no banco de dados.");
+            // Reverte em caso de falha
+            setBudgetsAprovados(prev => prev.map(b => 
+                b.id === budgetId ? { ...b, items: budget.items } : b
+            ));
+        }
     };
 
-    const handleUpdateObs = (budgetId, obs) => {
-        setProducaoData(prev => {
-            const updated = {
-                ...prev,
-                [budgetId]: {
-                    ...(prev[budgetId] || {}),
-                    obs
-                }
-            };
-            localStorage.setItem('producao_data', JSON.stringify(updated));
-            return updated;
-        });
+    const handleUpdateObs = async (budgetId, obs) => {
+        const budget = budgetsAprovados.find(b => b.id === budgetId);
+        if (!budget) return;
+
+        const updatedClientData = {
+            ...(budget.clientData || {}),
+            productionObs: obs
+        };
+
+        // Atualização local imediata
+        setBudgetsAprovados(prev => prev.map(b => 
+            b.id === budgetId ? { ...b, clientData: updatedClientData } : b
+        ));
+
+        // Sincroniza com banco
+        const success = await api.updateBudget(budgetId, { clientData: updatedClientData });
+        if (!success) {
+            alert("Erro ao salvar anotações no banco de dados.");
+            // Revert em caso de falha
+            setBudgetsAprovados(prev => prev.map(b => 
+                b.id === budgetId ? { ...b, clientData: budget.clientData } : b
+            ));
+        }
     };
 
     const handleUpdateDeliveryDate = async (budgetId, date) => {
-        await api.updateBudget(budgetId, { deliveryDate: date });
-        
-        setBudgetsAprovados(prev => prev.map(b => b.id === budgetId ? { ...b, deliveryDate: date } : b));
+        const budget = budgetsAprovados.find(b => b.id === budgetId);
+        if (!budget) return;
 
-        setProducaoData(prev => {
-            const updated = {
-                ...prev,
-                [budgetId]: {
-                    ...(prev[budgetId] || {}),
-                    deliveryDate: date
-                }
-            };
-            localStorage.setItem('producao_data', JSON.stringify(updated));
-            return updated;
+        const updatedClientData = {
+            ...(budget.clientData || {}),
+            deliveryDate: date
+        };
+
+        // Atualização local imediata
+        setBudgetsAprovados(prev => prev.map(b => b.id === budgetId ? { 
+            ...b, 
+            deliveryDate: date,
+            clientData: updatedClientData
+        } : b));
+
+        // Sincroniza com banco
+        const success = await api.updateBudget(budgetId, { 
+            deliveryDate: date,
+            clientData: updatedClientData
         });
+        if (!success) {
+            alert("Erro ao salvar data de entrega no banco de dados.");
+            // Revert em caso de falha
+            setBudgetsAprovados(prev => prev.map(b => b.id === budgetId ? { 
+                ...b, 
+                deliveryDate: budget.deliveryDate,
+                clientData: budget.clientData
+            } : b));
+        }
     };
 
     const isBudgetConcluido = (b) => {
-        const itemsStatus = producaoData[b.id]?.items || {};
         const totalItens = b.items?.length || 0;
         if (totalItens === 0) return true;
-        const concluidosCount = b.items.reduce((acc, _, index) => {
-            return acc + (itemsStatus[index] === 'concluido' ? 1 : 0);
+        const concluidosCount = b.items.reduce((acc, item) => {
+            return acc + (item.concluido ? 1 : 0);
         }, 0);
         return concluidosCount === totalItens;
     };
@@ -400,7 +444,6 @@ const Producao = ({ readOnly }) => {
                         <ProducaoCard
                             key={budget.id}
                             budget={budget}
-                            producaoData={producaoData[budget.id]}
                             onUpdateItemStatus={handleUpdateItemStatus}
                             onUpdateObs={handleUpdateObs}
                             onUpdateDeliveryDate={handleUpdateDeliveryDate}
