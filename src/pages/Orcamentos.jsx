@@ -1310,10 +1310,16 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             <p className="mt-2 text-xs text-gray-400 font-medium">
                                 {savedBudgets.filter(b => {
                                     const q = budgetSearch.toLowerCase();
+                                    const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
+                                    const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                    const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                    const totalParceladoStr = ((b.total || 0) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                     return (
                                         (b.clientData?.name || '').toLowerCase().includes(q) ||
                                         new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
-                                        b.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).includes(q)
+                                        totalCheioStr.includes(qClean) ||
+                                        totalAVistaStr.includes(qClean) ||
+                                        totalParceladoStr.includes(qClean)
                                     );
                                 }).length} resultado(s) encontrado(s)
                             </p>
@@ -1344,10 +1350,16 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     {savedBudgets.filter(b => {
                                         if (!budgetSearch.trim()) return true;
                                         const q = budgetSearch.toLowerCase();
+                                        const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
+                                        const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                        const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                        const totalParceladoStr = ((b.total || 0) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                         return (
                                             (b.clientData?.name || '').toLowerCase().includes(q) ||
                                             new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
-                                            b.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).includes(q)
+                                            totalCheioStr.includes(qClean) ||
+                                            totalAVistaStr.includes(qClean) ||
+                                            totalParceladoStr.includes(qClean)
                                         );
                                     }).map(budget => {
                                         const budgetDate = new Date(budget.date);
