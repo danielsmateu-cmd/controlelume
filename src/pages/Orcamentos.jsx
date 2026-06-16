@@ -1333,7 +1333,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                         <th className="px-6 py-4 font-bold">Data</th>
                                         <th className="px-6 py-4 font-bold">Cliente</th>
                                         <th className="px-6 py-4 font-bold text-left">Itens</th>
-                                        <th className="px-6 py-4 font-bold text-right">Total</th>
+                                        <th className="px-6 py-4 font-bold text-right">Total Cheio</th>
+                                        <th className="px-6 py-4 font-bold text-right text-indigo-600">À Vista (10% desc.)</th>
+                                        <th className="px-6 py-4 font-bold text-right">Parcelado (2x)</th>
                                         <th className="px-6 py-4 font-bold text-center">Status</th>
                                         <th className="px-6 py-4 font-bold text-center">Ações</th>
                                     </tr>
@@ -1379,8 +1381,14 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                          ))}
                                                      </div>
                                                  </td>
-                                                <td className="px-6 py-4 text-right font-bold text-gray-800">
+                                                <td className="px-6 py-4 text-right font-medium text-gray-700">
                                                     {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-bold text-indigo-600">
+                                                    {(budget.total * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-medium text-gray-700">
+                                                    <span className="font-bold text-gray-900">2x</span> de {((budget.total) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="flex justify-center gap-1">
