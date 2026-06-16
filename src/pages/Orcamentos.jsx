@@ -1271,7 +1271,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                 )}
                 <DeliveryModal />
                 {renderPrintLayout()}
-                <div className="max-w-6xl mx-auto p-4 md:p-8">
+                <div className="w-full max-w-[98%] xl:max-w-[1450px] mx-auto p-4 md:p-8">
                 <button
                     onClick={() => setView('budget')}
                     className="flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors mb-6"
@@ -1330,14 +1330,14 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
                                     <tr>
-                                        <th className="px-6 py-4 font-bold">Data</th>
-                                        <th className="px-6 py-4 font-bold">Cliente</th>
-                                        <th className="px-6 py-4 font-bold text-left">Itens</th>
-                                        <th className="px-6 py-4 font-bold text-right">Total Cheio</th>
-                                        <th className="px-6 py-4 font-bold text-right text-indigo-600">À Vista (10% desc.)</th>
-                                        <th className="px-6 py-4 font-bold text-right">Parcelado (2x)</th>
-                                        <th className="px-6 py-4 font-bold text-center">Status</th>
-                                        <th className="px-6 py-4 font-bold text-center">Ações</th>
+                                        <th className="px-3 py-4 font-bold">Data</th>
+                                        <th className="px-3 py-4 font-bold">Cliente</th>
+                                        <th className="px-3 py-4 font-bold text-left">Itens</th>
+                                        <th className="px-3 py-4 font-bold text-right">Total Cheio</th>
+                                        <th className="px-3 py-4 font-bold text-right text-indigo-600">À Vista (10% desc.)</th>
+                                        <th className="px-3 py-4 font-bold text-right">Parcelado (2x)</th>
+                                        <th className="px-3 py-4 font-bold text-center">Status</th>
+                                        <th className="px-3 py-4 font-bold text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -1355,7 +1355,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
 
                                         return (
                                             <tr key={budget.id} className="transition-colors hover:bg-gray-50">
-                                                <td className="px-6 py-4 text-gray-500">
+                                                <td className="px-3 py-4 text-gray-500">
                                                     <div className="flex items-center gap-2">
                                                         {new Date(budget.date).toLocaleDateString()}
                                                         {isCurrentMonth && (
@@ -1366,8 +1366,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     </div>
                                                     <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
                                                 </td>
-                                                <td className="px-6 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
+                                                <td className="px-3 py-4">
                                                      <div className="flex flex-wrap gap-1.5 max-w-md">
                                                          {budget.items && budget.items.map((item, idx) => (
                                                              <div key={item.id || idx} className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 px-2 py-1 rounded-md border border-slate-100 text-xs font-medium">
@@ -1381,16 +1381,16 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                          ))}
                                                      </div>
                                                  </td>
-                                                <td className="px-6 py-4 text-right font-medium text-gray-700">
+                                                <td className="px-3 py-4 text-right font-medium text-gray-700">
                                                     {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
-                                                <td className="px-6 py-4 text-right font-bold text-indigo-600">
+                                                <td className="px-3 py-4 text-right font-bold text-indigo-600">
                                                     {(budget.total * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
-                                                <td className="px-6 py-4 text-right font-medium text-gray-700">
+                                                <td className="px-3 py-4 text-right font-medium text-gray-700">
                                                     <span className="font-bold text-gray-900">2x</span> de {((budget.total) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
+                                                <td className="px-3 py-4 text-center">
                                                     <div className="flex justify-center gap-1">
                                                         {['Aguardando', 'Aprovado', 'Recusado', 'Faturado'].map(status => (
                                                             <button
@@ -1419,7 +1419,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                         {budget.status}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
+                                                <td className="px-3 py-4 text-center">
                                                     <div className="flex justify-center gap-2">
                                                         <button
                                                             onClick={() => handleSendWhatsApp(budget)}
