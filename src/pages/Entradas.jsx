@@ -90,23 +90,52 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const newDates = [...formData.installmentDates];
         newDates[index] = value;
         setFormData(prev => ({ ...prev, installmentDates: newDates }));
-    };
-
-    // Importar dados de um orçamento aprovado
-    const handleImportBudget = async (budget) => {
+    };    // Importar dados de um orçamento aprovado
+    const handleImportBudget = async (budget, option = 'cheio') => {
         const totalMaterialCost = budget.items?.reduce((sum, item) => sum + ((item.unitMaterialCost || 0) * item.quantity), 0) || 0;
         const totalTaxAndNfCost = budget.items?.reduce((sum, item) => {
             const itemTax = (item.unitTaxValue || 0) + (item.unitNfValue || 0);
             return sum + (itemTax * item.quantity);
         }, 0) || 0;
-        const totalMargin = (budget.total || 0) - totalMaterialCost - totalTaxAndNfCost;
-        const marginPerc = budget.total > 0 ? (totalMargin / budget.total) * 100 : 0;
+        
+        let totalMargin = (budget.total || 0) - totalMaterialCost - totalTaxAndNfCost;
+        let marginPerc = budget.total > 0 ? (totalMargin / budget.total) * 100 : 0;
+        
+        let targetValue = budget.total || 0;
+        let targetInstallments = 1;
+        let descSuffix = '';
+        
+        if (option === 'desconto') {
+            targetValue = (budget.total || 0) * 0.9;
+            descSuffix = ' (À Vista 10% desc.)';
+            // Recalcula a margem proporcionalmente aplicando o desconto
+            const taxRate = budget.total > 0 ? (totalTaxAndNfCost / budget.total) : 0;
+            totalMargin = targetValue - totalMaterialCost - (targetValue * taxRate);
+            marginPerc = targetValue > 0 ? (totalMargin / targetValue) * 100 : 0;
+        } else if (option === 'parcelado') {
+            targetValue = budget.total || 0;
+            targetInstallments = 2;
+            descSuffix = ' (2x Sem Juros)';
+        }
+
+        const baseDate = new Date(formData.orderDate + 'T00:00:00');
+        const installmentDates = Array.from({ length: targetInstallments }, (_, i) => {
+            const d = new Date(baseDate);
+            const targetMonth = d.getUTCMonth() + i;
+            d.setUTCMonth(targetMonth);
+            if (d.getUTCMonth() !== (targetMonth % 12)) {
+                d.setUTCDate(0);
+            }
+            return d.toISOString().split('T')[0];
+        });
 
         setFormData(prev => ({
             ...prev,
             clientName: budget.clientData?.name || '',
-            description: `Orçamento #${budget.id} — ${budget.clientData?.name || ''}`,
-            value: budget.total ? String(budget.total.toFixed(2)) : '',
+            description: `Orçamento #${budget.id}${descSuffix} — ${budget.clientData?.name || ''}`,
+            value: targetValue ? String(targetValue.toFixed(2)) : '',
+            installments: targetInstallments,
+            installmentDates: installmentDates,
             contribMarginValue: totalMargin,
             contribMarginPerc: marginPerc,
             originalTotal: budget.total || 0,
@@ -470,26 +499,51 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             {approvedBudgets.length === 0 ? (
                                 <p className="text-xs text-gray-400 italic">Nenhum orçamento aprovado encontrado.</p>
                             ) : (
-                                <div className="divide-y divide-indigo-100">
+                                <div className="grid grid-cols-1 gap-2.5">
                                     {approvedBudgets.map(budget => (
-                                        <button
+                                        <div
                                             key={budget.id}
-                                            type="button"
-                                            onClick={() => handleImportBudget(budget)}
-                                            className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-indigo-100 transition-colors text-left group"
+                                            className="py-3 px-3 rounded-xl border border-indigo-100 bg-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all hover:border-indigo-300"
                                         >
                                             <div>
-                                                <p className="text-sm font-semibold text-gray-800 group-hover:text-indigo-700">
+                                                <p className="text-sm font-bold text-gray-800">
                                                     {budget.clientData?.name || 'Cliente sem nome'}
                                                 </p>
-                                                <p className="text-[10px] text-gray-400">
+                                                <p className="text-[10px] text-gray-400 font-medium mt-0.5">
                                                     {new Date(budget.date).toLocaleDateString('pt-BR')} · {budget.items?.length || 0} itens
                                                 </p>
                                             </div>
-                                            <span className="text-sm font-bold text-indigo-600 ml-4">
-                                                {fmt(budget.total || 0)}
-                                            </span>
-                                        </button>
+                                            
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleImportBudget(budget, 'cheio')}
+                                                    className="px-2.5 py-1 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-bold transition-all flex flex-col items-center shrink-0"
+                                                    title="Importa o valor total em 1x"
+                                                >
+                                                    <span className="text-[8px] font-medium text-gray-400 uppercase tracking-wide">Cheio (1x)</span>
+                                                    <span>{fmt(budget.total || 0)}</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleImportBudget(budget, 'desconto')}
+                                                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex flex-col items-center shrink-0"
+                                                    title="Importa o valor com 10% de desconto em 1x"
+                                                >
+                                                    <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-wide">À Vista (-10%)</span>
+                                                    <span>{fmt((budget.total || 0) * 0.9)}</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleImportBudget(budget, 'parcelado')}
+                                                    className="px-2.5 py-1 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-bold transition-all flex flex-col items-center shrink-0"
+                                                    title="Importa o valor cheio dividido em 2 parcelas"
+                                                >
+                                                    <span className="text-[8px] font-medium text-gray-400 uppercase tracking-wide">Parcelado (2x)</span>
+                                                    <span>2x de {fmt((budget.total || 0) / 2)}</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                             )}
