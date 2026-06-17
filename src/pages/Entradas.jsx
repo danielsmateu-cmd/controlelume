@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList, CheckCircle2, AlertTriangle, AlertOctagon } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
@@ -55,6 +55,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const [formData, setFormData] = useState(emptyForm);
     const [confirmingId, setConfirmingId] = useState(null);
     const [paymentDateStr, setPaymentDateStr] = useState('');
+    const [confirmModal, setConfirmModal] = useState(null);
 
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState(null);
@@ -227,12 +228,29 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     const startPaymentConfirmation = (order) => {
         if (order.isPaid) {
-            const confirmed = window.confirm(`Reverter para PENDENTE o pagamento de ${fmt(order.value)} para "${order.clientName}"?`);
-            if (!confirmed) return;
-
-            const updatedOrder = { ...order, isPaid: false, paymentDate: null };
-            setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
-            api.updateOrder(order.id, { isPaid: false, paymentDate: null }).catch(err => console.error(err));
+            setConfirmModal({
+                type: 'revert',
+                title: 'Reverter Pagamento',
+                theme: 'amber',
+                message: `Deseja reverter o pagamento de ${fmt(order.value)} para "${order.clientName}" para PENDENTE?`,
+                details: (
+                    <div className="space-y-1.5 text-xs text-gray-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <p><strong>Cliente:</strong> {order.clientName}</p>
+                        <p><strong>Descrição:</strong> {order.description}</p>
+                        <p><strong>Valor:</strong> {fmt(order.value)}</p>
+                        <p><strong>Data Pago:</strong> {order.paymentDate ? new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</p>
+                    </div>
+                ),
+                onConfirm: async () => {
+                    const updatedOrder = { ...order, isPaid: false, paymentDate: null };
+                    setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
+                    try {
+                        await api.updateOrder(order.id, { isPaid: false, paymentDate: null });
+                    } catch (err) {
+                        console.error('Erro ao reverter pagamento no Supabase:', err);
+                    }
+                }
+            });
         } else {
             setConfirmingId(order.id);
             const today = new Date();
@@ -302,16 +320,32 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             return;
         }
 
-        const updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
-        setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
-        setConfirmingId(null);
-        setPaymentDateStr('');
-
-        try {
-            await api.updateOrder(orderId, { isPaid: true, paymentDate: isoDate });
-        } catch (err) {
-            console.error('Erro ao salvar no Supabase:', err);
-        }
+        const dateFormatted = `${d}/${m}/${y}`;
+        setConfirmModal({
+            type: 'pay',
+            title: 'Confirmar Pagamento',
+            theme: 'emerald',
+            message: `Confirmar o recebimento desta parcela?`,
+            details: (
+                <div className="space-y-1.5 text-xs text-gray-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p><strong>Cliente:</strong> {order.clientName}</p>
+                    <p><strong>Descrição:</strong> {order.description}</p>
+                    <p><strong>Valor:</strong> {fmt(order.value)}</p>
+                    <p><strong>Data de Pagamento:</strong> {dateFormatted}</p>
+                </div>
+            ),
+            onConfirm: async () => {
+                const updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
+                setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
+                setConfirmingId(null);
+                setPaymentDateStr('');
+                try {
+                    await api.updateOrder(orderId, { isPaid: true, paymentDate: isoDate });
+                } catch (err) {
+                    console.error('Erro ao salvar no Supabase:', err);
+                }
+            }
+        });
     };
 
     const handleDateKeyDown = (e, orderId) => {
@@ -320,16 +354,33 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Tem certeza que deseja excluir esta entrada?')) {
-            try {
-                const success = await api.deleteOrder(id);
-                if (!success) throw new Error("A API retornou false");
-                setOrders(orders.filter(order => order.id !== id));
-            } catch (err) {
-                console.error('Erro ao excluir:', err);
-                alert('Erro ao excluir do servidor. Tente novamente.');
+        const order = orders.find(o => o.id === id);
+        if (!order) return;
+
+        setConfirmModal({
+            type: 'delete',
+            title: 'Excluir Entrada',
+            theme: 'red',
+            message: `Tem certeza que deseja excluir esta entrada? Esta ação não pode ser desfeita.`,
+            details: (
+                <div className="space-y-1.5 text-xs text-gray-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p><strong>Cliente:</strong> {order.clientName}</p>
+                    <p><strong>Descrição:</strong> {order.description}</p>
+                    <p><strong>Valor:</strong> {fmt(order.value)}</p>
+                    <p><strong>Status:</strong> {order.isPaid ? 'Pago' : 'Pendente'}</p>
+                </div>
+            ),
+            onConfirm: async () => {
+                try {
+                    const success = await api.deleteOrder(id);
+                    if (!success) throw new Error("A API retornou false");
+                    setOrders(orders.filter(o => o.id !== id));
+                } catch (err) {
+                    console.error('Erro ao excluir:', err);
+                    alert('Erro ao excluir do servidor. Tente novamente.');
+                }
             }
-        }
+        });
     };
 
     const startEditing = (order) => {
@@ -1027,6 +1078,68 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     <p className="text-center text-gray-500 py-8">Nenhuma entrada cadastrada.</p>
                 )}
             </div>
+
+            {/* Modal de Confirmação Unificada */}
+            {confirmModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all duration-300">
+                        {/* Modal Header */}
+                        <div className={clsx(
+                            "px-6 py-4 border-b flex items-center gap-3",
+                            confirmModal.theme === 'emerald' && "bg-emerald-50 border-emerald-100 text-emerald-800",
+                            confirmModal.theme === 'amber' && "bg-amber-50 border-amber-100 text-amber-800",
+                            confirmModal.theme === 'red' && "bg-red-50 border-red-100 text-red-800"
+                        )}>
+                            <div className={clsx(
+                                "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                                confirmModal.theme === 'emerald' && "bg-emerald-100 text-emerald-600",
+                                confirmModal.theme === 'amber' && "bg-amber-100 text-amber-600",
+                                confirmModal.theme === 'red' && "bg-red-100 text-red-600"
+                            )}>
+                                {confirmModal.theme === 'emerald' && <CheckCircle2 size={24} />}
+                                {confirmModal.theme === 'amber' && <AlertTriangle size={24} />}
+                                {confirmModal.theme === 'red' && <AlertOctagon size={24} />}
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold">{confirmModal.title}</h3>
+                                <p className="text-xs opacity-80">Confirme a ação antes de prosseguir</p>
+                            </div>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                {confirmModal.message}
+                            </p>
+                            {confirmModal.details}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await confirmModal.onConfirm();
+                                    setConfirmModal(null);
+                                }}
+                                className={clsx(
+                                    "px-4 py-2 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm",
+                                    confirmModal.theme === 'emerald' && "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200",
+                                    confirmModal.theme === 'amber' && "bg-amber-600 hover:bg-amber-700 shadow-amber-200",
+                                    confirmModal.theme === 'red' && "bg-red-600 hover:bg-red-700 shadow-red-200"
+                                )}
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
