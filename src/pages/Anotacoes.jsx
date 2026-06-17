@@ -7,6 +7,7 @@ const PESSOAS = [
     { id: 'juliana', label: 'Juliana', accent: 'bg-pink-500' },
     { id: 'daniel', label: 'Daniel', accent: 'bg-blue-500' },
     { id: 'bruno', label: 'Bruno', accent: 'bg-amber-500' },
+    { id: 'marcio', label: 'Márcio', accent: 'bg-teal-500' },
 ];
 
 const ProducaoCardObs = ({ budgetId, initialObs, onUpdateObs, readOnly }) => {
