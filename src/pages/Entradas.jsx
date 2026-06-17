@@ -113,9 +113,13 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             totalMargin = targetValue - totalMaterialCost - (targetValue * taxRate);
             marginPerc = targetValue > 0 ? (totalMargin / targetValue) * 100 : 0;
         } else if (option === 'parcelado') {
-            targetValue = budget.total || 0;
+            targetValue = (budget.total || 0) * 0.9;
             targetInstallments = 2;
-            descSuffix = ' (2x Sem Juros)';
+            descSuffix = ' (2x 50% Pedido / 50% Retirada)';
+            // Recalcula a margem proporcionalmente aplicando o desconto de 10%
+            const taxRate = budget.total > 0 ? (totalTaxAndNfCost / budget.total) : 0;
+            totalMargin = targetValue - totalMaterialCost - (targetValue * taxRate);
+            marginPerc = targetValue > 0 ? (totalMargin / targetValue) * 100 : 0;
         }
 
         const baseDate = new Date(formData.orderDate + 'T00:00:00');
@@ -537,10 +541,10 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                     type="button"
                                                     onClick={() => handleImportBudget(budget, 'parcelado')}
                                                     className="px-2.5 py-1 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-bold transition-all flex flex-col items-center shrink-0"
-                                                    title="Importa o valor cheio dividido em 2 parcelas"
+                                                    title="Importa o valor com 10% de desconto dividido em 2 parcelas (50% no pedido e 50% na retirada)"
                                                 >
                                                     <span className="text-[8px] font-medium text-gray-400 uppercase tracking-wide">Parcelado (2x)</span>
-                                                    <span>2x de {fmt((budget.total || 0) / 2)}</span>
+                                                    <span>2x de {fmt(((budget.total || 0) * 0.9) / 2)}</span>
                                                 </button>
                                             </div>
                                         </div>
