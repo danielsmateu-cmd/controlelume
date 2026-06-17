@@ -1350,7 +1350,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
                                     const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                     const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                    const totalParceladoStr = ((b.total || 0) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                    const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                     return (
                                         (b.clientData?.name || '').toLowerCase().includes(q) ||
                                         new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
@@ -1390,7 +1390,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                         const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
                                         const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                         const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                        const totalParceladoStr = ((b.total || 0) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                                        const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
                                         return (
                                             (b.clientData?.name || '').toLowerCase().includes(q) ||
                                             new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
@@ -1437,7 +1437,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     {(budget.total * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="px-3 py-4 text-right font-medium text-gray-700">
-                                                    <span className="font-bold text-gray-900">2x</span> de {((budget.total) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    <div>
+                                                        <span className="font-bold text-gray-900">2x</span> de {((budget.total * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-400 font-semibold">(50% + 50% à vista)</div>
                                                 </td>
                                                 <td className="px-3 py-4 text-center">
                                                     <div className="flex justify-center gap-1">
