@@ -101,6 +101,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [savedBudgets, setSavedBudgets] = useState([]);
     const [budgetSearch, setBudgetSearch] = useState('');
     const [deliveryModal, setDeliveryModal] = useState(null); // { id, newStatus }
+    const [budgetToDelete, setBudgetToDelete] = useState(null); // { id, clientName }
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
@@ -679,10 +680,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleDeleteBudget = async (id) => {
-        if (confirm("Tem certeza que deseja excluir este orçamento?")) {
-            await api.deleteBudget(id);
-            setSavedBudgets(savedBudgets.filter(b => b.id !== id));
-        }
+        await api.deleteBudget(id);
+        setSavedBudgets(savedBudgets.filter(b => b.id !== id));
+        setBudgetToDelete(null);
     };
 
     const handleUpdateStatus = async (id, newStatus) => {
@@ -1258,6 +1258,42 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             );
         };
 
+        const DeleteConfirmModal = () => {
+            if (!budgetToDelete) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 text-left">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="bg-red-600 px-6 py-5 text-white">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <Trash2 size={20} />
+                                Excluir Orçamento
+                            </h3>
+                            <p className="text-red-200 text-sm mt-1 font-medium">Esta ação é permanente e não poderá ser desfeita.</p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-gray-600 text-sm leading-relaxed">
+                                Tem certeza que deseja excluir permanentemente o orçamento do cliente <strong className="text-gray-955 font-bold">{budgetToDelete.clientName}</strong>?
+                            </p>
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setBudgetToDelete(null)}
+                                    className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteBudget(budgetToDelete.id)}
+                                    className="flex-1 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                                >
+                                    Sim, Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         return (
             <>
                 {isGeneratingPdf && (
@@ -1270,6 +1306,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     </div>
                 )}
                 <DeliveryModal />
+                <DeleteConfirmModal />
                 {renderPrintLayout()}
                 <div className="w-full max-w-[98%] xl:max-w-[1450px] mx-auto p-4 md:p-8">
                 <button
@@ -1448,7 +1485,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             <Eye size={18} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDeleteBudget(budget.id)}
+                                                            onClick={() => setBudgetToDelete({ id: budget.id, clientName: budget.clientData?.name || 'Cliente sem nome' })}
                                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                             title="Excluir"
                                                         >
