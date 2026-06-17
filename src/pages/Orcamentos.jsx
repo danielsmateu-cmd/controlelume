@@ -331,6 +331,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
             }
 
             const clientName = cData?.name || "Cliente";
+            const installationVal = parseFloat(cData?.installationValue) || 0;
             const itemsSummary = items
                 .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
                 .join('\n');
@@ -344,7 +345,7 @@ Segue o orçamento da *LUME Acrílicos & Design*:
 
 *Itens do Orçamento:*
 ${itemsSummary}
-
+${installationVal > 0 ? `🛠️ *Instalação:* R$ ${installationVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` : ''}
 *Valor Total:* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 
 *Condições de Pagamento:*
@@ -397,7 +398,7 @@ Segue o resumo do orçamento da *LUME Acrílicos & Design*:
 
 *Itens do Orçamento:*
 ${itemsSummary}
-
+${installationVal > 0 ? `🛠️ *Instalação:* R$ ${installationVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` : ''}
 *Valor Total:* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 
 *Condições de Pagamento:*
@@ -510,13 +511,39 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr>
-                                            <td colSpan="2" className="border-none"></td>
-                                            <td className="text-slate-600 font-bold text-right py-4 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
-                                            <td className="font-black text-xl text-right text-slate-900 py-4 border-none whitespace-nowrap">
-                                                R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                        </tr>
+                                        {parseFloat(clientData.installationValue) > 0 ? (
+                                            <>
+                                                <tr>
+                                                    <td colSpan="2" className="border-none"></td>
+                                                    <td className="text-slate-500 font-bold text-right py-1 uppercase text-[8px] tracking-[0.2em] border-none">Subtotal Itens</td>
+                                                    <td className="font-bold text-sm text-right text-slate-800 py-1 border-none whitespace-nowrap">
+                                                        R$ {projectSubtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan="2" className="border-none"></td>
+                                                    <td className="text-slate-500 font-bold text-right py-1 uppercase text-[8px] tracking-[0.2em] border-none">Valor Instalação</td>
+                                                    <td className="font-bold text-sm text-right text-slate-800 py-1 border-none whitespace-nowrap">
+                                                        R$ {(parseFloat(clientData.installationValue) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan="2" className="border-none"></td>
+                                                    <td className="text-slate-600 font-black text-right py-3 uppercase text-[8px] tracking-[0.2em] border-none border-t border-slate-200">Total da Proposta</td>
+                                                    <td className="font-black text-xl text-right text-slate-900 py-3 border-none border-t border-slate-200 whitespace-nowrap">
+                                                        R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            </>
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="2" className="border-none"></td>
+                                                <td className="text-slate-600 font-bold text-right py-4 uppercase text-[8px] tracking-[0.2em] border-none">Total da Proposta</td>
+                                                <td className="font-black text-xl text-right text-slate-900 py-4 border-none whitespace-nowrap">
+                                                    R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tfoot>
                                 </table>
                             </div>
@@ -658,7 +685,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             date: new Date().toISOString(),
             clientData: { ...clientData },
             items: [...budgetItems],
-            total: projectSubtotal,
+            total: projectTotal,
             status: 'Aguardando'
         };
 
@@ -928,7 +955,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         city: '',
         zip: '',
         phone: '',
-        email: ''
+        email: '',
+        installationValue: ''
     });
 
     const LumeLogo = () => (
@@ -1097,7 +1125,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
 
     // 6. Cálculos do Projeto (Múltiplos Itens)
     const projectSubtotal = budgetItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-    const projectTotal = projectSubtotal;
+    const projectTotal = projectSubtotal + (parseFloat(clientData.installationValue) || 0);
 
     const totalMaterialCost = budgetItems.reduce((sum, item) => sum + (item.unitMaterialCost * item.quantity), 0);
     const totalTaxAndNfCost = budgetItems.reduce((sum, item) => {
@@ -2185,6 +2213,13 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     onChange={e => setClientData({ ...clientData, email: e.target.value })}
                                     className="lg:col-span-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                                 />
+                                <input
+                                    type="number"
+                                    placeholder="Valor de Instalação (R$)"
+                                    value={clientData.installationValue || ''}
+                                    onChange={e => setClientData({ ...clientData, installationValue: e.target.value })}
+                                    className="px-4 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold text-indigo-700 placeholder-indigo-400"
+                                />
                             </div>
                         </div>
 
@@ -2301,6 +2336,12 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     <td colSpan="5" className="p-0 border-t border-gray-100">
                                                         <div className="bg-indigo-600 p-8 text-white w-full rounded-b-2xl shadow-inner flex flex-col md:flex-row items-center justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                                             <div className="text-center md:text-left">
+                                                                {parseFloat(clientData.installationValue) > 0 && (
+                                                                    <div className="flex flex-col gap-0.5 text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">
+                                                                        <span>Subtotal Itens: {projectSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                                        <span>Instalação: {(parseFloat(clientData.installationValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                                    </div>
+                                                                )}
                                                                 <p className="text-indigo-200 text-sm font-bold uppercase tracking-widest">Valor Total do Pedido</p>
                                                                 <h2 className="text-5xl md:text-6xl font-black mt-2">
                                                                     {projectTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -2439,7 +2480,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                         </div>
 
                         {/* Item settings grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-6 gap-2 animate-in fade-in duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 animate-in fade-in duration-300">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2 md:col-span-2">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                     <Package size={14} className="text-indigo-500" /> Nome e Descrição do Item
@@ -2467,18 +2508,6 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     type="number"
                                     value={globalQty}
                                     onChange={e => setGlobalQty(e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
-                                />
-                            </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                                    <TrendingUp size={14} className="text-orange-500" /> Multiplicador
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    value={markup}
-                                    onChange={e => setMarkup(e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
                                 />
                             </div>
@@ -2611,6 +2640,20 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4 animate-in fade-in duration-300">
                                 <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Resumo do Item Atual</h3>
+                                    
+                                    <div className="flex justify-between items-center bg-orange-50/50 p-2.5 rounded-xl border border-orange-100">
+                                        <label className="text-[10px] font-black text-orange-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <TrendingUp size={14} className="text-orange-500 animate-pulse" /> Multiplicador (Markup)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={markup}
+                                            onChange={e => setMarkup(e.target.value)}
+                                            className="w-20 px-2 py-1 bg-white border border-orange-200 rounded-lg text-right text-sm font-black text-orange-700 focus:ring-2 focus:ring-orange-400 outline-none shadow-sm"
+                                        />
+                                    </div>
+
                                     <div className="space-y-3">
                                         <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase border-b pb-2 mb-2">
                                             <span className="w-1/3">Descrição</span>
