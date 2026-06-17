@@ -1027,10 +1027,10 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                                 className="w-[72px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
                                                                 placeholder="DD/MM/AAAA"
                                                             />
-                                                            <button onClick={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
+                                                            <button onMouseDown={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
                                                                 <Check size={14} />
                                                             </button>
-                                                            <button onClick={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
+                                                            <button onMouseDown={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
                                                                 <X size={14} />
                                                             </button>
                                                         </div>
