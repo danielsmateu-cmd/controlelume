@@ -2261,11 +2261,21 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                                 className="w-20 px-2 py-1 text-center bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
                                                             />
                                                         </td>
-                                                        <td className="px-6 py-4 text-right font-medium text-gray-600">
-                                                            {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        <td className="px-6 py-4 text-right">
+                                                            <div className="font-medium text-gray-700">
+                                                                {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </div>
+                                                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5" title="Valor unitário com 10% de desconto à vista">
+                                                                -10%: {(item.unitPrice * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </div>
                                                         </td>
-                                                        <td className="px-6 py-4 text-right font-black text-indigo-600 text-lg">
-                                                            {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        <td className="px-6 py-4 text-right">
+                                                            <div className="font-black text-indigo-600 text-base">
+                                                                {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </div>
+                                                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5" title="Valor total do item com 10% de desconto à vista">
+                                                                -10%: {(item.unitPrice * item.quantity * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-center flex justify-center items-center gap-2" onClick={e => e.stopPropagation()}>
                                                             <button
