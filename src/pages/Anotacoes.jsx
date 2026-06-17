@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil } from 'lucide-react';
+import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
+
+const PESSOAS = [
+    { id: 'juliana', label: 'Juliana', accent: 'bg-pink-500' },
+    { id: 'daniel', label: 'Daniel', accent: 'bg-blue-500' },
+    { id: 'bruno', label: 'Bruno', accent: 'bg-amber-500' },
+];
 
 const ProducaoCardObs = ({ budgetId, initialObs, onUpdateObs, readOnly }) => {
     const [tempObs, setTempObs] = useState(initialObs);
@@ -30,7 +36,7 @@ const ProducaoCardObs = ({ budgetId, initialObs, onUpdateObs, readOnly }) => {
     );
 };
 
-const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, readOnly }) => {
+const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, onUpdateFinishedBy, readOnly }) => {
     const [expanded, setExpanded] = useState(false);
 
     const totalItens = budget.items?.length || 0;
@@ -75,6 +81,14 @@ const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliver
         setTempDate(deliveryDate || '');
     }, [deliveryDate]);
 
+    const finishedBy = budget.clientData?.finishedBy;
+    const [isEditingFinishedBy, setIsEditingFinishedBy] = useState(false);
+    const [tempFinishedBy, setTempFinishedBy] = useState(finishedBy || '');
+
+    useEffect(() => {
+        setTempFinishedBy(finishedBy || '');
+    }, [finishedBy]);
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div
@@ -101,72 +115,141 @@ const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliver
                             </span>
                         </div>
                         
-                        {isEditingDate ? (
-                            <div className="flex items-center gap-2 mt-2" onClick={e => e.stopPropagation()}>
-                                <input
-                                    type="date"
-                                    value={tempDate}
-                                    onChange={e => setTempDate(e.target.value)}
-                                    className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                                <button
-                                    onClick={() => {
-                                        onUpdateDeliveryDate(budget.id, tempDate);
-                                        setIsEditingDate(false);
-                                    }}
-                                    className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
-                                >
-                                    Salvar
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setIsEditingDate(false);
-                                        setTempDate(deliveryDate || '');
-                                    }}
-                                    className="p-1 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="mt-2 flex items-center gap-2">
-                                {deliveryDate ? (
-                                    <div className={clsx(
-                                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold',
-                                        deliveryAlertColors[deliveryAlert]
-                                    )}>
-                                        <Calendar size={11} />
-                                        Entrega: {new Date(deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                        {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
-                                        {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                        <div className="mt-2 flex flex-wrap gap-2 items-center">
+                            {/* Bloco de Data de Entrega */}
+                            {isEditingDate ? (
+                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                    <input
+                                        type="date"
+                                        value={tempDate}
+                                        onChange={e => setTempDate(e.target.value)}
+                                        className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            onUpdateDeliveryDate(budget.id, tempDate);
+                                            setIsEditingDate(false);
+                                        }}
+                                        className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                    >
+                                        Salvar
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setIsEditingDate(false);
+                                            setTempDate(deliveryDate || '');
+                                        }}
+                                        className="p-1 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    {deliveryDate ? (
+                                        <div className={clsx(
+                                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold',
+                                            deliveryAlertColors[deliveryAlert]
+                                        )}>
+                                            <Calendar size={11} />
+                                            Entrega: {new Date(deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                            {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
+                                            {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsEditingDate(true);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-bold transition-all"
+                                        >
+                                            <Calendar size={11} />
+                                            + Adicionar Entrega
+                                        </button>
+                                    )}
+                                    
+                                    {deliveryDate && !readOnly && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsEditingDate(true);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                            title="Editar data de entrega"
+                                        >
+                                            <Pencil size={12} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Bloco de Responsável pela Finalização */}
+                            {(progresso === 100 || finishedBy) && (
+                                isEditingFinishedBy ? (
+                                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                        <input
+                                            type="text"
+                                            placeholder="Quem finalizou?"
+                                            value={tempFinishedBy}
+                                            onChange={e => setTempFinishedBy(e.target.value)}
+                                            className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none w-36"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                onUpdateFinishedBy(budget.id, tempFinishedBy);
+                                                setIsEditingFinishedBy(false);
+                                            }}
+                                            className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                        >
+                                            Salvar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsEditingFinishedBy(false);
+                                                setTempFinishedBy(finishedBy || '');
+                                            }}
+                                            className="p-1 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
+                                        >
+                                            Cancelar
+                                        </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsEditingDate(true);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-bold transition-all"
-                                    >
-                                        <Calendar size={11} />
-                                        + Adicionar Entrega
-                                    </button>
-                                )}
-                                
-                                {deliveryDate && !readOnly && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsEditingDate(true);
-                                        }}
-                                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                                        title="Editar data de entrega"
-                                    >
-                                        <Pencil size={12} />
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                                    <div className="flex items-center gap-1">
+                                        {finishedBy ? (
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold animate-fade-in">
+                                                <CheckCircle2 size={11} className="text-emerald-600" />
+                                                Finalizado por: {finishedBy}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsEditingFinishedBy(true);
+                                                }}
+                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-bold transition-all"
+                                            >
+                                                <User size={11} />
+                                                + Quem finalizou?
+                                            </button>
+                                        )}
+                                        
+                                        {finishedBy && !readOnly && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsEditingFinishedBy(true);
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                                title="Editar responsável pela finalização"
+                                            >
+                                                <Pencil size={12} />
+                                            </button>
+                                        )}
+                                    </div>
+                                )
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
@@ -251,6 +334,7 @@ const Producao = ({ readOnly }) => {
     const [budgetsAprovados, setBudgetsAprovados] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewTab, setViewTab] = useState('pendentes'); // 'pendentes' ou 'finalizados'
+    const [completionModal, setCompletionModal] = useState(null);
 
     useEffect(() => {
         api.getBudgets().then(data => {
@@ -267,6 +351,22 @@ const Producao = ({ readOnly }) => {
             idx === itemIndex ? { ...item, concluido: isConcluido } : item
         );
 
+        // Se está concluindo e isso finaliza o orçamento completo, intercepta com modal
+        const previouslyConcluido = isBudgetConcluido(budget);
+        const nowConcluido = isBudgetConcluido({ ...budget, items: updatedItems });
+
+        if (nowConcluido && !previouslyConcluido) {
+            setCompletionModal({
+                budgetId,
+                itemIndex,
+                isConcluido,
+                clientName: budget.clientData?.name || 'Cliente Sem Nome',
+                finishedBy: budget.clientData?.finishedBy || '',
+                updatedItems
+            });
+            return;
+        }
+
         // Atualização local imediata
         setBudgetsAprovados(prev => prev.map(b => 
             b.id === budgetId ? { ...b, items: updatedItems } : b
@@ -279,6 +379,64 @@ const Producao = ({ readOnly }) => {
             // Reverte em caso de falha
             setBudgetsAprovados(prev => prev.map(b => 
                 b.id === budgetId ? { ...b, items: budget.items } : b
+            ));
+        }
+    };
+
+    const handleConfirmCompletion = async (budgetId, itemIndex, isConcluido, finishedBy) => {
+        const budget = budgetsAprovados.find(b => b.id === budgetId);
+        if (!budget) return;
+
+        const updatedItems = (budget.items || []).map((item, idx) => 
+            idx === itemIndex ? { ...item, concluido: isConcluido } : item
+        );
+
+        const updatedClientData = {
+            ...(budget.clientData || {}),
+            finishedBy: finishedBy || ''
+        };
+
+        // Atualização local imediata
+        setBudgetsAprovados(prev => prev.map(b => 
+            b.id === budgetId ? { ...b, items: updatedItems, clientData: updatedClientData } : b
+        ));
+
+        // Sincroniza com banco
+        const success = await api.updateBudget(budgetId, { 
+            items: updatedItems,
+            clientData: updatedClientData 
+        });
+
+        if (!success) {
+            alert("Erro ao salvar finalização no banco de dados.");
+            // Reverte
+            setBudgetsAprovados(prev => prev.map(b => 
+                b.id === budgetId ? { ...b, items: budget.items, clientData: budget.clientData } : b
+            ));
+        }
+    };
+
+    const handleUpdateFinishedBy = async (budgetId, finishedBy) => {
+        const budget = budgetsAprovados.find(b => b.id === budgetId);
+        if (!budget) return;
+
+        const updatedClientData = {
+            ...(budget.clientData || {}),
+            finishedBy: finishedBy || ''
+        };
+
+        // Atualização local imediata
+        setBudgetsAprovados(prev => prev.map(b => 
+            b.id === budgetId ? { ...b, clientData: updatedClientData } : b
+        ));
+
+        // Sincroniza com banco
+        const success = await api.updateBudget(budgetId, { clientData: updatedClientData });
+        if (!success) {
+            alert("Erro ao salvar responsável pela finalização no banco de dados.");
+            // Reverte em caso de falha
+            setBudgetsAprovados(prev => prev.map(b => 
+                b.id === budgetId ? { ...b, clientData: budget.clientData } : b
             ));
         }
     };
@@ -447,9 +605,86 @@ const Producao = ({ readOnly }) => {
                             onUpdateItemStatus={handleUpdateItemStatus}
                             onUpdateObs={handleUpdateObs}
                             onUpdateDeliveryDate={handleUpdateDeliveryDate}
+                            onUpdateFinishedBy={handleUpdateFinishedBy}
                             readOnly={readOnly}
                         />
                     ))}
+                </div>
+            )}
+
+            {/* Modal de Confirmação de Finalização */}
+            {completionModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all duration-300">
+                        {/* Modal Header */}
+                        <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle2 size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Finalizar Produção</h3>
+                                <p className="text-xs text-slate-500">Todos os itens serão concluídos</p>
+                            </div>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                Você está finalizando a produção do cliente <strong className="text-slate-800">{completionModal.clientName}</strong>.
+                            </p>
+
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                    Quem finalizou?
+                                </label>
+                                <input
+                                    type="text"
+                                    value={completionModal.finishedBy}
+                                    onChange={e => setCompletionModal(prev => ({ ...prev, finishedBy: e.target.value }))}
+                                    placeholder="Nome do responsável"
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
+                                    autoFocus
+                                />
+                                {/* Sugestões rápidas de PESSOAS */}
+                                <div className="flex gap-1.5 mt-2">
+                                    {PESSOAS.map(p => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setCompletionModal(prev => ({ ...prev, finishedBy: p.label }))}
+                                            className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-lg transition-colors"
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setCompletionModal(null)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await handleConfirmCompletion(
+                                        completionModal.budgetId,
+                                        completionModal.itemIndex,
+                                        completionModal.isConcluido,
+                                        completionModal.finishedBy
+                                    );
+                                    setCompletionModal(null);
+                                }}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-emerald-200"
+                            >
+                                Confirmar e Finalizar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
