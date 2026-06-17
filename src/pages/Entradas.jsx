@@ -132,7 +132,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         setFormData(prev => ({
             ...prev,
             clientName: budget.clientData?.name || '',
-            description: `Orçamento #${budget.id}${descSuffix} — ${budget.clientData?.name || ''}`,
+            description: (budget.items?.map(item => `${item.quantity}x ${item.name}`).join(', ') || '') + descSuffix,
             value: targetValue ? String(targetValue.toFixed(2)) : '',
             installments: targetInstallments,
             installmentDates: installmentDates,
