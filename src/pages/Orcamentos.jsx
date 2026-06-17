@@ -1131,7 +1131,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             linearLengths: { ...linearLengths },
             discount: discount,
             discountValue: discountValue,
-            includeNf: includeNf
+            includeNf: includeNf,
+            markup: markup
         };
 
         if (editingItemId) {
@@ -1151,6 +1152,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscount('10');
         setDiscountValue('0');
         setIncludeNf(true);
+        setMarkup('3');
         setIsAddingItem(false);
     };
 
@@ -1164,6 +1166,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscount(item.discount || '10');
         setDiscountValue(item.discountValue || '0');
         setIncludeNf(item.includeNf !== undefined ? item.includeNf : true);
+        setMarkup(item.markup || '3');
         setEditingItemId(item.id);
         setIsAddingItem(true);
 
@@ -1180,6 +1183,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscount('10');
         setDiscountValue('0');
         setIncludeNf(true);
+        setMarkup('3');
         setEditingItemId(null);
         setIsAddingItem(false);
     };
