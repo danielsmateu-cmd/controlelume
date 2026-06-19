@@ -424,11 +424,11 @@ const Resumo = ({ expenses, orders }) => {
                         <thead>
                             <tr className="bg-gray-50/50 text-gray-500 text-[10px] font-bold uppercase tracking-wider border-b border-gray-100">
                                 <th className="px-6 py-4">Mês</th>
+                                <th className="px-6 py-4 text-right text-emerald-700 bg-emerald-50/20">Vendas Total Lume</th>
+                                <th className="px-6 py-4 text-right text-indigo-500 bg-indigo-50/20">Vendas E-Commerce</th>
                                 <th className="px-6 py-4 text-right text-green-600">Entradas (+)</th>
                                 <th className="px-6 py-4 text-right text-indigo-600">Entrada E-Commerce</th>
                                 <th className="px-6 py-4 text-right text-orange-500">Entradas Pendentes</th>
-                                <th className="px-6 py-4 text-right text-emerald-700 bg-emerald-50/20">Vendas Total Lume</th>
-                                <th className="px-6 py-4 text-right text-indigo-500 bg-indigo-50/20">Vendas E-Commerce</th>
                                 <th className="px-6 py-4 text-right">Fixo/Extra</th>
                                 <th className="px-6 py-4 text-right">Extras (Avulso)</th>
                                 <th className="px-6 py-4 text-right">Fornecedores</th>
@@ -460,6 +460,12 @@ const Resumo = ({ expenses, orders }) => {
                                                 </span>
                                             )}
                                         </td>
+                                        <td className="px-6 py-4 text-right text-emerald-600 font-bold bg-emerald-50/10">
+                                            {data.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-indigo-500 font-bold bg-indigo-50/10">
+                                            {data.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
                                         <td className="px-6 py-4 text-right text-green-600 font-medium">
                                             {data.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
@@ -468,12 +474,6 @@ const Resumo = ({ expenses, orders }) => {
                                         </td>
                                         <td className="px-6 py-4 text-right text-orange-500 font-medium">
                                             {data.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-emerald-600 font-medium bg-emerald-50/10">
-                                            {data.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-indigo-500 font-medium bg-indigo-50/10">
-                                            {data.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right text-gray-500">
                                             {data.fixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -506,7 +506,13 @@ const Resumo = ({ expenses, orders }) => {
                         <tfoot>
                             <tr className="bg-indigo-600 text-white font-bold border-t-2 border-indigo-700 text-xs">
                                 <td className="px-6 py-4 uppercase font-semibold">Total Geral</td>
-                                <td className="px-6 py-4 text-right font-medium">
+                                <td className="px-6 py-4 text-right font-bold bg-emerald-700/10">
+                                            {annualTotals.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold bg-indigo-700/10">
+                                            {annualTotals.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium">
                                             {annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right font-medium">
@@ -514,12 +520,6 @@ const Resumo = ({ expenses, orders }) => {
                                         </td>
                                         <td className="px-6 py-4 text-right font-medium">
                                             {annualTotals.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-medium bg-emerald-700/10">
-                                            {annualTotals.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-medium bg-indigo-700/10">
-                                            {annualTotals.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right font-normal">
                                     {annualTotals.fixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
