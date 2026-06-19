@@ -519,7 +519,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                         {getDaysUntilDue(expense.dueDate, expense.paid)}
                                     </div>
                                 ) : (
-                                    expense.date ? new Date(expense.date).toLocaleDateString('pt-BR') : '-'
+                                    expense.date ? new Date(expense.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'
                                 )}
                             </td>
                             <td className="px-6 py-2 text-sm font-medium text-red-600 text-right">

@@ -982,7 +982,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                                     {/* Datas: pedido + pagamento (só se pago) */}
                                                     <div className="text-[10px] text-gray-500 w-28 text-right flex flex-col">
-                                                        <span className="truncate">Ped: {new Date(order.orderDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        <span className="truncate">Ped: {new Date(order.orderDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                                                         {order.isPaid && order.paymentDate ? (
                                                             <span className="font-medium text-green-600 truncate">
                                                                 Pg: {new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
