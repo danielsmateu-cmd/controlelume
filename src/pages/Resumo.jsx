@@ -239,6 +239,40 @@ const Resumo = ({ expenses, orders }) => {
         return lumeEcomm || 0;
     };
 
+    const getEcommTotalFaturamento = (monthIndex, year) => {
+        let targetMonth = monthIndex + 2; 
+        let targetYear = year;
+        if (targetMonth > 12) {
+            targetMonth -= 12;
+            targetYear += 1;
+        }
+        const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+        
+        let totalFaturamento = 0;
+        const PLATFORMS_ID = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+
+        PLATFORMS_ID.forEach(pid => {
+            const key = `${pid}_${monthStr}`;
+            const rows = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+
+            rows.forEach(row => {
+                const fts = mktFtsData[pid] || ftsData;
+                const ft = fts.find(f => f.id === row.ftId);
+                if (!ft && !row.snapshot) return;
+                const qty = parseInt(row.quantity) || 0;
+
+                const resolvedFt = row.snapshot || ft;
+                const precoBase = p(resolvedFt.salePrice);
+                const desconto = p(row.discountPercent);
+                const precoEfetivo = precoBase * (1 - desconto / 100);
+
+                totalFaturamento += precoEfetivo * qty;
+            });
+        });
+        
+        return totalFaturamento || 0;
+    };
+
     const getMonthlyData = (monthIndex, year) => {
         // INCOME
         const entradas = orders
@@ -292,7 +326,10 @@ const Resumo = ({ expenses, orders }) => {
         const lumeEcomm = getEcommTotalLume(monthIndex, year);
         const saldo = entradas + lumeEcomm - totalSaidas;
 
-        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo, lumeEcomm };
+        const vendasTotalLume = entradas + entradasPendentes;
+        const ecommTotalFat = getEcommTotalFaturamento(monthIndex, year);
+
+        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo, lumeEcomm, vendasTotalLume, ecommTotalFat };
     };
 
     // Calcular totais anuais
@@ -301,6 +338,8 @@ const Resumo = ({ expenses, orders }) => {
         acc.entradas += parseFloat(data.entradas) || 0;
         acc.entradasEcomm += parseFloat(data.lumeEcomm) || 0;
         acc.entradasPendentes += parseFloat(data.entradasPendentes) || 0;
+        acc.vendasTotalLume += parseFloat(data.vendasTotalLume) || 0;
+        acc.ecommTotalFat += parseFloat(data.ecommTotalFat) || 0;
         acc.fixos += parseFloat(data.fixos) || 0;
         acc.mercado += parseFloat(data.mercado) || 0;
         acc.fornecedores += parseFloat(data.fornecedores) || 0;
@@ -313,6 +352,8 @@ const Resumo = ({ expenses, orders }) => {
         entradas: 0, 
         entradasEcomm: 0, 
         entradasPendentes: 0, 
+        vendasTotalLume: 0,
+        ecommTotalFat: 0,
         fixos: 0, 
         mercado: 0, 
         fornecedores: 0, 
@@ -386,6 +427,8 @@ const Resumo = ({ expenses, orders }) => {
                                 <th className="px-6 py-4 text-right text-green-600">Entradas (+)</th>
                                 <th className="px-6 py-4 text-right text-indigo-600">Entrada E-Commerce</th>
                                 <th className="px-6 py-4 text-right text-orange-500">Entradas Pendentes</th>
+                                <th className="px-6 py-4 text-right text-emerald-700 bg-emerald-50/20">Vendas Total Lume</th>
+                                <th className="px-6 py-4 text-right text-indigo-500 bg-indigo-50/20">Vendas E-Commerce</th>
                                 <th className="px-6 py-4 text-right">Fixo/Extra</th>
                                 <th className="px-6 py-4 text-right">Extras (Avulso)</th>
                                 <th className="px-6 py-4 text-right">Fornecedores</th>
@@ -426,6 +469,12 @@ const Resumo = ({ expenses, orders }) => {
                                         <td className="px-6 py-4 text-right text-orange-500 font-medium">
                                             {data.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
+                                        <td className="px-6 py-4 text-right text-emerald-600 font-medium bg-emerald-50/10">
+                                            {data.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-indigo-500 font-medium bg-indigo-50/10">
+                                            {data.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
                                         <td className="px-6 py-4 text-right text-gray-500">
                                             {data.fixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
@@ -458,15 +507,21 @@ const Resumo = ({ expenses, orders }) => {
                             <tr className="bg-indigo-600 text-white font-bold border-t-2 border-indigo-700 text-xs">
                                 <td className="px-6 py-4 uppercase font-semibold">Total Geral</td>
                                 <td className="px-6 py-4 text-right font-medium">
-                                    {annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </td>
-                                <td className="px-6 py-4 text-right font-medium">
-                                    {annualTotals.entradasEcomm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </td>
-                                <td className="px-6 py-4 text-right font-medium">
-                                    {annualTotals.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </td>
-                                <td className="px-6 py-4 text-right font-normal">
+                                            {annualTotals.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium">
+                                            {annualTotals.entradasEcomm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium">
+                                            {annualTotals.entradasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium bg-emerald-700/10">
+                                            {annualTotals.vendasTotalLume.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium bg-indigo-700/10">
+                                            {annualTotals.ecommTotalFat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-normal">
                                     {annualTotals.fixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </td>
                                 <td className="px-6 py-4 text-right font-normal">
