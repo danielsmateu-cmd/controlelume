@@ -1,229 +1,302 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, ShoppingBag, Search, Package, ArrowLeft, AlertCircle, DollarSign, Calendar, Check, X, FileText, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, ShoppingBag, FolderPlus, PlusCircle, Search, Trash, Check, X, ClipboardList, HelpCircle } from 'lucide-react';
 import { api } from '../services/api';
 
 const Compras = ({ materials, readOnly }) => {
-    const [compras, setCompras] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilter, setActiveFilter] = useState('pendente'); // 'pendente' ou 'comprado'
 
-    // Form / Modal State
-    const [showModal, setShowModal] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
-    const [itemSource, setItemSource] = useState('registered'); // 'registered' ou 'custom'
+    // Temp quantity inputs state to hold typed values before saving
+    const [qtyInputs, setQtyInputs] = useState({}); // { [itemId]: value }
+
+    // Modals state
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+
+    const [showItemModal, setShowItemModal] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [itemSource, setItemSource] = useState('registered'); // 'registered' | 'custom'
     const [selectedMaterialId, setSelectedMaterialId] = useState('');
-    const [customName, setCustomName] = useState('');
-    const [quantity, setQuantity] = useState(1);
-    const [unitPrice, setUnitPrice] = useState('');
-    const [notes, setNotes] = useState('');
+    const [customItemName, setCustomItemName] = useState('');
 
-    // Load data from API
+    // Load data
     useEffect(() => {
-        const loadCompras = async () => {
+        const loadData = async () => {
             setIsLoading(true);
             try {
-                const list = await api.getCompras();
-                setCompras(Array.isArray(list) ? list : []);
+                const data = await api.getCompras();
+                
+                // Handle migrations of data structure
+                let loadedCategories = [];
+                let loadedItems = [];
+
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    loadedCategories = Array.isArray(data.categories) ? data.categories : [];
+                    loadedItems = Array.isArray(data.items) ? data.items : [];
+                } else if (Array.isArray(data)) {
+                    // Old array format migration
+                    loadedCategories = ['Geral'];
+                    loadedItems = data.map(item => ({
+                        ...item,
+                        category: item.category || 'Geral'
+                    }));
+                }
+
+                // If empty, initialize with default categories and budget materials
+                if (loadedCategories.length === 0) {
+                    loadedCategories = ['Acrílicos', 'Embalagens', 'Outros'];
+                }
+
+                // Map budget materials that are not already present in loadedItems
+                const initialItems = [...loadedItems];
+                materials.forEach(mat => {
+                    const exists = initialItems.some(it => !it.isCustom && it.materialId?.toString() === mat.id.toString());
+                    if (!exists) {
+                        let cat = 'Outros';
+                        if (mat.name.toLowerCase().includes('acrílico') || mat.name.toLowerCase().includes('acrilico')) {
+                            cat = 'Acrílicos';
+                        } else if (mat.name.toLowerCase().includes('caixa') || mat.name.toLowerCase().includes('embalagem')) {
+                            cat = 'Embalagens';
+                        }
+                        initialItems.push({
+                            id: 'mat_' + mat.id,
+                            name: mat.name,
+                            materialId: mat.id,
+                            category: cat,
+                            quantity: 0,
+                            isCustom: false,
+                            createdAt: new Date().toISOString()
+                        });
+                    }
+                });
+
+                setCategories(loadedCategories);
+                setItems(initialItems);
+
+                // Initialize quantity input fields
+                const inputs = {};
+                initialItems.forEach(it => {
+                    inputs[it.id] = it.quantity > 0 ? it.quantity.toString() : '';
+                });
+                setQtyInputs(inputs);
+
             } catch (err) {
-                console.error("Erro ao buscar lista de compras:", err);
+                console.error("Erro ao carregar dados de compras:", err);
             } finally {
                 setIsLoading(false);
             }
         };
-        loadCompras();
-    }, []);
+        loadData();
+    }, [materials]);
 
-    // Save list to Supabase
-    const saveList = async (updatedList) => {
+    // Save data to Supabase
+    const saveData = async (newCategories, newItems) => {
         setIsSaving(true);
         try {
-            await api.saveCompras(updatedList);
+            await api.saveCompras({
+                categories: newCategories,
+                items: newItems
+            });
         } catch (err) {
             console.error("Erro ao salvar lista de compras:", err);
-            alert("Erro ao salvar alterações no banco de dados.");
+            alert("Erro ao salvar no banco de dados.");
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Open modal for new item
-    const handleNewItem = () => {
-        setEditingItem(null);
-        setItemSource('registered');
-        setSelectedMaterialId('');
-        setCustomName('');
-        setQuantity(1);
-        setUnitPrice('');
-        setNotes('');
-        setShowModal(true);
-    };
+    // Update Item Quantity with confirmation
+    const handleSaveQty = (item) => {
+        if (readOnly) return;
+        const inputValue = qtyInputs[item.id] || '';
+        const qty = inputValue.trim() === '' ? 0 : parseFloat(inputValue);
 
-    // Open modal for editing item
-    const handleEditItem = (item) => {
-        setEditingItem(item);
-        if (item.isCustom) {
-            setItemSource('custom');
-            setCustomName(item.name);
-        } else {
-            setItemSource('registered');
-            setSelectedMaterialId(item.materialId || '');
+        if (isNaN(qty) || qty < 0) {
+            alert("Por favor, digite uma quantidade válida.");
+            return;
         }
-        setQuantity(item.quantity);
-        setUnitPrice(item.unitPrice ? item.unitPrice.toString() : '');
-        setNotes(item.notes || '');
-        setShowModal(true);
-    };
 
-    // Handle auto-fill price when selecting registered material
-    useEffect(() => {
-        if (itemSource === 'registered' && selectedMaterialId) {
-            const mat = materials.find(m => m.id.toString() === selectedMaterialId.toString());
-            if (mat) {
-                setUnitPrice(mat.price || '');
+        const confirmMessage = qty === 0 
+            ? `Tem certeza que deseja remover o item "${item.name}" da lista de compras ativa?`
+            : `Deseja realmente salvar o item "${item.name}" com a quantidade de ${qty}?`;
+
+        if (window.confirm(confirmMessage)) {
+            const updatedItems = items.map(it => 
+                it.id === item.id ? { ...it, quantity: qty } : it
+            );
+            setItems(updatedItems);
+            
+            // Clean input if quantity became 0
+            if (qty === 0) {
+                setQtyInputs(prev => ({ ...prev, [item.id]: '' }));
             }
+
+            saveData(categories, updatedItems);
         }
-    }, [selectedMaterialId, itemSource, materials]);
+    };
 
-    // Handle Save Item (Add/Update)
-    const handleSaveItem = async (e) => {
+    // Handle Enter Key in input
+    const handleKeyDown = (e, item) => {
+        if (e.key === 'Enter') {
+            handleSaveQty(item);
+        }
+    };
+
+    // Add New Category
+    const handleAddCategory = (e) => {
         e.preventDefault();
+        const catName = newCategoryName.trim();
+        if (!catName) return;
 
+        if (categories.some(c => c.toLowerCase() === catName.toLowerCase())) {
+            alert("Esta categoria já existe.");
+            return;
+        }
+
+        const updatedCategories = [...categories, catName];
+        setCategories(updatedCategories);
+        setNewCategoryName('');
+        setShowCategoryModal(false);
+        saveData(updatedCategories, items);
+    };
+
+    // Add New Item to Category
+    const handleAddItem = (e) => {
+        e.preventDefault();
         let name = '';
         let materialId = null;
         let isCustom = false;
 
         if (itemSource === 'registered') {
             if (!selectedMaterialId) {
-                alert('Selecione um material cadastrado.');
+                alert('Selecione um material.');
                 return;
             }
             const mat = materials.find(m => m.id.toString() === selectedMaterialId.toString());
             if (!mat) return;
+            
+            // Check if already in the list
+            if (items.some(it => !it.isCustom && it.materialId?.toString() === mat.id.toString())) {
+                alert('Este material já está na lista.');
+                return;
+            }
+
             name = mat.name;
             materialId = mat.id;
             isCustom = false;
         } else {
-            if (!customName.trim()) {
+            if (!customItemName.trim()) {
                 alert('Digite o nome do item.');
                 return;
             }
-            name = customName.trim();
+            name = customItemName.trim();
             materialId = null;
             isCustom = true;
         }
 
-        const qtyVal = parseFloat(quantity) || 1;
-        const priceVal = parseFloat(unitPrice) || 0;
+        const newItem = {
+            id: isCustom 
+                ? 'custom_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
+                : 'mat_' + materialId,
+            name,
+            materialId,
+            category: selectedCategory,
+            quantity: 0,
+            isCustom,
+            createdAt: new Date().toISOString()
+        };
 
-        let updatedList;
-        if (editingItem) {
-            // Update existing
-            updatedList = compras.map(item => 
-                item.id === editingItem.id 
-                    ? {
-                        ...item,
-                        name,
-                        materialId,
-                        isCustom,
-                        quantity: qtyVal,
-                        unitPrice: priceVal,
-                        notes: notes.trim(),
-                        updatedAt: new Date().toISOString()
-                      }
-                    : item
-            );
-        } else {
-            // Add new
-            const newItem = {
-                id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
-                name,
-                materialId,
-                isCustom,
-                quantity: qtyVal,
-                unitPrice: priceVal,
-                notes: notes.trim(),
-                status: 'pendente', // 'pendente' ou 'comprado'
-                createdAt: new Date().toISOString()
-            };
-            updatedList = [newItem, ...compras];
-        }
+        const updatedItems = [newItem, ...items];
+        setItems(updatedItems);
+        
+        // Initialize input
+        setQtyInputs(prev => ({ ...prev, [newItem.id]: '' }));
 
-        setCompras(updatedList);
-        setShowModal(false);
-        await saveList(updatedList);
+        setShowItemModal(false);
+        setCustomItemName('');
+        setSelectedMaterialId('');
+
+        saveData(categories, updatedItems);
     };
 
-    // Toggle item status (Pendente / Comprado)
-    const handleToggleStatus = async (itemId) => {
+    // Delete item from catalog
+    const handleDeleteItem = (itemId) => {
         if (readOnly) return;
-        const updatedList = compras.map(item => {
-            if (item.id === itemId) {
-                const newStatus = item.status === 'comprado' ? 'pendente' : 'comprado';
-                return { 
-                    ...item, 
-                    status: newStatus,
-                    boughtAt: newStatus === 'comprado' ? new Date().toISOString() : null
-                };
-            }
-            return item;
-        });
-        setCompras(updatedList);
-        await saveList(updatedList);
-    };
+        const item = items.find(it => it.id === itemId);
+        if (!item) return;
 
-    // Delete item
-    const handleDeleteItem = async (itemId) => {
-        if (readOnly) return;
-        if (window.confirm('Tem certeza que deseja remover este item da lista de compras?')) {
-            const updatedList = compras.filter(item => item.id !== itemId);
-            setCompras(updatedList);
-            await saveList(updatedList);
+        const confirmMsg = item.isCustom 
+            ? `Tem certeza que deseja excluir o item "${item.name}" definitivamente do catálogo de compras?`
+            : `Deseja desvincular o material "${item.name}" desta lista de compras? (O material de orçamentos não será afetado)`;
+
+        if (window.confirm(confirmMsg)) {
+            const updatedItems = items.filter(it => it.id !== itemId);
+            setItems(updatedItems);
+            
+            // Clean input
+            const newInputs = { ...qtyInputs };
+            delete newInputs[itemId];
+            setQtyInputs(newInputs);
+
+            saveData(categories, updatedItems);
         }
     };
 
-    // Filters and search logic
-    const filteredCompras = compras.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.notes && item.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesFilter = item.status === activeFilter;
-        return matchesSearch && matchesFilter;
-    });
+    // Clear all quantities
+    const handleClearAllQuantities = () => {
+        if (readOnly) return;
+        if (window.confirm('Tem certeza que deseja zerar a quantidade de TODOS os itens da lista de compras?')) {
+            const updatedItems = items.map(it => ({ ...it, quantity: 0 }));
+            setItems(updatedItems);
 
-    // Summary calculations
-    const pendingCount = compras.filter(c => c.status === 'pendente').length;
-    const pendingTotalCost = compras
-        .filter(c => c.status === 'pendente')
-        .reduce((sum, item) => sum + ((item.unitPrice || 0) * (item.quantity || 1)), 0);
+            const clearedInputs = {};
+            updatedItems.forEach(it => {
+                clearedInputs[it.id] = '';
+            });
+            setQtyInputs(clearedInputs);
 
-    const boughtCount = compras.filter(c => c.status === 'comprado').length;
-    const boughtTotalCost = compras
-        .filter(c => c.status === 'comprado')
-        .reduce((sum, item) => sum + ((item.unitPrice || 0) * (item.quantity || 1)), 0);
+            saveData(categories, updatedItems);
+        }
+    };
+
+    // Filter items with active quantities (> 0)
+    const activeShoppingList = items.filter(it => it.quantity > 0);
 
     return (
         <div className="space-y-6 pb-20 print:hidden animate-in fade-in duration-300">
-            {/* Header section */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                         <ShoppingBag size={24} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800">Lista de Compras</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">Insumos & Compras da Produção</h2>
                         <p className="text-xs text-gray-500 font-medium mt-0.5">
-                            Gestão de insumos e matérias-primas que precisam ser comprados pela produção.
+                            Defina a quantidade de materiais necessários para compras. Adicione materiais customizados que não poluem o catálogo de orçamentos.
                         </p>
                     </div>
                 </div>
                 {!readOnly && (
-                    <button
-                        onClick={handleNewItem}
-                        className="px-5 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/10 hover:bg-indigo-700 transition-all flex items-center gap-2 transform hover:scale-[1.01]"
-                    >
-                        <Plus size={18} /> ADICIONAR ITEM PARA COMPRA
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowCategoryModal(true)}
+                            className="px-4 py-2.5 bg-white border border-gray-250 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-1.5"
+                        >
+                            <FolderPlus size={16} /> NOVA CATEGORIA
+                        </button>
+                        {activeShoppingList.length > 0 && (
+                            <button
+                                onClick={handleClearAllQuantities}
+                                className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-bold shadow-sm hover:bg-red-100 transition-all flex items-center gap-1.5"
+                            >
+                                <Trash2 size={16} /> ZERAR QUANTIDADES
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -231,236 +304,253 @@ const Compras = ({ materials, readOnly }) => {
             {isSaving && (
                 <div className="fixed top-4 right-4 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce z-50">
                     <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
-                    Salvando no banco de dados...
+                    Salvando lista...
                 </div>
             )}
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pendentes de Compra</p>
-                        <h3 className="text-3xl font-black text-slate-800">{pendingCount}</h3>
-                        <p className="text-xs font-semibold text-amber-600">
-                            Custo Est.: {pendingTotalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
+            {/* 1. ACTIVE SHOPPING LIST (TOP SECTION) */}
+            {activeShoppingList.length > 0 && (
+                <div className="bg-amber-50/50 border border-amber-200/60 p-6 rounded-3xl space-y-4 animate-in slide-in-from-top-4 duration-300">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                            <ClipboardList size={18} className="text-amber-600" /> Itens Adicionados para Compra (Lista Ativa)
+                        </h3>
+                        <span className="bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                            {activeShoppingList.length} {activeShoppingList.length === 1 ? 'item' : 'itens'}
+                        </span>
                     </div>
-                    <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100">
-                        <AlertCircle size={24} />
-                    </div>
-                </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Itens Comprados</p>
-                        <h3 className="text-3xl font-black text-slate-800">{boughtCount}</h3>
-                        <p className="text-xs font-semibold text-emerald-600">
-                            Total Pago: {boughtTotalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
-                    </div>
-                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 border border-emerald-100">
-                        <CheckCircle2 size={24} />
+                    <div className="bg-white rounded-2xl border border-amber-200/50 shadow-sm overflow-hidden divide-y divide-gray-100">
+                        {activeShoppingList.map(item => (
+                            <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50/40 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className="px-4 py-2 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-sm font-black min-w-[50px] text-center">
+                                        {item.quantity}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-800 text-sm">{item.name}</h4>
+                                        <span className="text-[9px] font-black uppercase text-gray-450 bg-gray-100 px-2 py-0.5 rounded border border-gray-150">
+                                            {item.category}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setQtyInputs(prev => ({ ...prev, [item.id]: '0' }));
+                                        // Confirm removal immediately through standard function
+                                        const updatedItems = items.map(it => 
+                                            it.id === item.id ? { ...it, quantity: 0 } : it
+                                        );
+                                        setItems(updatedItems);
+                                        setQtyInputs(prev => ({ ...prev, [item.id]: '' }));
+                                        saveData(categories, updatedItems);
+                                    }}
+                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    title="Remover da lista"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
+            )}
+
+            {/* Search Catalog */}
+            <div className="relative">
+                <Search className="absolute left-3.5 top-3 text-gray-450" size={18} />
+                <input
+                    type="text"
+                    placeholder="Buscar insumos no catálogo..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-semibold"
+                />
             </div>
 
-            {/* Search and Filters Bar */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-                {/* Search */}
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Buscar item ou observação..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                    />
-                </div>
+            {/* 2. CATALOG LIST GROUPED BY CATEGORIES */}
+            <div className="space-y-8">
+                {categories.map(category => {
+                    const categoryItems = items.filter(it => 
+                        it.category === category && 
+                        it.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
 
-                {/* Filters */}
-                <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
-                    <button
-                        onClick={() => setActiveFilter('pendente')}
-                        className={`flex-1 md:flex-none px-5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            activeFilter === 'pendente'
-                                ? 'bg-white text-indigo-700 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-800'
-                        }`}
-                    >
-                        Pendentes ({pendingCount})
-                    </button>
-                    <button
-                        onClick={() => setActiveFilter('comprado')}
-                        className={`flex-1 md:flex-none px-5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            activeFilter === 'comprado'
-                                ? 'bg-white text-indigo-700 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-800'
-                        }`}
-                    >
-                        Comprados ({boughtCount})
-                    </button>
-                </div>
-            </div>
+                    if (categoryItems.length === 0 && searchQuery) return null;
 
-            {/* Loading / Empty / List State */}
-            {isLoading ? (
-                <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-gray-100 shadow-sm gap-4">
-                    <span className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-gray-500 font-semibold">Carregando lista de compras...</p>
-                </div>
-            ) : filteredCompras.length === 0 ? (
-                <div className="p-16 border-2 border-dashed border-gray-200 bg-white rounded-3xl text-center flex flex-col items-center justify-center gap-4 shadow-sm">
-                    <ShoppingCart size={48} className="text-gray-305" />
-                    <div>
-                        <p className="text-gray-500 font-bold text-lg">Nenhum item localizado</p>
-                        <p className="text-gray-400 text-xs mt-1">
-                            {searchQuery ? 'Tente mudar o termo da busca.' : 'Adicione itens à lista para começar a planejar suas compras.'}
-                        </p>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 border-b border-gray-100">
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase w-12 text-center">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Item</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-center">Qtd</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Est. Unitário</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Est. Total</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Anotações</th>
-                                    <th className="px-6 py-4 text-center w-24"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredCompras.map(item => {
-                                    const totalCost = (item.unitPrice || 0) * (item.quantity || 1);
-                                    return (
-                                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => handleToggleStatus(item.id)}
-                                                    disabled={readOnly}
-                                                    className="focus:outline-none transition-transform active:scale-90"
-                                                    title={item.status === 'comprado' ? 'Marcar como Pendente' : 'Marcar como Comprado'}
-                                                >
-                                                    {item.status === 'comprado' ? (
-                                                        <CheckCircle2 className="text-emerald-500 hover:text-emerald-600" size={20} />
-                                                    ) : (
-                                                        <Circle className="text-gray-300 hover:text-indigo-500" size={20} />
+                    return (
+                        <div key={category} className="bg-white rounded-3xl border border-gray-150 p-6 shadow-sm space-y-4">
+                            {/* Category Header */}
+                            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                <h3 className="text-base font-extrabold text-gray-700 uppercase tracking-wider">{category}</h3>
+                                {!readOnly && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedCategory(category);
+                                            setShowItemModal(true);
+                                        }}
+                                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                                    >
+                                        <PlusCircle size={14} /> Adicionar Item
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Items List */}
+                            {categoryItems.length === 0 ? (
+                                <p className="text-xs text-gray-400 italic py-2">Nenhum item nesta categoria ainda.</p>
+                            ) : (
+                                <div className="divide-y divide-gray-100">
+                                    {categoryItems.map(item => {
+                                        const inputValue = qtyInputs[item.id] ?? '';
+                                        const hasUnsavedChanges = inputValue !== '' && parseFloat(inputValue) !== item.quantity;
+                                        
+                                        return (
+                                            <div 
+                                                key={item.id} 
+                                                className={`py-3 flex items-center justify-between transition-colors ${
+                                                    item.quantity > 0 ? 'bg-amber-50/20' : ''
+                                                }`}
+                                            >
+                                                {/* Left side: Quantity Input & Action */}
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0"
+                                                        value={inputValue}
+                                                        onChange={e => setQtyInputs({ ...qtyInputs, [item.id]: e.target.value })}
+                                                        onKeyDown={e => handleKeyDown(e, item)}
+                                                        className={`w-16 px-2 py-1.5 text-center text-sm font-black border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 ${
+                                                            hasUnsavedChanges 
+                                                                ? 'border-indigo-400 bg-indigo-50/30' 
+                                                                : (item.quantity > 0 ? 'border-amber-300 bg-amber-50 font-bold text-amber-700' : 'border-gray-200 bg-gray-50 text-gray-600')
+                                                        }`}
+                                                        disabled={readOnly}
+                                                        min="0"
+                                                        step="any"
+                                                    />
+                                                    {hasUnsavedChanges && (
+                                                        <button
+                                                            onClick={() => handleSaveQty(item)}
+                                                            className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center"
+                                                            title="Salvar quantidade"
+                                                        >
+                                                            <Check size={14} />
+                                                        </button>
                                                     )}
-                                                </button>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-750 flex items-center gap-2">
-                                                    {item.name}
-                                                    {item.isCustom ? (
-                                                        <span className="px-2 py-0.5 bg-orange-50 text-orange-600 border border-orange-100 text-[9px] font-bold rounded-md">
+                                                </div>
+
+                                                {/* Middle: Item Name */}
+                                                <div className="flex-1 ml-4 flex items-center gap-2 min-w-0">
+                                                    <span className={`text-sm font-bold truncate ${item.quantity > 0 ? 'text-amber-800' : 'text-gray-700'}`}>
+                                                        {item.name}
+                                                    </span>
+                                                    {item.isCustom && (
+                                                        <span className="px-1.5 py-0.5 bg-orange-50 text-orange-600 border border-orange-100 text-[8px] font-bold rounded">
                                                             Manual
                                                         </span>
-                                                    ) : (
-                                                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[9px] font-bold rounded-md">
-                                                            Orçamento
-                                                        </span>
                                                     )}
                                                 </div>
-                                                <div className="text-[10px] text-gray-400 flex items-center gap-1.5 mt-1 font-medium">
-                                                    <Calendar size={10} />
-                                                    {new Date(item.createdAt).toLocaleDateString('pt-BR')} às {new Date(item.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-bold text-gray-700">
-                                                {item.quantity}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-medium text-gray-600">
-                                                {item.unitPrice > 0 
-                                                    ? item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                    : '-'
-                                                }
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-black text-indigo-600">
-                                                {totalCost > 0
-                                                    ? totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                    : '-'
-                                                }
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate font-medium" title={item.notes}>
-                                                {item.notes || <span className="text-gray-300 italic">Sem observações</span>}
-                                            </td>
-                                            <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
+
+                                                {/* Right side: Delete/Remove Item Action */}
                                                 {!readOnly && (
-                                                    <div className="flex justify-center items-center gap-1">
-                                                        <button
-                                                            onClick={() => handleEditItem(item)}
-                                                            className="p-1.5 text-gray-350 hover:text-indigo-650 transition-colors"
-                                                            title="Editar item"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.83 20.82a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteItem(item.id)}
-                                                            className="p-1.5 text-gray-355 hover:text-red-500 transition-colors"
-                                                            title="Excluir item"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeleteItem(item.id)}
+                                                        className="p-1 text-gray-300 hover:text-red-500 transition-colors ml-4"
+                                                        title="Excluir item do catálogo"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
                                                 )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Modal: New Category */}
+            {showCategoryModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+                        <div className="bg-indigo-600 p-5 text-white flex items-center justify-between">
+                            <h3 className="text-sm font-black flex items-center gap-2 uppercase tracking-wider">
+                                <FolderPlus size={16} /> Nova Categoria
+                            </h3>
+                            <button onClick={() => setShowCategoryModal(false)} className="p-1 hover:bg-white/10 rounded-full">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddCategory} className="p-5 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome da Categoria</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Embalagens, Fitas, Chapas..."
+                                    value={newCategoryName}
+                                    onChange={e => setNewCategoryName(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-gray-700"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCategoryModal(false)}
+                                    className="px-4 py-2 border border-gray-250 text-gray-500 rounded-xl text-xs font-bold hover:bg-gray-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700"
+                                >
+                                    CRIAR CATEGORIA
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
 
-            {/* Create/Edit Item Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-gray-100 flex flex-col my-8 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="bg-indigo-600 p-6 text-white flex items-center justify-between">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <ShoppingBag size={20} />
-                                {editingItem ? 'Editar Item de Compra' : 'Novo Item para Compra'}
+            {/* Modal: New Item */}
+            {showItemModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+                        <div className="bg-indigo-600 p-5 text-white flex items-center justify-between">
+                            <h3 className="text-sm font-black flex items-center gap-2 uppercase tracking-wider">
+                                <PlusCircle size={16} /> Adicionar Item em "{selectedCategory}"
                             </h3>
-                            <button
-                                onClick={() => setShowModal(false)}
-                                className="p-1 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
-                            >
-                                <X size={18} />
+                            <button onClick={() => setShowItemModal(false)} className="p-1 hover:bg-white/10 rounded-full">
+                                <X size={16} />
                             </button>
                         </div>
-
-                        {/* Form */}
-                        <form onSubmit={handleSaveItem} className="p-6 space-y-4 flex-1">
+                        <form onSubmit={handleAddItem} className="p-5 space-y-4">
                             {/* Source Selector */}
                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Origem do Item</label>
-                                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Origem do Material</label>
+                                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-250">
                                     <button
                                         type="button"
                                         onClick={() => setItemSource('registered')}
                                         className={`py-2 rounded-lg text-xs font-bold transition-all ${
                                             itemSource === 'registered'
-                                                ? 'bg-white text-indigo-700 shadow-sm border border-gray-150'
+                                                ? 'bg-white text-indigo-700 shadow-sm border border-gray-200'
                                                 : 'text-gray-500 hover:text-gray-700'
                                         }`}
                                     >
-                                        Material de Orçamento
+                                        Material do Sistema
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setItemSource('custom')}
                                         className={`py-2 rounded-lg text-xs font-bold transition-all ${
                                             itemSource === 'custom'
-                                                ? 'bg-white text-indigo-700 shadow-sm border border-gray-150'
+                                                ? 'bg-white text-indigo-700 shadow-sm border border-gray-200'
                                                 : 'text-gray-500 hover:text-gray-700'
                                         }`}
                                     >
@@ -469,97 +559,57 @@ const Compras = ({ materials, readOnly }) => {
                                 </div>
                             </div>
 
-                            {/* Item Inputs based on Source */}
                             {itemSource === 'registered' ? (
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        <Package size={12} className="text-indigo-500" /> Material do Sistema
-                                    </label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selecionar Material Cadastrado</label>
                                     <select
                                         value={selectedMaterialId}
                                         onChange={e => setSelectedMaterialId(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                                         required
                                     >
-                                        <option value="">Selecione um material...</option>
-                                        {materials.map(m => (
-                                            <option key={m.id} value={m.id}>
-                                                {m.name} ({m.type === 'unit' ? 'unid' : m.type === 'linear' ? 'm linear' : 'chapa'})
-                                            </option>
-                                        ))}
+                                        <option value="">Selecione...</option>
+                                        {materials
+                                            // Filter out materials already mapped to any category
+                                            .filter(m => !items.some(it => !it.isCustom && it.materialId?.toString() === m.id.toString()))
+                                            .map(m => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.name}
+                                                </option>
+                                            ))
+                                        }
                                     </select>
                                 </div>
                             ) : (
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        <FileText size={12} className="text-orange-500" /> Nome do Material Manual
-                                    </label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome do Item Personalizado</label>
                                     <input
                                         type="text"
-                                        placeholder="Ex: Caixa de Papelão 20x20x10"
-                                        value={customName}
-                                        onChange={e => setCustomName(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-750"
+                                        placeholder="Ex: Caixa de Papelão 20x20x10..."
+                                        value={customItemName}
+                                        onChange={e => setCustomItemName(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-gray-750"
                                         required
                                     />
+                                    <p className="text-[9px] text-orange-600 font-semibold mt-1">
+                                        * Este item será adicionado apenas à lista de compras e não alterará os materiais de orçamentos.
+                                    </p>
                                 </div>
                             )}
 
-                            {/* Quantity and Price Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quantidade</label>
-                                    <input
-                                        type="number"
-                                        min="0.01"
-                                        step="any"
-                                        value={quantity}
-                                        onChange={e => setQuantity(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Preço Unitário (R$)</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="Opcional"
-                                        value={unitPrice}
-                                        onChange={e => setUnitPrice(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Observações / Motivo da Compra</label>
-                                <textarea
-                                    placeholder="Ex: Utilizado para envio de medalhas do pedido #2034."
-                                    value={notes}
-                                    onChange={e => setNotes(e.target.value)}
-                                    rows={3}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-gray-650 resize-none font-medium"
-                                />
-                            </div>
-
-                            {/* Actions */}
-                            <div className="pt-4 flex items-center justify-end gap-2 border-t border-gray-100">
+                            <div className="flex justify-end gap-2 pt-2">
                                 <button
                                     type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="px-4 py-2.5 border border-gray-250 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
+                                    onClick={() => setShowItemModal(false)}
+                                    className="px-4 py-2 border border-gray-250 text-gray-500 rounded-xl text-xs font-bold hover:bg-gray-50"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
+                                    className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700"
                                 >
-                                    <Check size={14} />
-                                    {editingItem ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR À LISTA'}
+                                    ADICIONAR ITEM
                                 </button>
                             </div>
                         </form>
