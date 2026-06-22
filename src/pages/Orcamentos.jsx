@@ -2773,6 +2773,91 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                 </div>
                             </div>
                         )}
+
+                        {/* Itens já inseridos no orçamento */}
+                        {budgetItems.length > 0 && (
+                            <div className="mt-8 pt-8 border-t border-gray-200 space-y-4 animate-in fade-in duration-300">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-base font-bold text-gray-700 flex items-center gap-2">
+                                        <Receipt size={18} className="text-indigo-650" /> Itens Já Inseridos no Orçamento
+                                    </h3>
+                                    <span className="bg-indigo-50 px-2.5 py-0.5 rounded-full text-xs font-bold text-indigo-600 border border-indigo-100">
+                                        {budgetItems.length} {budgetItems.length === 1 ? 'Item' : 'Itens'}
+                                    </span>
+                                </div>
+
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-gray-50 border-b border-gray-100">
+                                            <tr>
+                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase">Item</th>
+                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-center">Quantidade</th>
+                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Unitário (c/ encargos)</th>
+                                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase text-right">Total Item</th>
+                                                <th className="px-6 py-4 text-center w-16"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {budgetItems.map(item => (
+                                                <tr 
+                                                    key={item.id} 
+                                                    className={`transition-colors cursor-pointer ${item.id === editingItemId ? 'bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-gray-50/50'}`}
+                                                    onClick={() => handleEditItem(item)}
+                                                >
+                                                    <td className="px-6 py-4 text-gray-700">
+                                                        <div className="font-bold flex items-center gap-2">
+                                                            {item.name}
+                                                            {item.id === editingItemId && (
+                                                                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-extrabold rounded uppercase tracking-wider">
+                                                                    Editando
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {item.description && (
+                                                            <div className="text-xs text-gray-400 font-normal mt-0.5 line-clamp-1 whitespace-pre-line">
+                                                                {item.description}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
+                                                        <input
+                                                            type="number"
+                                                            value={item.quantity}
+                                                            onChange={e => handleUpdateItemQty(item.id, e.target.value)}
+                                                            className="w-20 px-2 py-1 text-center bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
+                                                        />
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right font-medium text-gray-700">
+                                                        {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="font-black text-indigo-600 text-base">
+                                                            {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center flex justify-center items-center gap-2" onClick={e => e.stopPropagation()}>
+                                                        <button
+                                                            onClick={() => handleEditItem(item)}
+                                                            className="p-2 text-gray-300 hover:text-indigo-500 transition-colors"
+                                                            title="Editar item"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRemoveItem(item.id)}
+                                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                                            title="Remover item"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </div >
