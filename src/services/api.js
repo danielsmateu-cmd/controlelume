@@ -918,6 +918,26 @@ const supabaseApi = {
             console.error('Supabase saveMonthlySales:', err);
             return false;
         }
+    },
+
+    // ==================== COMPRAS ====================
+    async getCompras() {
+        try {
+            const data = await api.getSettings('compras');
+            return data || [];
+        } catch (err) {
+            console.error('Supabase getCompras:', err);
+            return [];
+        }
+    },
+
+    async saveCompras(compras) {
+        try {
+            return await api.saveSettings('compras', compras);
+        } catch (err) {
+            console.error('Supabase saveCompras:', err);
+            return false;
+        }
     }
 };
 

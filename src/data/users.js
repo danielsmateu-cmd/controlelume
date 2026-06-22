@@ -68,23 +68,23 @@ export const USERS = [
 // Permissões por role
 export const ROLE_PERMISSIONS = {
     admin: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
-        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao', 'compras'],
+        editableTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao', 'compras'],
         canExportImport: true
     },
     editor: {
-        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao'],
-        editableTabs: ['orcamentos', 'contas', 'tarefas', 'simulacao'],
+        visibleTabs: ['resumo', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'simulacao', 'compras'],
+        editableTabs: ['orcamentos', 'contas', 'tarefas', 'simulacao', 'compras'],
         canExportImport: false
     },
     budget_only: {
-        visibleTabs: ['orcamentos', 'contas'],
-        editableTabs: ['orcamentos', 'contas'],
+        visibleTabs: ['orcamentos', 'contas', 'compras'],
+        editableTabs: ['orcamentos', 'contas', 'compras'],
         canExportImport: false
     },
     producao_only: {
-        visibleTabs: ['contas'],
-        editableTabs: ['contas'],
+        visibleTabs: ['contas', 'compras'],
+        editableTabs: ['contas', 'compras'],
         canExportImport: false
     },
     simulacao_only: {

@@ -509,5 +509,18 @@ export const localApi = {
         current[monthId] = salesData;
         setLocal('ecommerce_monthly_sales', current);
         return true;
+    },
+
+    // ==================== COMPRAS ====================
+    async getCompras() {
+        const settings = getLocal('settings', {});
+        return settings['compras'] ?? [];
+    },
+
+    async saveCompras(compras) {
+        const settings = getLocal('settings', {});
+        settings['compras'] = compras;
+        setLocal('settings', settings);
+        return true;
     }
 };

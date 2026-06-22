@@ -7,6 +7,7 @@ import Saida from './pages/Saida';
 import Entradas from './pages/Entradas';
 import Anotacoes from './pages/Anotacoes';
 import Orcamentos from './pages/Orcamentos';
+import Compras from './pages/Compras';
 import Tarefas from './pages/Tarefas';
 import ECommerce from './pages/ECommerce';
 import SimulacaoDescontos from './pages/ecommerce/SimulacaoDescontos';
@@ -273,6 +274,8 @@ function AppContent() {
                 return <Anotacoes readOnly={!canEdit('contas')} />;
             case 'orcamentos':
                 return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={setActiveTab} />;
+            case 'compras':
+                return <Compras materials={materials} readOnly={!canEdit('compras')} />;
             case 'ecommerce':
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
             case 'simulacao':
