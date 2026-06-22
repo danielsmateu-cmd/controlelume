@@ -9,6 +9,7 @@ const MODULES = [
     { id: 'saida', label: 'Saídas' },
     { id: 'orcamentos', label: 'Orçamentos' },
     { id: 'contas', label: 'Produção / Contas' },
+    { id: 'compras', label: 'Compras' },
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'ecommerce', label: 'E-Commerce' },
     { id: 'simulacao', label: 'Simulação de Descontos' }
