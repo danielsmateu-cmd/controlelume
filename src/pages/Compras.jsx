@@ -73,7 +73,22 @@ const Compras = ({ materials, readOnly }) => {
                     }
                 });
 
-                setCategories(loadedCategories);
+                // Ensure all item categories exist in the categories list to make them visible
+                const finalCategories = [...loadedCategories];
+                initialItems.forEach(it => {
+                    if (it.category && !finalCategories.includes(it.category)) {
+                        finalCategories.push(it.category);
+                    }
+                });
+
+                // Posicionar a categoria 'Outros' no final se ela existir
+                if (finalCategories.includes('Outros')) {
+                    const idx = finalCategories.indexOf('Outros');
+                    finalCategories.splice(idx, 1);
+                    finalCategories.push('Outros');
+                }
+
+                setCategories(finalCategories);
                 setItems(initialItems);
 
                 // Initialize quantity input fields
