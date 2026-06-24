@@ -13,6 +13,7 @@ import ECommerce from './pages/ECommerce';
 import SimulacaoDescontos from './pages/ecommerce/SimulacaoDescontos';
 import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
+import EstudoProdutos from './pages/EstudoProdutos';
 import { api } from './services/api';
 
 function AppContent() {
@@ -276,6 +277,8 @@ function AppContent() {
                 return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={setActiveTab} />;
             case 'compras':
                 return <Compras materials={materials} readOnly={!canEdit('compras')} />;
+            case 'estudo_produtos':
+                return <EstudoProdutos readOnly={!canEdit('estudo_produtos')} />;
             case 'ecommerce':
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
             case 'simulacao':

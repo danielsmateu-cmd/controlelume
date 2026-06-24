@@ -10,6 +10,7 @@ const MODULES = [
     { id: 'orcamentos', label: 'Orçamentos' },
     { id: 'contas', label: 'Produção / Contas' },
     { id: 'compras', label: 'Compras' },
+    { id: 'estudo_produtos', label: 'Estudo de Produtos' },
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'ecommerce', label: 'E-Commerce' },
     { id: 'simulacao', label: 'Simulação de Descontos' }

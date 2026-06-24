@@ -111,9 +111,14 @@ export const localApi = {
         return true;
     },
 
-    // ==================== ORÇAMENTOS ====================
     async getBudgets() {
-        return getLocal('budgets', []);
+        const data = getLocal('budgets', []);
+        return data.map(b => ({
+            ...b,
+            clientData: b.client_data || b.clientData,
+            items: b.items,
+            attachedImages: b.client_data?.attachedImages || b.clientData?.attachedImages || []
+        }));
     },
 
     async addBudget(budget) {
@@ -126,6 +131,7 @@ export const localApi = {
             items: budget.items,
             total: budget.total,
             status: budget.status,
+            attachedImages: budget.clientData?.attachedImages || [],
             created_at: new Date().toISOString()
         };
         current.unshift(newBudget); // Add to beginning (order desc)

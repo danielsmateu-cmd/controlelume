@@ -683,7 +683,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
 
         const newBudget = {
             date: new Date().toISOString(),
-            clientData: { ...clientData },
+            clientData: { 
+                ...clientData,
+                attachedImages: [...attachedImages]
+            },
             items: [...budgetItems],
             total: projectTotal,
             status: 'Aguardando'
@@ -756,7 +759,33 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     const handleLoadBudget = (budget) => {
         setClientData(budget.clientData);
         setBudgetItems(budget.items);
+        setAttachedImages(budget.attachedImages || budget.clientData?.attachedImages || []);
         setView('budget');
+    };
+
+    const handleNewBudget = () => {
+        if (budgetItems.length > 0 || clientData.name) {
+            if (!confirm("Deseja iniciar um novo orçamento? Os dados não salvos do orçamento atual serão perdidos.")) {
+                return;
+            }
+        }
+        setClientData({
+            name: '',
+            doc: '',
+            address: '',
+            number: '',
+            neighborhood: '',
+            city: '',
+            zip: '',
+            phone: '',
+            email: '',
+            installationValue: ''
+        });
+        setBudgetItems([]);
+        setAttachedImages([]);
+        setDiscount('10');
+        setDiscountValue('0');
+        setIsAddingItem(false);
     };
     const [measurements, setMeasurements] = useState({});
 
@@ -2129,6 +2158,12 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                 <h2 className="text-2xl font-bold text-gray-800">Orçamento Atual</h2>
                             </div>
                             <div className="flex gap-2">
+                                <button
+                                    onClick={handleNewBudget}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm"
+                                >
+                                    <Plus size={18} /> Novo Orçamento
+                                </button>
                                 <button
                                     onClick={() => setView('saved_list')}
                                     className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"

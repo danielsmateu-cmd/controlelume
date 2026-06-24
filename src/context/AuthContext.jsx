@@ -19,7 +19,51 @@ export function AuthProvider({ children }) {
             try {
                 const savedUsers = await api.getSettings('system_users');
                 if (savedUsers && savedUsers.length > 0) {
-                    setUsersList(savedUsers);
+                    let migrated = false;
+                    const updatedUsers = savedUsers.map(u => {
+                        // Se for admin, editor, ou login for dsmateu/teste/jsmateu/bsmateu e tiver customPermissions
+                        const isEligible = u.role === 'admin' || u.role === 'editor' || u.login === 'dsmateu' || u.login === 'teste' || u.login === 'jsmateu' || u.login === 'bsmateu';
+                        
+                        if (isEligible && u.customPermissions) {
+                            const vis = u.customPermissions.visibleTabs || [];
+                            const edi = u.customPermissions.editableTabs || [];
+                            
+                            const needsVis = !vis.includes('estudo_produtos');
+                            const needsEdi = !edi.includes('estudo_produtos');
+                            
+                            if (needsVis || needsEdi) {
+                                migrated = true;
+                                return {
+                                    ...u,
+                                    customPermissions: {
+                                        ...u.customPermissions,
+                                        visibleTabs: needsVis ? [...vis, 'estudo_produtos'] : vis,
+                                        editableTabs: needsEdi ? [...edi, 'estudo_produtos'] : edi
+                                    }
+                                };
+                            }
+                        }
+                        return u;
+                    });
+
+                    if (migrated) {
+                        console.log('Migrating system_users to include estudo_produtos...');
+                        await api.saveSettings('system_users', updatedUsers);
+                        setUsersList(updatedUsers);
+                        
+                        // Atualizar também o currentUser do sessionStorage caso seja o usuário ativo
+                        const mySession = sessionStorage.getItem('currentUser');
+                        if (mySession) {
+                            const parsed = JSON.parse(mySession);
+                            const updatedMe = updatedUsers.find(x => x.id === parsed.id);
+                            if (updatedMe) {
+                                sessionStorage.setItem('currentUser', JSON.stringify(updatedMe));
+                                setCurrentUser(updatedMe);
+                            }
+                        }
+                    } else {
+                        setUsersList(savedUsers);
+                    }
                 } else {
                     setUsersList(USERS);
                     await api.saveSettings('system_users', USERS);

@@ -177,7 +177,8 @@ const supabaseApi = {
                 ...b,
                 clientData: b.client_data,
                 items: b.items,
-                deliveryDate: b.delivery_date || b.client_data?.deliveryDate
+                deliveryDate: b.delivery_date || b.client_data?.deliveryDate,
+                attachedImages: b.client_data?.attachedImages || []
             }));
         } catch (err) {
             console.error('Supabase getBudgets:', err);
@@ -203,7 +204,8 @@ const supabaseApi = {
             return {
                 ...data[0],
                 clientData: data[0].client_data,
-                items: data[0].items
+                items: data[0].items,
+                attachedImages: data[0].client_data?.attachedImages || []
             };
         } catch (err) {
             console.error('Supabase addBudget:', err);
