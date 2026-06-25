@@ -28,7 +28,8 @@ const EMPTY_FORM = {
     link: '',
     saleValue: '',
     productionCost: '',
-    monthlySales: ''
+    monthlySales: '',
+    image: ''
 };
 
 const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => {
@@ -57,6 +58,24 @@ const EstudoProdutos = ({ readOnly }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [zoomImage, setZoomImage] = useState(null);
+
+    const handlePaste = (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    setForm(f => ({ ...f, image: event.target.result }));
+                };
+                reader.readAsDataURL(file);
+                e.preventDefault();
+                break;
+            }
+        }
+    };
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -102,7 +121,8 @@ const EstudoProdutos = ({ readOnly }) => {
             link: product.link || '',
             saleValue: String(product.saleValue || ''),
             productionCost: String(product.productionCost || ''),
-            monthlySales: String(product.monthlySales || '')
+            monthlySales: String(product.monthlySales || ''),
+            image: product.image || ''
         });
         setIsModalOpen(true);
     };
@@ -116,7 +136,8 @@ const EstudoProdutos = ({ readOnly }) => {
             link: form.link.trim(),
             saleValue: parseNumber(form.saleValue),
             productionCost: parseNumber(form.productionCost),
-            monthlySales: parseInt(form.monthlySales) || 0
+            monthlySales: parseInt(form.monthlySales) || 0,
+            image: form.image || ''
         };
 
         let newList;
@@ -323,19 +344,35 @@ const EstudoProdutos = ({ readOnly }) => {
                                             </td>
                                             {/* Nome e Link */}
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-800 break-words max-w-[250px]">{p.name}</div>
-                                                {p.link ? (
-                                                    <a
-                                                        href={p.link.startsWith('http') ? p.link : `https://${p.link}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-[11px] text-indigo-500 hover:text-indigo-700 font-medium inline-flex items-center gap-0.5 mt-0.5"
-                                                    >
-                                                        Link do Produto <ExternalLink size={10} />
-                                                    </a>
-                                                ) : (
-                                                    <span className="text-[11px] text-gray-400 italic">Sem link associado</span>
-                                                )}
+                                                <div className="flex items-center gap-3">
+                                                    {p.image ? (
+                                                        <img 
+                                                            src={p.image} 
+                                                            alt={p.name} 
+                                                            className="w-10 h-10 object-cover rounded-lg border border-gray-150 shadow-sm cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                                                            onClick={() => setZoomImage(p.image)}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300 flex-shrink-0">
+                                                            <Lightbulb size={15} />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="font-semibold text-gray-800 break-words max-w-[250px]">{p.name}</div>
+                                                        {p.link ? (
+                                                            <a
+                                                                href={p.link.startsWith('http') ? p.link : `https://${p.link}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-[11px] text-indigo-500 hover:text-indigo-700 font-medium inline-flex items-center gap-0.5 mt-0.5"
+                                                            >
+                                                                Link do Produto <ExternalLink size={10} />
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-[11px] text-gray-400 italic">Sem link associado</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </td>
                                             {/* Preço de Venda */}
                                             <td className="px-6 py-4 text-right font-medium">
@@ -413,7 +450,7 @@ const EstudoProdutos = ({ readOnly }) => {
                         </div>
 
                         {/* Modal Body */}
-                        <form onSubmit={handleSave} className="p-6 space-y-4">
+                        <form onSubmit={handleSave} onPaste={handlePaste} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Nome do Produto *</label>
                                 <input
@@ -435,6 +472,51 @@ const EstudoProdutos = ({ readOnly }) => {
                                     onChange={e => setForm(f => ({ ...f, link: e.target.value }))}
                                     className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-all"
                                 />
+                            </div>
+
+                            {/* Campo de Imagem (Colar ou Selecionar) */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Imagem (Print Ctrl+V / Arquivo)</label>
+                                <div 
+                                    className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer transition-colors relative group bg-gray-50/50 hover:bg-white min-h-[90px] flex items-center justify-center"
+                                >
+                                    {form.image ? (
+                                        <div className="relative inline-block w-full">
+                                            <img src={form.image} alt="Preview" className="max-h-36 rounded-lg object-contain mx-auto border" />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setForm(f => ({ ...f, image: '' }));
+                                                }}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors shadow-md z-10"
+                                                title="Remover Imagem"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-gray-400 flex flex-col items-center justify-center gap-1 py-1 w-full">
+                                            <span className="font-semibold text-indigo-600">Cole (Ctrl+V) um print aqui</span>
+                                            <span>ou clique para selecionar</span>
+                                            <input 
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onload = (event) => {
+                                                            setForm(f => ({ ...f, image: event.target.result }));
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -509,6 +591,29 @@ const EstudoProdutos = ({ readOnly }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Zoom Imagem (Lightbox) */}
+            {zoomImage && (
+                <div 
+                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-200"
+                    onClick={() => setZoomImage(null)}
+                >
+                    <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl p-1.5 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <button
+                            onClick={() => setZoomImage(null)}
+                            className="absolute top-4 right-4 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full transition-colors z-10 shadow-lg"
+                        >
+                            <X size={18} />
+                        </button>
+                        <img 
+                            src={zoomImage} 
+                            alt="Visualização" 
+                            className="max-w-full max-h-[85vh] object-contain rounded-xl"
+                            onClick={(e) => e.stopPropagation()}
+                        />
                     </div>
                 </div>
             )}
