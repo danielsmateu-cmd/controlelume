@@ -100,6 +100,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [editingItemId, setEditingItemId] = useState(null);
     const [savedBudgets, setSavedBudgets] = useState([]);
     const [budgetSearch, setBudgetSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('Todos');
     const [deliveryModal, setDeliveryModal] = useState(null); // { id, newStatus }
     const [budgetToDelete, setBudgetToDelete] = useState(null); // { id, clientName }
     const [attachedImages, setAttachedImages] = useState([]); // { id, dataUrl, name }
@@ -1260,6 +1261,23 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     const totalArea = sheetMaterials.reduce((sum, mat) => sum + calculateRow(mat).areaM2, 0);
 
     if (view === 'saved_list') {
+        const filteredBudgets = savedBudgets.filter(b => {
+            if (statusFilter !== 'Todos' && b.status !== statusFilter) return false;
+            if (!budgetSearch.trim()) return true;
+            const q = budgetSearch.toLowerCase();
+            const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
+            const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+            const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+            const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+            return (
+                (b.clientData?.name || '').toLowerCase().includes(q) ||
+                new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
+                totalCheioStr.includes(qClean) ||
+                totalAVistaStr.includes(qClean) ||
+                totalParceladoStr.includes(qClean)
+            );
+        });
+
         const getStatusColor = (status) => {
             switch (status) {
                 case 'Aprovado': return 'bg-green-100 text-green-700 border-green-200';
@@ -1379,47 +1397,74 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-6 border-b border-gray-100 bg-gray-50">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
                             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                                 <List className="text-indigo-600" /> Meus Orçamentos
                             </h2>
-                            <span className="text-sm text-gray-500 font-bold">{savedBudgets.length} salvos</span>
+                            <span className="text-sm text-gray-500 font-bold self-start sm:self-auto">{savedBudgets.length} salvos</span>
                         </div>
-                        <div className="relative">
-                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                            <input
-                                type="text"
-                                placeholder="Buscar por cliente, data ou valor..."
-                                value={budgetSearch}
-                                onChange={e => setBudgetSearch(e.target.value)}
-                                className="w-full pl-9 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none shadow-sm transition-all placeholder-gray-400"
-                            />
-                            {budgetSearch && (
-                                <button
-                                    onClick={() => setBudgetSearch('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                                    title="Limpar busca"
-                                >
-                                    <X size={15} />
-                                </button>
-                            )}
-                        </div>
-                        {budgetSearch && (
-                            <p className="mt-2 text-xs text-gray-400 font-medium">
-                                {savedBudgets.filter(b => {
-                                    const q = budgetSearch.toLowerCase();
-                                    const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
-                                    const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                    const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                    const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+                        <div className="space-y-3">
+                            <div className="relative">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por cliente, data ou valor..."
+                                    value={budgetSearch}
+                                    onChange={e => setBudgetSearch(e.target.value)}
+                                    className="w-full pl-9 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none shadow-sm transition-all placeholder-gray-400"
+                                />
+                                {budgetSearch && (
+                                    <button
+                                        onClick={() => setBudgetSearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        title="Limpar busca"
+                                    >
+                                        <X size={15} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Pílulas de filtro de Status */}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                {['Todos', 'Aguardando', 'Aprovado', 'Recusado', 'Faturado'].map(status => {
+                                    const count = status === 'Todos' 
+                                        ? savedBudgets.length 
+                                        : savedBudgets.filter(b => b.status === status).length;
+                                    
+                                    const isActive = statusFilter === status;
+                                    
+                                    const activeColors = {
+                                        Todos: 'bg-indigo-600 text-white border-indigo-600',
+                                        Aguardando: 'bg-yellow-500 text-white border-yellow-500',
+                                        Aprovado: 'bg-green-600 text-white border-green-600',
+                                        Recusado: 'bg-red-600 text-white border-red-600',
+                                        Faturado: 'bg-blue-600 text-white border-blue-600'
+                                    };
+                                    
                                     return (
-                                        (b.clientData?.name || '').toLowerCase().includes(q) ||
-                                        new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
-                                        totalCheioStr.includes(qClean) ||
-                                        totalAVistaStr.includes(qClean) ||
-                                        totalParceladoStr.includes(qClean)
+                                        <button
+                                            key={status}
+                                            onClick={() => setStatusFilter(status)}
+                                            className={clsx(
+                                                "px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm",
+                                                isActive ? activeColors[status] : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                            )}
+                                        >
+                                            <span>{status}</span>
+                                            <span className={clsx(
+                                                "px-1.5 py-0.2 rounded-full text-[10px] font-black leading-none",
+                                                isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                                            )}>
+                                                {count}
+                                            </span>
+                                        </button>
                                     );
-                                }).length} resultado(s) encontrado(s)
+                                })}
+                            </div>
+                        </div>
+                        {(budgetSearch || statusFilter !== 'Todos') && (
+                            <p className="mt-3 text-xs text-gray-400 font-medium">
+                                {filteredBudgets.length} resultado(s) encontrado(s)
                             </p>
                         )}
                     </div>
@@ -1445,21 +1490,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {savedBudgets.filter(b => {
-                                        if (!budgetSearch.trim()) return true;
-                                        const q = budgetSearch.toLowerCase();
-                                        const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
-                                        const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                        const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                        const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-                                        return (
-                                            (b.clientData?.name || '').toLowerCase().includes(q) ||
-                                            new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
-                                            totalCheioStr.includes(qClean) ||
-                                            totalAVistaStr.includes(qClean) ||
-                                            totalParceladoStr.includes(qClean)
-                                        );
-                                    }).map(budget => {
+                                    {filteredBudgets.map(budget => {
                                         const budgetDate = new Date(budget.date);
                                         const isCurrentMonth = budgetDate.getMonth() === new Date().getMonth() && budgetDate.getFullYear() === new Date().getFullYear();
 
