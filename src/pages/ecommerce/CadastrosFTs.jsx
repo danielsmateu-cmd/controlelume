@@ -389,6 +389,49 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         }
     };
 
+    const handleInlineSalePriceChange = async (ft, newValue) => {
+        if (readOnly) return;
+        const val = parseFloat(newValue) || 0;
+        if (val <= 0) {
+            alert("Preço de venda inválido.");
+            loadData();
+            return;
+        }
+
+        const confirmed = window.confirm(`Deseja realmente alterar o preço de venda da FT "${ft.name}" para R$ ${val.toFixed(2)}?`);
+        if (!confirmed) {
+            loadData();
+            return;
+        }
+
+        try {
+            if (ft.isOverride) {
+                const nextOverrides = { ...overrides };
+                nextOverrides[ft.ftCode] = {
+                    ...overrides[ft.ftCode],
+                    salePrice: val
+                };
+                const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
+                if (success) {
+                    setOverrides(nextOverrides);
+                } else {
+                    alert("Erro ao salvar alteração de preço no marketplace.");
+                    loadData();
+                }
+            } else {
+                const success = await api.updateFtSalePrice(ft.id, val);
+                if (!success) {
+                    alert("Erro ao atualizar preço de venda global.");
+                    loadData();
+                }
+            }
+        } catch (err) {
+            console.error("Erro ao atualizar preço de venda:", err);
+            alert("Erro ao salvar alteração.");
+            loadData();
+        }
+    };
+
     const handleSaveCostModel = async () => {
         if (readOnly) return;
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
@@ -1538,8 +1581,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             <td className={clsx("px-6 py-4 text-right font-bold", ftMarginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                 {ftMarginPercent.toFixed(1)}%
                                             </td>
-                                            <td className="px-6 py-4 text-right font-medium text-gray-900 whitespace-nowrap">
-                                                R$ {parseFloat(ft.salePrice).toFixed(2)}
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="inline-flex items-center gap-1 justify-end">
+                                                    <span className="text-xs text-gray-500 font-medium">R$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={ft.salePrice ?? ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: val } : item));
+                                                        }}
+                                                        onBlur={async (e) => {
+                                                            await handleInlineSalePriceChange(ft, e.target.value);
+                                                        }}
+                                                        onKeyDown={async (e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.target.blur();
+                                                            }
+                                                        }}
+                                                        disabled={readOnly}
+                                                        className="w-20 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded-lg py-1 px-1.5 focus:ring-1 focus:ring-indigo-300 transition-colors disabled:opacity-50"
+                                                        placeholder="0.00"
+                                                        step="0.01"
+                                                        min="0"
+                                                    />
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-center gap-1">

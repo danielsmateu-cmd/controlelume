@@ -462,6 +462,13 @@ export const localApi = {
         return true;
     },
 
+    async updateFtSalePrice(id, salePrice) {
+        const current = getLocal('fts', []);
+        const next = current.map(ft => ft.id === id ? { ...ft, salePrice: salePrice, sale_price: salePrice } : ft);
+        setLocal('fts', next);
+        return true;
+    },
+
     // ==================== COST MODELS (Fichas Técnicas) ====================
     async getFtCostModels() {
         return getLocal('ft_cost_models', []);

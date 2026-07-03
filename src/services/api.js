@@ -807,6 +807,20 @@ const supabaseApi = {
         }
     },
 
+    async updateFtSalePrice(id, salePrice) {
+        try {
+            const { error } = await supabase
+                .from('fts')
+                .update({ sale_price: salePrice || 0, updated_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase updateFtSalePrice:', err);
+            return false;
+        }
+    },
+
     // ==================== COST MODELS (Fichas Técnicas) ====================
     async getFtCostModels() {
         try {
