@@ -440,6 +440,38 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         }
     };
 
+    const handleInlineNotForSaleChange = async (ft, isChecked) => {
+        if (readOnly) return;
+        try {
+            const nextOverrides = { ...overrides };
+            nextOverrides[ft.ftCode] = {
+                ...overrides[ft.ftCode],
+                name: ft.name,
+                variation: ft.variation,
+                productionTime: ft.productionTime,
+                salePrice: ft.salePrice,
+                materials: ft.materials,
+                directCostsRS: ft.directCostsRS,
+                directCostsPercent: ft.directCostsPercent,
+                notForSale: isChecked,
+                updatedAt: new Date().toISOString()
+            };
+
+            const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
+            if (success) {
+                setOverrides(nextOverrides);
+                setFts(prev => prev.map(item => item.id === ft.id ? { ...item, isOverride: true, notForSale: isChecked, updatedAt: new Date().toISOString() } : item));
+            } else {
+                alert("Erro ao salvar status de venda no marketplace.");
+                loadData();
+            }
+        } catch (err) {
+            console.error("Erro ao atualizar status de venda:", err);
+            alert("Erro ao salvar alteração.");
+            loadData();
+        }
+    };
+
     const handleSaveCostModel = async () => {
         if (readOnly) return;
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
@@ -1515,6 +1547,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-gray-500 bg-white uppercase">
                                 <tr>
+                                    <th className="w-10 px-4 py-3 text-center"></th>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Última Alt.</th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo Prod.</th>
@@ -1528,7 +1561,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {fts.map((ft) => {
+                                {fts.map((ft, idx) => {
                                     const ftTotalMat = ft.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
                                     const ftTotalDir = ft.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
                                     const ftTotalPerc = ft.directCostsPercent.reduce((acc, curr) => {
@@ -1538,7 +1571,29 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     const ftMarginPercent = parseFloat(ft.salePrice) > 0 ? (ftMarginRS / parseFloat(ft.salePrice)) * 100 : 0;
 
                                     return (
-                                        <tr key={ft.id} className="hover:bg-gray-50 transition-colors">
+                                        <tr 
+                                            key={ft.id} 
+                                            className={clsx(
+                                                "transition-colors",
+                                                ft.notForSale 
+                                                    ? "bg-amber-50/70 hover:bg-amber-100/60" 
+                                                    : idx % 2 === 0 
+                                                        ? "bg-slate-50/60 hover:bg-gray-50/80" 
+                                                        : "bg-gray-100/40 hover:bg-gray-50/80"
+                                            )}
+                                        >
+                                            <td className="px-4 py-4 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!ft.notForSale}
+                                                    onChange={async (e) => {
+                                                        await handleInlineNotForSaleChange(ft, e.target.checked);
+                                                    }}
+                                                    disabled={readOnly}
+                                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+                                                    title={ft.notForSale ? "Marcar como À Venda" : "Marcar como Não está à Venda"}
+                                                />
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="font-semibold text-gray-900 flex items-center gap-2">
                                                     <span className="text-gray-500">{ft.ftCode}</span>
