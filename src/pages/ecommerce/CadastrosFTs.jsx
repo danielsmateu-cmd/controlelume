@@ -74,6 +74,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingPrices, setEditingPrices] = useState({});
+    const [isMatrixOpen, setIsMatrixOpen] = useState(false);
+    const [allOverrides, setAllOverrides] = useState({});
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -115,20 +117,32 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     useEffect(() => {
         loadData();
     }, [currentMarketplace]);
-
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [dbFts, dbModels, mktOverrides, dbMaterials] = await Promise.all([
+            const [dbFts, dbModels, dbMaterials, meliOvr, shopeeOvr, tiktokOvr, amazonOvr, siteOvr] = await Promise.all([
                 api.getFts(),
                 api.getFtCostModels(),
-                api.getSettings(`ft_overrides_${currentMarketplace}`),
-                api.getMaterials()
+                api.getMaterials(),
+                api.getSettings('ft_overrides_meli'),
+                api.getSettings('ft_overrides_shopee'),
+                api.getSettings('ft_overrides_tiktok'),
+                api.getSettings('ft_overrides_amazon'),
+                api.getSettings('ft_overrides_site')
             ]);
 
             setRegisteredMaterials(dbMaterials || []);
 
-            const overridesData = mktOverrides || {};
+            const mktOverridesMap = {
+                meli: meliOvr || {},
+                shopee: shopeeOvr || {},
+                tiktok: tiktokOvr || {},
+                amazon: amazonOvr || {},
+                site: siteOvr || {}
+            };
+            setAllOverrides(mktOverridesMap);
+
+            const overridesData = mktOverridesMap[currentMarketplace] || {};
             setOverrides(overridesData);
 
             let finalFts = [...dbFts];
@@ -829,6 +843,27 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         return acc + getTempCost(mat);
     }, 0);
 
+    const getMktMetrics = (ft, mkt) => {
+        const overridesForMkt = allOverrides[mkt] || {};
+        const mktFt = overridesForMkt[ft.ftCode] 
+            ? { ...ft, ...overridesForMkt[ft.ftCode], isOverride: true }
+            : ft;
+
+        const ftTotalMat = mktFt.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
+        const ftTotalDir = mktFt.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
+        const ftTotalPerc = mktFt.directCostsPercent.reduce((acc, curr) => {
+            return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(mktFt.salePrice) || 0));
+        }, 0);
+        const ftMarginRS = (parseFloat(mktFt.salePrice) || 0) - ftTotalMat - ftTotalDir - ftTotalPerc;
+        const ftMarginPercent = parseFloat(mktFt.salePrice) > 0 ? (ftMarginRS / parseFloat(mktFt.salePrice)) * 100 : 0;
+
+        return {
+            salePrice: parseFloat(mktFt.salePrice) || 0,
+            marginPercent: ftMarginPercent,
+            notForSale: !!mktFt.notForSale
+        };
+    };
+
     const currentPlatform = PLATFORMS.find(p => p.id === currentMarketplace);
     const options = [
         { id: 'geral', label: 'Geral (Global)', emoji: '🌐', color: 'bg-slate-700 hover:bg-slate-800', activeColor: 'bg-slate-800', ring: 'ring-slate-300', textColor: 'text-white' },
@@ -864,6 +899,15 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                             {p.label}
                         </button>
                     ))}
+
+                    <div className="h-10 w-[1px] bg-gray-200 mx-1 self-center"></div>
+
+                    <button
+                        onClick={() => setIsMatrixOpen(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all"
+                    >
+                        📊 Venda x Margem
+                    </button>
                 </div>
             </div>
 
@@ -1781,6 +1825,142 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Matriz Venda x Margem */}
+            {isMatrixOpen && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMatrixOpen(false)}></div>
+
+                    {/* Content */}
+                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-7xl max-h-[90vh] overflow-hidden z-10 flex flex-col">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                                    📊 Matriz Comparativa: Vendas x Margens
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Preço de Venda (R$) e Margem de Contribuição (%) cadastrados em cada Marketplace.</p>
+                            </div>
+                            <button onClick={() => setIsMatrixOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="overflow-auto flex-1 min-h-[300px]">
+                            <table className="w-full text-xs text-left border-collapse">
+                                <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
+                                    <tr>
+                                        <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-yellow-50 text-yellow-800 border-r border-b border-gray-200">Mercado Livre 🛒</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-orange-50 text-orange-800 border-r border-b border-gray-200">Shopee 🧡</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-gray-100 text-gray-900 border-r border-b border-gray-200">TikTok 🎵</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-amber-50 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-indigo-50 text-indigo-900 border-b border-gray-200">Site 🌐</th>
+                                    </tr>
+                                    <tr className="bg-gray-50">
+                                        {/* ML */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        {/* Shopee */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        {/* TikTok */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-gray-50 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-gray-50 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        {/* Amazon */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        {/* Site */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {fts.map((ft, idx) => {
+                                        const ml = getMktMetrics(ft, 'meli');
+                                        const shopee = getMktMetrics(ft, 'shopee');
+                                        const tiktok = getMktMetrics(ft, 'tiktok');
+                                        const amazon = getMktMetrics(ft, 'amazon');
+                                        const site = getMktMetrics(ft, 'site');
+
+                                        return (
+                                            <tr 
+                                                key={ft.id} 
+                                                className={clsx(
+                                                    "transition-colors",
+                                                    idx % 2 === 0 ? "bg-white hover:bg-slate-50" : "bg-gray-100/50 hover:bg-slate-50"
+                                                )}
+                                            >
+                                                {/* FT Name (sticky left) */}
+                                                <td className="px-4 py-3.5 font-bold text-gray-800 border-r border-gray-200 bg-inherit sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] text-gray-400 font-mono tracking-wider">{ft.ftCode}</span>
+                                                        <span className="truncate max-w-[220px]" title={ft.name}>
+                                                            {ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-0.5">({ft.variation})</span>}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                
+                                                {/* Mercado Livre */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", ml.notForSale ? "text-amber-700 bg-amber-50/30" : ml.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                    {ml.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${ml.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", ml.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-yellow-50/5")}>
+                                                    {ml.notForSale ? "—" : ml.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+
+                                                {/* Shopee */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", shopee.notForSale ? "text-amber-700 bg-amber-50/30" : shopee.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                    {shopee.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${shopee.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", shopee.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-orange-50/5")}>
+                                                    {shopee.notForSale ? "—" : shopee.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+
+                                                {/* TikTok */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", tiktok.notForSale ? "text-amber-700 bg-amber-50/30" : tiktok.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                    {tiktok.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${tiktok.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", tiktok.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-gray-100/5")}>
+                                                    {tiktok.notForSale ? "—" : tiktok.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+
+                                                {/* Amazon */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", amazon.notForSale ? "text-amber-700 bg-amber-50/30" : amazon.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                    {amazon.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${amazon.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", amazon.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-amber-50/5")}>
+                                                    {amazon.notForSale ? "—" : amazon.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+
+                                                {/* Site */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", site.notForSale ? "text-amber-700 bg-amber-50/30" : site.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                    {site.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${site.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-3.5 text-right font-bold text-gray-700", site.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-indigo-50/5")}>
+                                                    {site.notForSale ? "—" : site.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50/50">
+                            <button
+                                onClick={() => setIsMatrixOpen(false)}
+                                className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                            >
+                                Fechar Matriz
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
