@@ -62,9 +62,9 @@ const parseMaterialName = (encodedName) => {
 
 const PLATFORMS = [
     { id: 'meli', label: 'Mercado Livre', emoji: '🛒', color: 'bg-yellow-400 hover:bg-yellow-500', activeColor: 'bg-yellow-500', ring: 'ring-yellow-300', textColor: 'text-yellow-900' },
-    { id: 'shopee', label: 'Shopee', emoji: '🧡', color: 'bg-orange-500 hover:bg-orange-600', activeColor: 'bg-orange-600', ring: 'ring-orange-300', textColor: 'text-white' },
     { id: 'tiktok', label: 'TikTok', emoji: '🎵', color: 'bg-gray-900 hover:bg-black', activeColor: 'bg-black', ring: 'ring-gray-500', textColor: 'text-white' },
     { id: 'amazon', label: 'Amazon', emoji: '📦', color: 'bg-amber-500 hover:bg-amber-600', activeColor: 'bg-amber-600', ring: 'ring-amber-300', textColor: 'text-white' },
+    { id: 'shopee', label: 'Shopee', emoji: '🧡', color: 'bg-orange-500 hover:bg-orange-600', activeColor: 'bg-orange-600', ring: 'ring-orange-300', textColor: 'text-white' },
     { id: 'site', label: 'Site', emoji: '🌐', color: 'bg-indigo-600 hover:bg-indigo-700', activeColor: 'bg-indigo-700', ring: 'ring-indigo-300', textColor: 'text-white' },
 ];
 
@@ -1916,36 +1916,36 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
                                     <tr>
                                         <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-yellow-50 text-yellow-800 border-r border-b border-gray-200">Mercado Livre 🛒</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-orange-50 text-orange-800 border-r border-b border-gray-200">Shopee 🧡</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-gray-100 text-gray-900 border-r border-b border-gray-200">TikTok 🎵</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-amber-50 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-indigo-50 text-indigo-900 border-b border-gray-200">Site 🌐</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
+                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
                                     </tr>
                                     <tr className="bg-gray-50">
                                         {/* ML */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
-                                        {/* Shopee */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
                                         {/* TikTok */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-gray-50 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-gray-50 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
                                         {/* Amazon */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        {/* Shopee */}
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
                                         {/* Site */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-b border-gray-200 min-w-[100px]">Venda R$</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {fts.map((ft, idx) => {
                                         const ml = getMktMetrics(ft, 'meli');
-                                        const shopee = getMktMetrics(ft, 'shopee');
                                         const tiktok = getMktMetrics(ft, 'tiktok');
                                         const amazon = getMktMetrics(ft, 'amazon');
+                                        const shopee = getMktMetrics(ft, 'shopee');
                                         const site = getMktMetrics(ft, 'site');
 
                                         return (
@@ -1967,10 +1967,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 </td>
                                                 
                                                 {/* Mercado Livre */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", ml.notForSale ? "text-amber-700 bg-amber-50/30" : ml.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-yellow-50/40", ml.notForSale ? "text-amber-700" : ml.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                     {ml.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${ml.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", ml.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-yellow-50/5")}>
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-yellow-50/40", ml.notForSale && "text-gray-400")}>
                                                     {ml.notForSale ? "—" : (
                                                         <div className="inline-flex items-center gap-1 justify-end">
                                                             <span className="text-[10px] text-gray-400 font-medium">R$</span>
@@ -2001,46 +2001,11 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                 </td>
 
-                                                {/* Shopee */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", shopee.notForSale ? "text-amber-700 bg-amber-50/30" : shopee.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
-                                                    {shopee.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${shopee.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", shopee.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-orange-50/5")}>
-                                                    {shopee.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-shopee`] !== undefined ? editingValues[`${ft.id}-shopee`] : shopee.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-shopee`]: shopee.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-shopee`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'shopee', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
-
                                                 {/* TikTok */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", tiktok.notForSale ? "text-amber-700 bg-amber-50/30" : tiktok.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-slate-100/50", tiktok.notForSale ? "text-amber-700" : tiktok.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                     {tiktok.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${tiktok.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", tiktok.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-gray-100/5")}>
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-slate-100/50", tiktok.notForSale && "text-gray-400")}>
                                                     {tiktok.notForSale ? "—" : (
                                                         <div className="inline-flex items-center gap-1 justify-end">
                                                             <span className="text-[10px] text-gray-400 font-medium">R$</span>
@@ -2072,10 +2037,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 </td>
 
                                                 {/* Amazon */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", amazon.notForSale ? "text-amber-700 bg-amber-50/30" : amazon.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-amber-50/40", amazon.notForSale ? "text-amber-700" : amazon.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                     {amazon.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${amazon.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", amazon.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-amber-50/5")}>
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-amber-50/40", amazon.notForSale && "text-gray-400")}>
                                                     {amazon.notForSale ? "—" : (
                                                         <div className="inline-flex items-center gap-1 justify-end">
                                                             <span className="text-[10px] text-gray-400 font-medium">R$</span>
@@ -2106,11 +2071,46 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                 </td>
 
+                                                {/* Shopee */}
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-orange-50/40", shopee.notForSale ? "text-amber-700" : shopee.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                                    {shopee.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${shopee.marginPercent.toFixed(1)}%`}
+                                                </td>
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-orange-50/40", shopee.notForSale && "text-gray-400")}>
+                                                    {shopee.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-shopee`] !== undefined ? editingValues[`${ft.id}-shopee`] : shopee.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-shopee`]: shopee.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-shopee`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'shopee', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </td>
+
                                                 {/* Site */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", site.notForSale ? "text-amber-700 bg-amber-50/30" : site.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
+                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-indigo-50/40", site.notForSale ? "text-amber-700" : site.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                     {site.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${site.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-2 text-right font-bold text-gray-700", site.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-indigo-50/5")}>
+                                                <td className={clsx("px-3 py-2 text-right font-bold text-gray-700 bg-indigo-50/40", site.notForSale && "text-gray-400")}>
                                                     {site.notForSale ? "—" : (
                                                         <div className="inline-flex items-center gap-1 justify-end">
                                                             <span className="text-[10px] text-gray-400 font-medium">R$</span>
