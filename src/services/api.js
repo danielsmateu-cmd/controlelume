@@ -719,7 +719,8 @@ const supabaseApi = {
                 salePrice: parseFloat(ft.sale_price) || 0,
                 materials: ft.ft_materials || [],
                 directCostsRS: ft.ft_direct_costs_rs || [],
-                directCostsPercent: ft.ft_direct_costs_percent || []
+                directCostsPercent: ft.ft_direct_costs_percent || [],
+                updatedAt: ft.updated_at
             }));
         } catch (err) {
             console.error('Supabase getFts:', err);

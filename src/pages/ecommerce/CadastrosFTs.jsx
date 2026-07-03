@@ -233,7 +233,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     name: formData.name,
                                     variation: formData.variation,
                                     productionTime: formData.productionTime,
-                                    materials: formData.materials
+                                    materials: formData.materials,
+                                    updatedAt: new Date().toISOString()
                                 };
                                 await api.saveSettings(`ft_overrides_${mkt}`, mktOverrides);
                             }
@@ -262,7 +263,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     salePrice: form.salePrice,
                     materials: form.materials,
                     directCostsRS: form.directCostsRS,
-                    directCostsPercent: form.directCostsPercent
+                    directCostsPercent: form.directCostsPercent,
+                    updatedAt: new Date().toISOString()
                 };
 
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
@@ -366,7 +368,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const nextOverrides = { ...overrides };
                 nextOverrides[ft.ftCode] = {
                     ...overrides[ft.ftCode],
-                    productionTime: val
+                    productionTime: val,
+                    updatedAt: new Date().toISOString()
                 };
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
@@ -412,7 +415,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const nextOverrides = { ...overrides };
                 nextOverrides[ft.ftCode] = {
                     ...overrides[ft.ftCode],
-                    salePrice: val
+                    salePrice: val,
+                    updatedAt: new Date().toISOString()
                 };
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
@@ -1511,6 +1515,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                             <thead className="text-xs text-gray-500 bg-white uppercase">
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
+                                    <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Última Alt.</th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo Prod.</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (Fixo)</th>
@@ -1543,6 +1548,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                     <span>{ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}</span>
                                                 </div>
+                                            </td>
+                                            <td 
+                                                className="px-6 py-4 text-center text-xs text-gray-500 whitespace-nowrap"
+                                                title={ft.updatedAt || ft.updated_at ? new Date(ft.updatedAt || ft.updated_at).toLocaleString('pt-BR') : undefined}
+                                            >
+                                                {ft.updatedAt || ft.updated_at ? new Date(ft.updatedAt || ft.updated_at).toLocaleDateString('pt-BR') : '—'}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="inline-flex items-center gap-1 justify-center">

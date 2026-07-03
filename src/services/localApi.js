@@ -457,14 +457,14 @@ export const localApi = {
 
     async updateFtProductionTime(id, productionTime) {
         const current = getLocal('fts', []);
-        const next = current.map(ft => ft.id === id ? { ...ft, productionTime: productionTime, production_time: productionTime } : ft);
+        const next = current.map(ft => ft.id === id ? { ...ft, productionTime: productionTime, production_time: productionTime, updated_at: new Date().toISOString() } : ft);
         setLocal('fts', next);
         return true;
     },
 
     async updateFtSalePrice(id, salePrice) {
         const current = getLocal('fts', []);
-        const next = current.map(ft => ft.id === id ? { ...ft, salePrice: salePrice, sale_price: salePrice } : ft);
+        const next = current.map(ft => ft.id === id ? { ...ft, salePrice: salePrice, sale_price: salePrice, updated_at: new Date().toISOString() } : ft);
         setLocal('fts', next);
         return true;
     },
