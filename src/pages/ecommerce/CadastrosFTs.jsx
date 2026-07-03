@@ -863,52 +863,52 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6 overflow-y-auto space-y-6">
+                        <div className="p-6 overflow-y-auto space-y-3">
                             {/* Info Básica */}
-                            <div className="space-y-4">
-                                <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md transition-all">
-                                    <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Nome do Produto</label>
+                            <div className="space-y-2">
+                                <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
+                                    <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Nome do Produto</label>
                                     <input
                                         type="text"
                                         value={form.name}
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                                         readOnly={readOnly}
-                                        className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                        className="w-full text-sm font-semibold text-gray-800 border-indigo-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-1 px-2.5 transition-colors"
                                         placeholder="Ex: Luminária X"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md transition-all">
-                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Variação <span className="text-indigo-400 font-normal lowercase italic">(opcional)</span></label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Variação <span className="text-indigo-400 font-normal lowercase italic">(opcional)</span></label>
                                         <input
                                             type="text"
                                             value={form.variation}
                                             onChange={(e) => setForm({ ...form, variation: e.target.value })}
                                             readOnly={readOnly}
-                                            className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            className="w-full text-sm font-semibold text-gray-800 border-indigo-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-1 px-2.5 transition-colors"
                                             placeholder="Ex: Preto"
                                         />
                                     </div>
-                                    <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
-                                        <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Tempo Prod. (min)</label>
+                                    <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Tempo Prod. (min)</label>
                                         <input
                                             type="number"
                                             value={form.productionTime || ''}
                                             onChange={(e) => setForm({ ...form, productionTime: e.target.value })}
                                             readOnly={readOnly}
-                                            className="w-full text-base font-bold text-emerald-900 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            className="w-full text-sm font-bold text-indigo-900 border-indigo-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-1 px-2.5 transition-colors"
                                             placeholder="Ex: 30"
                                             min="0"
                                         />
                                     </div>
-                                    <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
-                                        <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Preço de Venda (R$)</label>
+                                    <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Preço de Venda (R$)</label>
                                         <input
                                             type="number"
                                             value={form.salePrice || ''}
                                             onChange={(e) => setForm({ ...form, salePrice: parseFloat(e.target.value) || 0 })}
                                             readOnly={readOnly}
-                                            className="w-full text-base font-black text-emerald-700 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            className="w-full text-sm font-black text-indigo-900 border-indigo-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-1 px-2.5 transition-colors"
                                             placeholder="0,00"
                                             step="0.01"
                                         />
@@ -925,7 +925,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 onChange={handleLoadCostModel}
                                                 defaultValue=""
                                                 disabled={readOnly}
-                                                className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="px-2 py-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer"
                                             >
                                                 <option value="" disabled>Carregar Modelo...</option>
                                                 {costModels.map(m => (
@@ -937,7 +937,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             type="button"
                                             onClick={handleSaveCostModel}
                                             disabled={readOnly}
-                                            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                                            className="px-2 py-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
                                         >
                                             Salvar como Modelo
                                         </button>
@@ -967,7 +967,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <button
                                                     type="button"
                                                     onClick={handleSaveMaterialsModel}
-                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
                                                     title="Salvar apenas materiais como modelo"
                                                 >
                                                     Salvar Modelo
@@ -1082,7 +1082,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <button
                                                     type="button"
                                                     onClick={handleSaveDirectCostsRSModel}
-                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
                                                     title="Salvar apenas custos R$ como modelo"
                                                 >
                                                     Salvar Modelo
@@ -1148,7 +1148,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <button
                                                     type="button"
                                                     onClick={handleSaveDirectCostsPercentModel}
-                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
                                                     title="Salvar apenas custos % como modelo"
                                                 >
                                                     Salvar Modelo
