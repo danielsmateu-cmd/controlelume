@@ -20,6 +20,7 @@ function AppContent() {
     const { currentUser, canEdit, canView } = useAuth();
     const [activeTab, setActiveTab] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isOffline, setIsOffline] = useState(false);
 
     // SHARED STATE
     const currentYear = new Date().getFullYear();
@@ -74,39 +75,61 @@ function AppContent() {
                 }
             }
 
-            const [dbExpenses, dbOrders, dbNotes, dbMaterials] = await Promise.all([
-                api.getExpenses(),
-                api.getOrders(),
-                api.getNotes(),
-                api.getMaterials()
-            ]);
+            try {
+                const [dbExpenses, dbOrders, dbNotes, dbMaterials] = await Promise.all([
+                    api.getExpenses(),
+                    api.getOrders(),
+                    api.getNotes(),
+                    api.getMaterials()
+                ]);
 
-            // Set state (if test user and we just cleared, these will be empty/defaults)
-            if (dbExpenses && dbExpenses.length > 0) {
-                setExpenses(dbExpenses);
-            } else {
-                setExpenses([]);
+                // Set state (if test user and we just cleared, these will be empty/defaults)
+                if (dbExpenses && dbExpenses.length > 0) {
+                    setExpenses(dbExpenses);
+                } else {
+                    setExpenses([]);
+                }
+
+                if (dbOrders && dbOrders.length > 0) {
+                    setOrders(dbOrders);
+                } else {
+                    setOrders([]);
+                }
+
+                if (dbNotes && dbNotes.length > 0) {
+                    setNotes(dbNotes);
+                } else {
+                    setNotes([]);
+                }
+
+                if (dbMaterials && dbMaterials.length > 0) {
+                    setMaterials(dbMaterials);
+                }
+                
+                setIsOffline(false);
+            } catch (err) {
+                console.warn('Erro ao carregar dados do banco. Usando dados locais...', err);
+                setIsOffline(true);
+
+                // Carregar dados salvos no localStorage
+                try {
+                    const savedExpenses = localStorage.getItem('expenses');
+                    if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
+
+                    const savedOrders = localStorage.getItem('orders');
+                    if (savedOrders) setOrders(JSON.parse(savedOrders));
+
+                    const savedNotes = localStorage.getItem('notes');
+                    if (savedNotes) setNotes(JSON.parse(savedNotes));
+
+                    const savedMaterials = localStorage.getItem('materials');
+                    if (savedMaterials) setMaterials(JSON.parse(savedMaterials));
+                } catch (e) {
+                    console.error('Erro ao ler do localStorage:', e);
+                }
+            } finally {
+                setIsLoading(false);
             }
-
-            if (dbOrders && dbOrders.length > 0) {
-                setOrders(dbOrders);
-            } else {
-                setOrders([]);
-            }
-
-            if (dbNotes && dbNotes.length > 0) {
-                setNotes(dbNotes);
-            } else {
-                setNotes([]);
-            }
-
-            if (dbMaterials && dbMaterials.length > 0) {
-                setMaterials(dbMaterials);
-            } else if (currentUser.login !== 'teste') {
-                // Keep defaults for test user, or load from materials state if supabase is empty
-            }
-
-            setIsLoading(false);
         };
         loadData();
     }, [currentUser?.id]);
@@ -116,6 +139,8 @@ function AppContent() {
         if (isLoading) return;
         localStorage.setItem('expenses', JSON.stringify(expenses));
 
+        if (isOffline) return;
+
         const handler = setTimeout(() => {
             api.saveExpenses(expenses);
         }, 1500);
@@ -123,7 +148,7 @@ function AppContent() {
         return () => {
             clearTimeout(handler);
         };
-    }, [expenses, isLoading]);
+    }, [expenses, isLoading, isOffline]);
 
     useEffect(() => {
         if (isLoading) return;
@@ -310,6 +335,22 @@ function AppContent() {
                 onExportExcel={handleExportExcel}
             />
             <main className="flex-1 ml-0 md:ml-16 overflow-y-auto p-8 print:p-0 print:overflow-visible print:block print:h-auto print:ml-0">
+                {isOffline && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-sm text-amber-800 shadow-sm print:hidden">
+                        <div className="flex items-center gap-3">
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                            <div>
+                                <strong className="font-semibold">Modo Offline Ativo:</strong> O banco de dados (Supabase) está temporariamente inacessível. Você está usando e salvando dados localmente no navegador.
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 active:scale-95 transition-all shadow-sm shadow-amber-600/20"
+                        >
+                            Reconectar
+                        </button>
+                    </div>
+                )}
                 {renderContent()}
             </main>
         </div>

@@ -426,6 +426,129 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         e.target.value = ''; // reset select
     };
 
+    const handleSaveMaterialsModel = async () => {
+        if (readOnly) return;
+        const name = window.prompt('Digite um nome para o modelo de materiais:');
+        if (!name || name.trim() === '') return;
+
+        const newModel = {
+            id: null,
+            name: name.trim(),
+            materials: form.materials,
+            directCostsRS: [],
+            directCostsPercent: []
+        };
+
+        setIsSaving(true);
+        const res = await api.saveFtCostModel(newModel);
+        setIsSaving(false);
+
+        if (res.success) {
+            setCostModels([...costModels, res.data]);
+            alert(`Modelo de materiais "${name.trim()}" salvo com sucesso!`);
+        } else {
+            alert("Erro ao salvar modelo de materiais na nuvem.");
+        }
+    };
+
+    const handleLoadMaterialsModel = (e) => {
+        if (readOnly) return;
+        const id = e.target.value;
+        if (!id) return;
+        const model = costModels.find(m => m.id === id);
+        if (model) {
+            if (window.confirm(`Deseja carregar os materiais do modelo "${model.name}"? Isso substituirá a lista de materiais atual.`)) {
+                setForm({
+                    ...form,
+                    materials: model.materials || []
+                });
+            }
+        }
+        e.target.value = ''; // reset select
+    };
+
+    const handleSaveDirectCostsRSModel = async () => {
+        if (readOnly) return;
+        const name = window.prompt('Digite um nome para o modelo de custos R$:');
+        if (!name || name.trim() === '') return;
+
+        const newModel = {
+            id: null,
+            name: name.trim(),
+            materials: [],
+            directCostsRS: form.directCostsRS,
+            directCostsPercent: []
+        };
+
+        setIsSaving(true);
+        const res = await api.saveFtCostModel(newModel);
+        setIsSaving(false);
+
+        if (res.success) {
+            setCostModels([...costModels, res.data]);
+            alert(`Modelo de custos R$ "${name.trim()}" salvo com sucesso!`);
+        } else {
+            alert("Erro ao salvar modelo de custos R$ na nuvem.");
+        }
+    };
+
+    const handleLoadDirectCostsRSModel = (e) => {
+        if (readOnly) return;
+        const id = e.target.value;
+        if (!id) return;
+        const model = costModels.find(m => m.id === id);
+        if (model) {
+            if (window.confirm(`Deseja carregar os custos R$ do modelo "${model.name}"? Isso substituirá os custos R$ atuais.`)) {
+                setForm({
+                    ...form,
+                    directCostsRS: model.directCostsRS || []
+                });
+            }
+        }
+        e.target.value = ''; // reset select
+    };
+
+    const handleSaveDirectCostsPercentModel = async () => {
+        if (readOnly) return;
+        const name = window.prompt('Digite um nome para o modelo de custos %:');
+        if (!name || name.trim() === '') return;
+
+        const newModel = {
+            id: null,
+            name: name.trim(),
+            materials: [],
+            directCostsRS: [],
+            directCostsPercent: form.directCostsPercent
+        };
+
+        setIsSaving(true);
+        const res = await api.saveFtCostModel(newModel);
+        setIsSaving(false);
+
+        if (res.success) {
+            setCostModels([...costModels, res.data]);
+            alert(`Modelo de custos % "${name.trim()}" salvo com sucesso!`);
+        } else {
+            alert("Erro ao salvar modelo de custos % na nuvem.");
+        }
+    };
+
+    const handleLoadDirectCostsPercentModel = (e) => {
+        if (readOnly) return;
+        const id = e.target.value;
+        if (!id) return;
+        const model = costModels.find(m => m.id === id);
+        if (model) {
+            if (window.confirm(`Deseja carregar os custos % do modelo "${model.name}"? Isso substituirá os custos % atuais.`)) {
+                setForm({
+                    ...form,
+                    directCostsPercent: model.directCostsPercent || []
+                });
+            }
+        }
+        e.target.value = ''; // reset select
+    };
+
     // dynamic lists handlers
     const addListItem = (listName, template) => {
         if (readOnly) return;
@@ -821,6 +944,26 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         <h3 className="text-xs font-semibold text-gray-800">Materiais</h3>
                                         {!readOnly && (
                                             <div className="flex items-center gap-2">
+                                                {costModels.filter(m => m.materials && m.materials.length > 0).length > 0 && (
+                                                    <select
+                                                        onChange={handleLoadMaterialsModel}
+                                                        defaultValue=""
+                                                        className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                                    >
+                                                        <option value="" disabled>Carregar...</option>
+                                                        {costModels.filter(m => m.materials && m.materials.length > 0).map(m => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveMaterialsModel}
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    title="Salvar apenas materiais como modelo"
+                                                >
+                                                    Salvar Modelo
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={handleOpenMaterialSelector}
@@ -915,9 +1058,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     <div className="flex justify-between items-center mb-3">
                                         <h3 className="text-xs font-semibold text-gray-800">Custos Diretos (R$)</h3>
                                         {!readOnly && (
-                                            <button onClick={() => addListItem('directCostsRS', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
-                                                <Plus size={16} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {costModels.filter(m => m.directCostsRS && m.directCostsRS.length > 0).length > 0 && (
+                                                    <select
+                                                        onChange={handleLoadDirectCostsRSModel}
+                                                        defaultValue=""
+                                                        className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                                    >
+                                                        <option value="" disabled>Carregar...</option>
+                                                        {costModels.filter(m => m.directCostsRS && m.directCostsRS.length > 0).map(m => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveDirectCostsRSModel}
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    title="Salvar apenas custos R$ como modelo"
+                                                >
+                                                    Salvar Modelo
+                                                </button>
+                                                <button onClick={() => addListItem('directCostsRS', { name: '', value: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
+                                                    <Plus size={16} />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="space-y-3">
@@ -959,9 +1124,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     <div className="flex justify-between items-center mb-3">
                                         <h3 className="text-xs font-semibold text-gray-800">Custos Diretos (%)</h3>
                                         {!readOnly && (
-                                            <button onClick={() => addListItem('directCostsPercent', { name: '', percentage: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
-                                                <Plus size={16} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {costModels.filter(m => m.directCostsPercent && m.directCostsPercent.length > 0).length > 0 && (
+                                                    <select
+                                                        onChange={handleLoadDirectCostsPercentModel}
+                                                        defaultValue=""
+                                                        className="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                                    >
+                                                        <option value="" disabled>Carregar...</option>
+                                                        {costModels.filter(m => m.directCostsPercent && m.directCostsPercent.length > 0).map(m => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveDirectCostsPercentModel}
+                                                    className="px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                                                    title="Salvar apenas custos % como modelo"
+                                                >
+                                                    Salvar Modelo
+                                                </button>
+                                                <button onClick={() => addListItem('directCostsPercent', { name: '', percentage: 0 })} className="text-indigo-600 hover:text-indigo-800 p-1">
+                                                    <Plus size={16} />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="space-y-3">

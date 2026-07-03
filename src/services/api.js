@@ -943,11 +943,46 @@ const supabaseApi = {
     }
 };
 
+const DB_TIMEOUT_MS = 6000;
+
+const withTimeout = (fn, methodName) => {
+    if (typeof fn !== 'function') return fn;
+    
+    return function (...args) {
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                const err = new Error(`TIMEOUT_DB: A requisição ao banco de dados no método '${methodName}' expirou.`);
+                err.code = 'TIMEOUT_DB';
+                reject(err);
+            }, DB_TIMEOUT_MS);
+        });
+
+        const executionPromise = fn.apply(this, args)
+            .then(result => {
+                clearTimeout(timeoutId);
+                return result;
+            })
+            .catch(err => {
+                clearTimeout(timeoutId);
+                throw err;
+            });
+
+        return Promise.race([executionPromise, timeoutPromise]);
+    };
+};
+
 export const api = new Proxy(supabaseApi, {
     get: function (target, prop) {
-        if (isTestUser() && localApi[prop]) {
-            return localApi[prop];
+        const activeSource = (isTestUser() && localApi[prop]) ? localApi : target;
+        const value = activeSource[prop];
+
+        if (typeof value === 'function') {
+            if (activeSource === localApi) {
+                return value;
+            }
+            return withTimeout(value, prop);
         }
-        return target[prop];
+        return value;
     }
 });
