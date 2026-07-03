@@ -76,6 +76,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [editingPrices, setEditingPrices] = useState({});
     const [isMatrixOpen, setIsMatrixOpen] = useState(false);
     const [allOverrides, setAllOverrides] = useState({});
+    const [matrixEditingPrices, setMatrixEditingPrices] = useState({});
+    const [editingValues, setEditingValues] = useState({});
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -481,6 +483,64 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             }
         } catch (err) {
             console.error("Erro ao atualizar status de venda:", err);
+            alert("Erro ao salvar alteração.");
+            loadData();
+        }
+    };
+
+    const handleMatrixSalePriceChange = async (ft, mkt, newValue) => {
+        if (readOnly) return;
+        const val = parseFloat(newValue) || 0;
+        if (val <= 0) {
+            alert("Preço de venda inválido.");
+            loadData();
+            return;
+        }
+
+        const oldVal = parseFloat(matrixEditingPrices[`${ft.id}-${mkt}`] ?? getMktMetrics(ft, mkt).salePrice) || 0;
+        if (val === oldVal) return;
+
+        const confirmed = window.confirm(`Deseja realmente alterar o preço de venda da FT "${ft.name}" no marketplace "${mkt.toUpperCase()}" para R$ ${val.toFixed(2)}?`);
+        if (!confirmed) {
+            loadData();
+            return;
+        }
+
+        try {
+            const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`) || {};
+            const nextOverridesForMkt = {
+                ...mktOverrides,
+                [ft.ftCode]: {
+                    ...(mktOverrides[ft.ftCode] || {
+                        name: ft.name,
+                        variation: ft.variation,
+                        productionTime: ft.productionTime,
+                        materials: ft.materials,
+                        directCostsRS: ft.directCostsRS,
+                        directCostsPercent: ft.directCostsPercent
+                    }),
+                    salePrice: val,
+                    updatedAt: new Date().toISOString()
+                }
+            };
+
+            const success = await api.saveSettings(`ft_overrides_${mkt}`, nextOverridesForMkt);
+            if (success) {
+                setAllOverrides(prev => ({
+                    ...prev,
+                    [mkt]: nextOverridesForMkt
+                }));
+
+                if (currentMarketplace === mkt) {
+                    setOverrides(nextOverridesForMkt);
+                    setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: val.toFixed(2), isOverride: true, updatedAt: new Date().toISOString() } : item));
+                }
+            } else {
+                alert("Erro ao salvar alteração de preço no marketplace.");
+                loadData();
+            }
+        } catch (err) {
+            console.error("Erro ao atualizar preço de venda na matriz:", err);
             alert("Erro ao salvar alteração.");
             loadData();
         }
@@ -1910,40 +1970,175 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", ml.notForSale ? "text-amber-700 bg-amber-50/30" : ml.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
                                                     {ml.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${ml.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", ml.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-yellow-50/5")}>
-                                                    {ml.notForSale ? "—" : ml.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", ml.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-yellow-50/5")}>
+                                                    {ml.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-meli`] !== undefined ? editingValues[`${ft.id}-meli`] : ml.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-meli`]: ml.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-meli`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'meli', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Shopee */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", shopee.notForSale ? "text-amber-700 bg-amber-50/30" : shopee.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
                                                     {shopee.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${shopee.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", shopee.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-orange-50/5")}>
-                                                    {shopee.notForSale ? "—" : shopee.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", shopee.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-orange-50/5")}>
+                                                    {shopee.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-shopee`] !== undefined ? editingValues[`${ft.id}-shopee`] : shopee.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-shopee`]: shopee.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-shopee`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'shopee', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* TikTok */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", tiktok.notForSale ? "text-amber-700 bg-amber-50/30" : tiktok.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
                                                     {tiktok.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${tiktok.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", tiktok.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-gray-100/5")}>
-                                                    {tiktok.notForSale ? "—" : tiktok.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", tiktok.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-gray-100/5")}>
+                                                    {tiktok.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-tiktok`] !== undefined ? editingValues[`${ft.id}-tiktok`] : tiktok.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-tiktok`]: tiktok.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-tiktok`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'tiktok', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Amazon */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", amazon.notForSale ? "text-amber-700 bg-amber-50/30" : amazon.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
                                                     {amazon.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${amazon.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold text-gray-700", amazon.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-amber-50/5")}>
-                                                    {amazon.notForSale ? "—" : amazon.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700", amazon.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-amber-50/5")}>
+                                                    {amazon.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-amazon`] !== undefined ? editingValues[`${ft.id}-amazon`] : amazon.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-amazon`]: amazon.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-amazon`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'amazon', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Site */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold", site.notForSale ? "text-amber-700 bg-amber-50/30" : site.marginPercent >= 0 ? "text-emerald-600 bg-emerald-50/5" : "text-red-600 bg-red-50/5")}>
                                                     {site.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${site.marginPercent.toFixed(1)}%`}
                                                 </td>
-                                                <td className={clsx("px-3 py-3.5 text-right font-bold text-gray-700", site.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-indigo-50/5")}>
-                                                    {site.notForSale ? "—" : site.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                <td className={clsx("px-3 py-2 text-right font-bold text-gray-700", site.notForSale ? "bg-amber-50/30 text-gray-400" : "bg-indigo-50/5")}>
+                                                    {site.notForSale ? "—" : (
+                                                        <div className="inline-flex items-center gap-1 justify-end">
+                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-site`] !== undefined ? editingValues[`${ft.id}-site`] : site.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-site`]: site.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-site`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, 'site', e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
