@@ -184,6 +184,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
     const handleSave = async () => {
         if (readOnly) return;
+
+        if (isEditing) {
+            const confirmed = window.confirm('Deseja realmente atualizar esta Ficha Técnica?');
+            if (!confirmed) return;
+        }
+
         if (!form.name || form.salePrice <= 0) {
             alert('Por favor, preencha o nome e o preço de venda válido.');
             return;
