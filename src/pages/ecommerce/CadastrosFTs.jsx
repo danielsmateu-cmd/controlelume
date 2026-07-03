@@ -72,6 +72,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [currentMarketplace, setCurrentMarketplace] = useState(marketplace);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [fts, setFts] = useState([]);
+    const [baseFts, setBaseFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingPrices, setEditingPrices] = useState({});
     const [isMatrixOpen, setIsMatrixOpen] = useState(false);
@@ -190,6 +191,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
 
             setFts(finalFts);
+            setBaseFts(dbFts || []);
             setCostModels(dbModels);
             setForm({ ...initialFormState, ftCode: getNewFtCode(finalFts) });
         } catch (err) {
@@ -507,17 +509,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         }
 
         try {
+            const cleanBaseFt = baseFts.find(b => b.ftCode === ft.ftCode) || ft;
             const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`) || {};
             const nextOverridesForMkt = {
                 ...mktOverrides,
                 [ft.ftCode]: {
                     ...(mktOverrides[ft.ftCode] || {
-                        name: ft.name,
-                        variation: ft.variation,
-                        productionTime: ft.productionTime,
-                        materials: ft.materials,
-                        directCostsRS: ft.directCostsRS,
-                        directCostsPercent: ft.directCostsPercent
+                        name: cleanBaseFt.name,
+                        variation: cleanBaseFt.variation,
+                        productionTime: cleanBaseFt.productionTime,
+                        materials: cleanBaseFt.materials,
+                        directCostsRS: cleanBaseFt.directCostsRS,
+                        directCostsPercent: cleanBaseFt.directCostsPercent
                     }),
                     salePrice: val,
                     updatedAt: new Date().toISOString()
@@ -904,10 +907,11 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     }, 0);
 
     const getMktMetrics = (ft, mkt) => {
+        const cleanBaseFt = baseFts.find(b => b.ftCode === ft.ftCode) || ft;
         const overridesForMkt = allOverrides[mkt] || {};
         const mktFt = overridesForMkt[ft.ftCode] 
-            ? { ...ft, ...overridesForMkt[ft.ftCode], isOverride: true }
-            : ft;
+            ? { ...cleanBaseFt, ...overridesForMkt[ft.ftCode], isOverride: true }
+            : cleanBaseFt;
 
         const ftTotalMat = mktFt.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
         const ftTotalDir = mktFt.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
