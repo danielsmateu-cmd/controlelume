@@ -1576,10 +1576,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             className={clsx(
                                                 "transition-colors",
                                                 ft.notForSale 
-                                                    ? "bg-amber-50/70 hover:bg-amber-100/60" 
+                                                    ? "bg-amber-50 hover:bg-amber-100" 
                                                     : idx % 2 === 0 
-                                                        ? "bg-slate-50/60 hover:bg-gray-50/80" 
-                                                        : "bg-gray-100/40 hover:bg-gray-50/80"
+                                                        ? "bg-white hover:bg-gray-50" 
+                                                        : "bg-gray-100 hover:bg-gray-200/50"
                                             )}
                                         >
                                             <td className="px-4 py-4 text-center">
