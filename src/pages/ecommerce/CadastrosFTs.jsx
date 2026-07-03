@@ -914,6 +914,28 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Margem de contribuição */}
+                                <div className="p-3 bg-indigo-50/30 border border-indigo-100/80 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
+                                    <div className="text-[11px] text-indigo-900">
+                                        <span className="font-semibold block mb-0.5">Resumo da Margem de Contribuição:</span>
+                                        Venda: R$ {(form.salePrice || 0).toFixed(2)} - Custos Totais: R$ {(totalMaterials + totalDirectRS + totalDirectPercentValue).toFixed(2)}
+                                    </div>
+                                    <div className="flex gap-4 text-right">
+                                        <div>
+                                            <span className="block text-[9px] text-indigo-600 font-medium">Margem (R$)</span>
+                                            <span className={clsx("text-base font-bold", marginRS >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                                R$ {marginRS.toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-[9px] text-indigo-600 font-medium">Margem (%)</span>
+                                            <span className={clsx("text-base font-bold", marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                                {marginPercent.toFixed(2)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 gap-4 border-b border-gray-100 pb-4">
@@ -1197,27 +1219,6 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 </div>
                             </div>
 
-                            {/* Margem de contribuição */}
-                            <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="text-xs text-indigo-900">
-                                    <span className="font-semibold block mb-1">Resumo da Margem de Contribuição:</span>
-                                    Venda: R$ {(form.salePrice || 0).toFixed(2)} - Custos Totais: R$ {(totalMaterials + totalDirectRS + totalDirectPercentValue).toFixed(2)}
-                                </div>
-                                <div className="flex gap-6 text-right">
-                                    <div>
-                                        <span className="block text-[10px] text-indigo-600 font-medium">Margem (R$)</span>
-                                        <span className={clsx("text-lg font-bold", marginRS >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                            R$ {marginRS.toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] text-indigo-600 font-medium">Margem (%)</span>
-                                        <span className={clsx("text-lg font-bold", marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                            {marginPercent.toFixed(2)}%
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Modal Footer */}
