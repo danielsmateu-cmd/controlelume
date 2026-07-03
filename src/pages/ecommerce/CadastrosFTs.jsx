@@ -73,6 +73,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [fts, setFts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [editingPrices, setEditingPrices] = useState({});
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -401,7 +402,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             return;
         }
 
-        const oldVal = parseFloat(ft.salePrice) || 0;
+        const oldVal = parseFloat(editingPrices[ft.id] ?? ft.salePrice) || 0;
         if (val === oldVal) return;
 
         const confirmed = window.confirm(`Deseja realmente alterar o preço de venda da FT "${ft.name}" para R$ ${val.toFixed(2)}?`);
@@ -1668,6 +1669,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         id={`input-saleprice-${ft.id}`}
                                                         type="number"
                                                         value={ft.salePrice ?? ''}
+                                                        onFocus={() => {
+                                                            setEditingPrices(prev => ({ ...prev, [ft.id]: ft.salePrice }));
+                                                        }}
                                                         onChange={(e) => {
                                                             const val = e.target.value;
                                                             setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: val } : item));
