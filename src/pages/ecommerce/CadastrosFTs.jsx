@@ -1584,27 +1584,55 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             <td className="px-6 py-4 text-right">
                                                 <div className="inline-flex items-center gap-1 justify-end">
                                                     <span className="text-xs text-gray-500 font-medium">R$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={ft.salePrice ?? ''}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: val } : item));
-                                                        }}
-                                                        onBlur={async (e) => {
-                                                            await handleInlineSalePriceChange(ft, e.target.value);
-                                                        }}
-                                                        onKeyDown={async (e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.target.blur();
-                                                            }
-                                                        }}
-                                                        disabled={readOnly}
-                                                        className="w-20 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded-lg py-1 px-1.5 focus:ring-1 focus:ring-indigo-300 transition-colors disabled:opacity-50"
-                                                        placeholder="0.00"
-                                                        step="0.01"
-                                                        min="0"
-                                                    />
+                                                    <div className="relative flex items-center">
+                                                        <button
+                                                            onClick={async () => {
+                                                                const newVal = (parseFloat(ft.salePrice) || 0) - 1;
+                                                                if (newVal >= 0) {
+                                                                    setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toString() } : item));
+                                                                    await handleInlineSalePriceChange(ft, newVal.toString());
+                                                                }
+                                                            }}
+                                                            disabled={readOnly}
+                                                            className="px-1.5 py-1 text-[9px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded-l transition-colors disabled:opacity-50 h-7 flex items-center justify-center cursor-pointer"
+                                                            title="Diminuir R$ 1,00"
+                                                        >
+                                                            -1
+                                                        </button>
+                                                        <input
+                                                            type="number"
+                                                            value={ft.salePrice ?? ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: val } : item));
+                                                            }}
+                                                            onBlur={async (e) => {
+                                                                await handleInlineSalePriceChange(ft, e.target.value);
+                                                            }}
+                                                            onKeyDown={async (e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.target.blur();
+                                                                }
+                                                            }}
+                                                            disabled={readOnly}
+                                                            className="w-16 text-center text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border-y border-x-0 border-indigo-100 focus:border-indigo-300 py-1 px-1 focus:ring-0 transition-colors disabled:opacity-50 h-7"
+                                                            placeholder="0.00"
+                                                            step="0.01"
+                                                            min="0"
+                                                        />
+                                                        <button
+                                                            onClick={async () => {
+                                                                const newVal = (parseFloat(ft.salePrice) || 0) + 1;
+                                                                setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toString() } : item));
+                                                                await handleInlineSalePriceChange(ft, newVal.toString());
+                                                            }}
+                                                            disabled={readOnly}
+                                                            className="px-1.5 py-1 text-[9px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded-r transition-colors disabled:opacity-50 h-7 flex items-center justify-center cursor-pointer"
+                                                            title="Aumentar R$ 1,00"
+                                                        >
+                                                            +1
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
