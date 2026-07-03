@@ -859,7 +859,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                         {/* Modal Body */}
                         <div className="p-6 overflow-y-auto space-y-6">
                             {/* Info Básica */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div className="space-y-4">
                                 <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md transition-all">
                                     <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Nome do Produto</label>
                                     <input
@@ -867,44 +867,46 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         value={form.name}
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                                         readOnly={readOnly}
-                                        className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2 px-3 transition-colors"
+                                        className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2.5 px-3 transition-colors"
                                         placeholder="Ex: Luminária X"
                                     />
                                 </div>
-                                <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md transition-all">
-                                    <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Variação <span className="text-indigo-400 font-normal lowercase italic">(opcional)</span></label>
-                                    <input
-                                        type="text"
-                                        value={form.variation}
-                                        onChange={(e) => setForm({ ...form, variation: e.target.value })}
-                                        readOnly={readOnly}
-                                        className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2 px-3 transition-colors"
-                                        placeholder="Ex: Preto"
-                                    />
-                                </div>
-                                <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
-                                    <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Tempo Prod. (min)</label>
-                                    <input
-                                        type="number"
-                                        value={form.productionTime || ''}
-                                        onChange={(e) => setForm({ ...form, productionTime: e.target.value })}
-                                        readOnly={readOnly}
-                                        className="w-full text-base font-bold text-emerald-900 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2 px-3 transition-colors"
-                                        placeholder="Ex: 30"
-                                        min="0"
-                                    />
-                                </div>
-                                <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
-                                    <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Preço de Venda (R$)</label>
-                                    <input
-                                        type="number"
-                                        value={form.salePrice || ''}
-                                        onChange={(e) => setForm({ ...form, salePrice: parseFloat(e.target.value) || 0 })}
-                                        readOnly={readOnly}
-                                        className="w-full text-base font-black text-emerald-700 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2 px-3 transition-colors"
-                                        placeholder="0,00"
-                                        step="0.01"
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Variação <span className="text-indigo-400 font-normal lowercase italic">(opcional)</span></label>
+                                        <input
+                                            type="text"
+                                            value={form.variation}
+                                            onChange={(e) => setForm({ ...form, variation: e.target.value })}
+                                            readOnly={readOnly}
+                                            className="w-full text-base font-semibold text-gray-800 border-indigo-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            placeholder="Ex: Preto"
+                                        />
+                                    </div>
+                                    <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Tempo Prod. (min)</label>
+                                        <input
+                                            type="number"
+                                            value={form.productionTime || ''}
+                                            onChange={(e) => setForm({ ...form, productionTime: e.target.value })}
+                                            readOnly={readOnly}
+                                            className="w-full text-base font-bold text-emerald-900 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            placeholder="Ex: 30"
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
+                                        <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Preço de Venda (R$)</label>
+                                        <input
+                                            type="number"
+                                            value={form.salePrice || ''}
+                                            onChange={(e) => setForm({ ...form, salePrice: parseFloat(e.target.value) || 0 })}
+                                            readOnly={readOnly}
+                                            className="w-full text-base font-black text-emerald-700 border-emerald-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 bg-white/90 py-2.5 px-3 transition-colors"
+                                            placeholder="0,00"
+                                            step="0.01"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
