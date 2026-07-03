@@ -398,6 +398,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             return;
         }
 
+        const oldVal = parseFloat(ft.salePrice) || 0;
+        if (val === oldVal) return;
+
         const confirmed = window.confirm(`Deseja realmente alterar o preço de venda da FT "${ft.name}" para R$ ${val.toFixed(2)}?`);
         if (!confirmed) {
             loadData();
@@ -1587,10 +1590,11 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         {/* Seta Reais (R$ 1,00) */}
                                                         <div className="flex flex-col select-none -space-y-1">
                                                             <button
-                                                                onClick={async () => {
+                                                                onMouseDown={(e) => e.preventDefault()}
+                                                                onClick={() => {
                                                                     const newVal = (parseFloat(ft.salePrice) || 0) + 1;
                                                                     setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toFixed(2) } : item));
-                                                                    await handleInlineSalePriceChange(ft, newVal.toFixed(2));
+                                                                    document.getElementById(`input-saleprice-${ft.id}`)?.focus();
                                                                 }}
                                                                 disabled={readOnly}
                                                                 className="text-gray-400 hover:text-indigo-600 p-0.5 transition-colors disabled:opacity-30 cursor-pointer"
@@ -1599,11 +1603,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                 <ChevronUp size={12} className="w-3 h-3" />
                                                             </button>
                                                             <button
-                                                                onClick={async () => {
+                                                                onMouseDown={(e) => e.preventDefault()}
+                                                                onClick={() => {
                                                                     const newVal = (parseFloat(ft.salePrice) || 0) - 1;
                                                                     if (newVal >= 0) {
                                                                         setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toFixed(2) } : item));
-                                                                        await handleInlineSalePriceChange(ft, newVal.toFixed(2));
+                                                                        document.getElementById(`input-saleprice-${ft.id}`)?.focus();
                                                                     }
                                                                 }}
                                                                 disabled={readOnly}
@@ -1617,10 +1622,11 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         {/* Seta Centavos (R$ 0,01) */}
                                                         <div className="flex flex-col select-none -space-y-1 mr-1">
                                                             <button
-                                                                onClick={async () => {
+                                                                onMouseDown={(e) => e.preventDefault()}
+                                                                onClick={() => {
                                                                     const newVal = (parseFloat(ft.salePrice) || 0) + 0.01;
                                                                     setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toFixed(2) } : item));
-                                                                    await handleInlineSalePriceChange(ft, newVal.toFixed(2));
+                                                                    document.getElementById(`input-saleprice-${ft.id}`)?.focus();
                                                                 }}
                                                                 disabled={readOnly}
                                                                 className="text-gray-400 hover:text-indigo-600 p-0.5 transition-colors disabled:opacity-30 cursor-pointer"
@@ -1629,11 +1635,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                 <ChevronUp size={12} className="w-3 h-3" />
                                                             </button>
                                                             <button
-                                                                onClick={async () => {
+                                                                onMouseDown={(e) => e.preventDefault()}
+                                                                onClick={() => {
                                                                     const newVal = (parseFloat(ft.salePrice) || 0) - 0.01;
                                                                     if (newVal >= 0) {
                                                                         setFts(prev => prev.map(item => item.id === ft.id ? { ...item, salePrice: newVal.toFixed(2) } : item));
-                                                                        await handleInlineSalePriceChange(ft, newVal.toFixed(2));
+                                                                        document.getElementById(`input-saleprice-${ft.id}`)?.focus();
                                                                     }
                                                                 }}
                                                                 disabled={readOnly}
@@ -1647,6 +1654,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
                                                     <span className="text-xs text-gray-500 font-medium">R$</span>
                                                     <input
+                                                        id={`input-saleprice-${ft.id}`}
                                                         type="number"
                                                         value={ft.salePrice ?? ''}
                                                         onChange={(e) => {
