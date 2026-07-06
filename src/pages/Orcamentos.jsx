@@ -682,13 +682,18 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             return;
         }
 
+        const cleanedClientData = { ...clientData };
+        delete cleanedClientData.finishedBy;
+        delete cleanedClientData.deliveryDate;
+        delete cleanedClientData.productionObs;
+
         const newBudget = {
             date: new Date().toISOString(),
             clientData: { 
-                ...clientData,
+                ...cleanedClientData,
                 attachedImages: [...attachedImages]
             },
-            items: [...budgetItems],
+            items: budgetItems.map(item => ({ ...item, concluido: false })),
             total: projectTotal,
             status: 'Aguardando'
         };
