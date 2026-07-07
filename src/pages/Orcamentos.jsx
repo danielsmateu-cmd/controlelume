@@ -107,6 +107,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [manualPrice, setManualPrice] = useState(null);
 
     const generateAndUploadPDF = async (budget) => {
         const printElement = document.getElementById('print-area-container');
@@ -791,6 +792,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setAttachedImages([]);
         setDiscount('10');
         setDiscountValue('0');
+        setManualPrice(null);
         setIsAddingItem(false);
     };
     const [measurements, setMeasurements] = useState({});
@@ -1094,6 +1096,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                 [field]: value
             }
         }));
+        setManualPrice(null);
     };
 
     const calculateRow = (material) => {
@@ -1143,7 +1146,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     const discountVal = parseFloat(discountValue) || 0;
     const rawUnitValue = Math.max(0, baseUnitFinal - discountVal);
     // Arredonda para 2 casas para bater exatamente na multiplicação pela quantidade
-    const finalUnitWithValueDiscount = Math.round(rawUnitValue * 100) / 100;
+    const finalUnitWithValueDiscount = (manualPrice !== null && manualPrice !== "") ? parseFloat(manualPrice) : (Math.round(rawUnitValue * 100) / 100);
     const finalTotalWithDiscount = finalUnitWithValueDiscount * (parseFloat(globalQty) || 1);
 
     // Custos Variáveis Unitários e Margem de Contribuição do Item
@@ -1216,6 +1219,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscountValue('0');
         setIncludeNf(true);
         setMarkup('3');
+        setManualPrice(null);
         setIsAddingItem(false);
     };
 
@@ -1230,6 +1234,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscountValue(item.discountValue || '0');
         setIncludeNf(item.includeNf !== undefined ? item.includeNf : true);
         setMarkup(item.markup || '3');
+        setManualPrice(item.unitPrice);
         setEditingItemId(item.id);
         setIsAddingItem(true);
 
@@ -1248,6 +1253,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setIncludeNf(true);
         setMarkup('3');
         setEditingItemId(null);
+        setManualPrice(null);
         setIsAddingItem(false);
     };
 
@@ -2592,7 +2598,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                         type="checkbox"
                                         id="includeNf"
                                         checked={includeNf}
-                                        onChange={e => setIncludeNf(e.target.checked)}
+                                        onChange={e => { setIncludeNf(e.target.checked); setManualPrice(null); }}
                                         className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
                                     />
                                     <label htmlFor="includeNf" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
@@ -2652,7 +2658,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             </td>
                                                             <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
                                                                 <input type="number" value={unitQtys[mat.id] || ''}
-                                                                    onChange={e => setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                                    onChange={e => { setUnitQtys(prev => ({ ...prev, [mat.id]: e.target.value })); setManualPrice(null); }}
                                                                     placeholder="Qtd" className="w-full px-1 py-0.5 text-center text-[11px] border border-emerald-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none" />
                                                             </td>
                                                             <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-emerald-700 text-[11px] pr-4">
@@ -2670,7 +2676,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             </td>
                                                             <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
                                                                 <input type="number" value={linearLengths[mat.id] || ''}
-                                                                    onChange={e => setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value }))}
+                                                                    onChange={e => { setLinearLengths(prev => ({ ...prev, [mat.id]: e.target.value })); setManualPrice(null); }}
                                                                     placeholder="Comp(cm)" className="w-full px-1 py-0.5 text-center text-[11px] border border-amber-200 rounded focus:ring-1 focus:ring-amber-400 outline-none" />
                                                             </td>
                                                             <td className="px-3 py-1 border-l border-gray-100 text-right font-bold text-amber-700 text-[11px] pr-4">
@@ -2720,7 +2726,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                             type="number"
                                             step="0.1"
                                             value={markup}
-                                            onChange={e => setMarkup(e.target.value)}
+                                            onChange={e => { setMarkup(e.target.value); setManualPrice(null); }}
                                             className="w-20 px-2 py-1 bg-white border border-orange-200 rounded-lg text-right text-sm font-black text-orange-700 focus:ring-2 focus:ring-orange-400 outline-none shadow-sm"
                                         />
                                     </div>
@@ -2768,7 +2774,23 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
 
                                         <div className="flex justify-between items-center text-[13px] bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100">
                                             <span className="w-1/3 text-indigo-700 uppercase text-[10px] font-black truncate pr-1">UNITÁRIO FINAL:</span>
-                                            <span className="w-1/3 text-center font-bold text-indigo-600">{finalUnitWithValueDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            <div className="w-1/3 flex items-center justify-center gap-1 bg-white border border-indigo-200 rounded-lg px-2 py-0.5 shadow-sm">
+                                                <span className="text-xs font-bold text-indigo-400">R$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={manualPrice !== null ? manualPrice : (Math.round(rawUnitValue * 100) / 100)}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (val === '') {
+                                                            setManualPrice(null);
+                                                        } else {
+                                                            setManualPrice(val);
+                                                        }
+                                                    }}
+                                                    className="w-full bg-transparent text-center font-bold text-indigo-600 text-sm outline-none border-none p-0 focus:ring-0"
+                                                />
+                                            </div>
                                             <span className="w-1/3 text-right font-black text-indigo-700 text-[15px]">
                                                 {finalTotalWithDiscount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
@@ -2806,7 +2828,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                 <input
                                                     type="number"
                                                     value={discount}
-                                                    onChange={e => setDiscount(e.target.value)}
+                                                    onChange={e => { setDiscount(e.target.value); setManualPrice(null); }}
                                                     className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
                                                 />
                                             </div>
@@ -2818,7 +2840,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     type="number"
                                                     value={discountValue}
                                                     step="0.01"
-                                                    onChange={e => setDiscountValue(e.target.value)}
+                                                    onChange={e => { setDiscountValue(e.target.value); setManualPrice(null); }}
                                                     className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-md text-right text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-400 outline-none shadow-sm"
                                                     placeholder="0,00"
                                                 />
