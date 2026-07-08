@@ -702,6 +702,11 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         const saved = await api.addBudget(newBudget);
         if (saved) {
             setSavedBudgets([saved, ...savedBudgets]);
+            originalBudgetRef.current = {
+                items: budgetItems,
+                clientData: clientData,
+                attachedImages: attachedImages
+            };
             if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
                 handleSendWhatsApp(saved);
             }
@@ -710,6 +715,11 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             const fallback = { ...newBudget, id: Date.now() };
             const updated = [fallback, ...savedBudgets];
             setSavedBudgets(updated);
+            originalBudgetRef.current = {
+                items: budgetItems,
+                clientData: clientData,
+                attachedImages: attachedImages
+            };
             if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
                 handleSendWhatsApp(fallback);
             }
@@ -766,8 +776,32 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     const handleLoadBudget = (budget) => {
         setClientData(budget.clientData);
         setBudgetItems(budget.items);
-        setAttachedImages(budget.attachedImages || budget.clientData?.attachedImages || []);
+        const images = budget.attachedImages || budget.clientData?.attachedImages || [];
+        setAttachedImages(images);
+        originalBudgetRef.current = {
+            items: budget.items,
+            clientData: budget.clientData,
+            attachedImages: images
+        };
         setView('budget');
+    };
+
+    const handleSetView = (newView) => {
+        if (view === 'budget' && (newView === 'saved_list' || newView === 'register')) {
+            const currentDataStr = JSON.stringify({
+                items: budgetItems,
+                clientData,
+                attachedImages
+            });
+            const originalDataStr = JSON.stringify(originalBudgetRef.current);
+            const isDirty = currentDataStr !== originalDataStr;
+            if (isDirty) {
+                if (!confirm("Você tem alterações não salvas no orçamento. Deseja realmente sair?")) {
+                    return;
+                }
+            }
+        }
+        setView(newView);
     };
 
     const handleNewBudget = () => {
@@ -793,6 +827,22 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setDiscount('10');
         setDiscountValue('0');
         setManualPrice(null);
+        originalBudgetRef.current = {
+            items: [],
+            clientData: {
+                name: '',
+                doc: '',
+                address: '',
+                number: '',
+                neighborhood: '',
+                city: '',
+                zip: '',
+                phone: '',
+                email: '',
+                installationValue: ''
+            },
+            attachedImages: []
+        };
         setIsAddingItem(false);
     };
     const [measurements, setMeasurements] = useState({});
@@ -995,6 +1045,48 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         email: '',
         installationValue: ''
     });
+
+    const originalBudgetRef = React.useRef({
+        items: [],
+        clientData: {
+            name: '',
+            doc: '',
+            address: '',
+            number: '',
+            neighborhood: '',
+            city: '',
+            zip: '',
+            phone: '',
+            email: '',
+            installationValue: ''
+        },
+        attachedImages: []
+    });
+
+    useEffect(() => {
+        const currentDataStr = JSON.stringify({
+            items: budgetItems,
+            clientData,
+            attachedImages
+        });
+        const originalDataStr = JSON.stringify(originalBudgetRef.current);
+        const isDirty = currentDataStr !== originalDataStr;
+        window.hasUnsavedBudget = isDirty;
+
+        const handleBeforeUnload = (e) => {
+            if (isDirty) {
+                const msg = "Você tem alterações não salvas no orçamento. Deseja realmente sair?";
+                e.preventDefault();
+                e.returnValue = msg;
+                return msg;
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.hasUnsavedBudget = false;
+        };
+    }, [budgetItems, clientData, attachedImages]);
 
     const LumeLogo = () => (
         <div className="flex flex-col items-center justify-center">
@@ -2207,13 +2299,13 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     <Plus size={18} /> Novo Orçamento
                                 </button>
                                 <button
-                                    onClick={() => setView('saved_list')}
+                                    onClick={() => handleSetView('saved_list')}
                                     className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
                                 >
                                     <List size={18} /> Orçamentos Prontos
                                 </button>
                                 <button
-                                    onClick={() => setView('register')}
+                                    onClick={() => handleSetView('register')}
                                     className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
                                 >
                                     <Settings size={18} /> Cadastro de Materiais

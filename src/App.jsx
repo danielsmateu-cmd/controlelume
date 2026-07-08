@@ -19,6 +19,15 @@ import { api } from './services/api';
 function AppContent() {
     const { currentUser, canEdit, canView } = useAuth();
     const [activeTab, setActiveTab] = useState('');
+    const handleSetActiveTab = (tab) => {
+        if (window.hasUnsavedBudget && tab !== 'orcamentos') {
+            if (!window.confirm("Você tem alterações não salvas no orçamento. Deseja realmente sair e perder as alterações?")) {
+                return;
+            }
+            window.hasUnsavedBudget = false;
+        }
+        setActiveTab(tab);
+    };
     const [isLoading, setIsLoading] = useState(true);
     const [isOffline, setIsOffline] = useState(false);
 
@@ -299,7 +308,7 @@ function AppContent() {
             case 'contas':
                 return <Anotacoes readOnly={!canEdit('contas')} />;
             case 'orcamentos':
-                return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={setActiveTab} />;
+                return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={handleSetActiveTab} />;
             case 'compras':
                 return <Compras materials={materials} readOnly={!canEdit('compras')} />;
             case 'estudo_produtos':
@@ -329,7 +338,7 @@ function AppContent() {
         <div className="flex h-screen bg-gray-100 print:bg-white print:block print:h-auto">
             <Sidebar
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleSetActiveTab}
                 onExportBackup={handleExportBackup}
                 onImportBackup={handleImportBackup}
                 onExportExcel={handleExportExcel}
