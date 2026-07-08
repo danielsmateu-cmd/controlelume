@@ -34,6 +34,12 @@ const WhatsAppIcon = ({ size = 20, className }) => (
     </svg>
 );
 
+const getBudgetPixTotal = (b) => {
+    const subtotalPix = (b.items || []).reduce((sum, item) => sum + (Math.round(item.unitPrice * 0.9 * 100) / 100 * item.quantity), 0);
+    const installationPix = Math.round((parseFloat(b.clientData?.installationValue) || 0) * 0.9 * 100) / 100;
+    return subtotalPix + installationPix;
+};
+
 const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [view, setView] = useState('budget'); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
@@ -338,7 +344,9 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
                 .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
                 .join('\n');
 
-            const totalPix = total * 0.9;
+            const subtotalPix = items.reduce((sum, item) => sum + (Math.round(item.unitPrice * 0.9 * 100) / 100 * item.quantity), 0);
+            const installationPix = Math.round(installationVal * 0.9 * 100) / 100;
+            const totalPix = subtotalPix + installationPix;
             const signalPix = totalPix / 2;
             const cardInstallment = total / 6;
 
@@ -391,7 +399,9 @@ ${pdfUrl}`;
                 const itemsSummary = items
                     .map(item => `• *${item.quantity}x ${item.name}* (R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
                     .join('\n');
-                const totalPix = total * 0.9;
+                const subtotalPix = items.reduce((sum, item) => sum + (Math.round(item.unitPrice * 0.9 * 100) / 100 * item.quantity), 0);
+                const installationPix = Math.round(installationVal * 0.9 * 100) / 100;
+                const totalPix = subtotalPix + installationPix;
                 const signalPix = totalPix / 2;
                 const cardInstallment = total / 6;
 
@@ -561,10 +571,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                 <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-base font-black text-slate-900">R$ {(projectTotal * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <span className="text-base font-black text-slate-900">R$ {projectTotalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                 <div className="text-[9px] text-green-700 uppercase mt-0.5 leading-tight text-right font-bold">
-                                                    Sinal 50% (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
-                                                    + Saldo na Retirada (R$ {((projectTotal * 0.9) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                    Sinal 50% (R$ {(projectTotalPix / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) <br />
+                                                    + Saldo na Retirada (R$ {(projectTotalPix / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                                 </div>
                                             </div>
                                         </div>
@@ -1256,6 +1266,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     // 6. Cálculos do Projeto (Múltiplos Itens)
     const projectSubtotal = budgetItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
     const projectTotal = projectSubtotal + (parseFloat(clientData.installationValue) || 0);
+    const projectSubtotalPix = budgetItems.reduce((sum, item) => sum + (Math.round(item.unitPrice * 0.9 * 100) / 100 * item.quantity), 0);
+    const installationValuePix = Math.round((parseFloat(clientData.installationValue) || 0) * 0.9 * 100) / 100;
+    const projectTotalPix = projectSubtotalPix + installationValuePix;
 
     const totalMaterialCost = budgetItems.reduce((sum, item) => sum + (item.unitMaterialCost * item.quantity), 0);
     const totalTaxAndNfCost = budgetItems.reduce((sum, item) => {
@@ -1370,8 +1383,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             const q = budgetSearch.toLowerCase();
             const qClean = q.replace(/\s/g, '').replace(/\./g, ',');
             const totalCheioStr = (b.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-            const totalAVistaStr = ((b.total || 0) * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
-            const totalParceladoStr = (((b.total || 0) * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+            const totalAVistaStr = getBudgetPixTotal(b).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
+            const totalParceladoStr = (getBudgetPixTotal(b) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '');
             return (
                 (b.clientData?.name || '').toLowerCase().includes(q) ||
                 new Date(b.date).toLocaleDateString('pt-BR').includes(q) ||
@@ -1629,11 +1642,11 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     {budget.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="px-3 py-4 text-right font-bold text-indigo-600">
-                                                    {(budget.total * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    {getBudgetPixTotal(budget).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="px-3 py-4 text-right font-medium text-gray-700">
                                                     <div>
-                                                        <span className="font-bold text-gray-900">2x</span> de {((budget.total * 0.9) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        <span className="font-bold text-gray-900">2x</span> de {(getBudgetPixTotal(budget) / 2).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                     </div>
                                                     <div className="text-[10px] text-gray-400 font-semibold">(50% + 50% à vista)</div>
                                                 </td>
@@ -2470,7 +2483,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                                 {item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                             </div>
                                                             <div className="text-[10px] text-emerald-600 font-bold mt-0.5" title="Valor unitário com 10% de desconto à vista">
-                                                                -10%: {(item.unitPrice * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                -10%: {(Math.round(item.unitPrice * 0.9 * 100) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
@@ -2478,7 +2491,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                                 {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                             </div>
                                                             <div className="text-[10px] text-emerald-600 font-bold mt-0.5" title="Valor total do item com 10% de desconto à vista">
-                                                                -10%: {(item.unitPrice * item.quantity * 0.9).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                                -10%: {((Math.round(item.unitPrice * 0.9 * 100) / 100) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-center flex justify-center items-center gap-2" onClick={e => e.stopPropagation()}>
