@@ -28,7 +28,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const [confirmingId, setConfirmingId] = useState(null);
     const [paymentDateStr, setPaymentDateStr] = useState('');
 
-    const startPaymentConfirmation = (expense) => {
+    const startPaymentConfirmation = async (expense) => {
         if (expense.paid) {
             const confirmed = window.confirm(`Reverter pagamento de "${expense.description || expense.category}"?`);
             if (!confirmed) return;
@@ -54,13 +54,18 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 year: originalYear
             };
 
-            setExpenses(expenses.map(e => e.id === expense.id ? updatedExpense : e));
-            api.updateExpense(expense.id, {
-                paid: false,
-                paymentDate: null,
-                month: originalMonth,
-                year: originalYear
-            }).catch(err => console.error(err));
+            try {
+                await api.updateExpense(expense.id, {
+                    paid: false,
+                    paymentDate: null,
+                    month: originalMonth,
+                    year: originalYear
+                });
+                setExpenses(expenses.map(e => e.id === expense.id ? updatedExpense : e));
+            } catch (err) {
+                console.error('Erro ao reverter pagamento:', err);
+                alert('❌ Erro ao reverter pagamento no banco de dados. Verifique sua conexão e tente novamente.');
+            }
         } else {
             setConfirmingId(expense.id);
             const today = new Date();
@@ -142,10 +147,6 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             year: newYear
         };
 
-        setExpenses(expenses.map(e => e.id === expenseId ? updatedExpense : e));
-        setConfirmingId(null);
-        setPaymentDateStr('');
-
         try {
             await api.updateExpense(expenseId, {
                 paid: true,
@@ -153,8 +154,12 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 month: newMonth,
                 year: newYear
             });
+            setExpenses(expenses.map(e => e.id === expenseId ? updatedExpense : e));
+            setConfirmingId(null);
+            setPaymentDateStr('');
         } catch (err) {
             console.error('Erro ao salvar no Supabase:', err);
+            alert('❌ Erro ao salvar pagamento no banco de dados. Verifique sua conexão e tente novamente.');
         }
     };
 
@@ -226,7 +231,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         }
     };
 
-    const handleAddExtra = (e) => {
+    const handleAddExtra = async (e) => {
         e.preventDefault();
 
         const newExpenses = [];
@@ -264,24 +269,35 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
         setExpenses([...newExpenses, ...expenses]);
         setExtrasForm({ ...extrasForm, description: '', value: '', allMonths: false });
+        try {
+            await api.saveExpenses(newExpenses);
+        } catch (err) {
+            console.error('Erro ao salvar despesa fixa:', err);
+        }
     };
 
-    const handleAddMercado = (e) => {
+    const handleAddMercado = async (e) => {
         e.preventDefault();
         const newExpense = {
             id: Date.now(),
             type: 'mercado',
             description: mercadoForm.description,
-            amount: parseFloat(mercadoForm.value),
+            amount: parseFloat(mercadoForm.value) || 0,
             date: mercadoForm.date,
+            month: new Date(mercadoForm.date + 'T00:00:00').getUTCMonth(),
             year: new Date(mercadoForm.date + 'T00:00:00').getUTCFullYear(),
             paid: true
         };
         setExpenses([newExpense, ...expenses]);
         setMercadoForm({ ...mercadoForm, description: '', value: '' });
+        try {
+            await api.saveExpenses([newExpense]);
+        } catch (err) {
+            console.error('Erro ao salvar gasto extra:', err);
+        }
     };
 
-    const handleAddFornecedores = (e) => {
+    const handleAddFornecedores = async (e) => {
         e.preventDefault();
         const totalValue = parseFloat(fornecedoresForm.value);
         const numInstallments = parseInt(fornecedoresForm.installments);
@@ -314,9 +330,14 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             installments: 1,
             installmentDates: [new Date().toISOString().split('T')[0]]
         });
+        try {
+            await api.saveExpenses(newExpenses);
+        } catch (err) {
+            console.error('Erro ao salvar fornecedor:', err);
+        }
     };
 
-    const handleAddRetirada = (e) => {
+    const handleAddRetirada = async (e) => {
         e.preventDefault();
         if (retiradaForm.people.length === 0) {
             alert('Selecione pelo menos uma pessoa para a retirada.');
@@ -328,8 +349,9 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             type: 'retirada',
             description: `Retirada: ${person}`,
             notes: retiradaForm.notes,
-            amount: parseFloat(retiradaForm.value),
+            amount: parseFloat(retiradaForm.value) || 0,
             date: retiradaForm.date,
+            month: new Date(retiradaForm.date + 'T00:00:00').getUTCMonth(),
             year: new Date(retiradaForm.date + 'T00:00:00').getUTCFullYear(),
             people: [person],
             paid: true
@@ -337,6 +359,11 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
         setExpenses([...newExpenses, ...expenses]);
         setRetiradaForm({ ...retiradaForm, value: '', date: new Date().toISOString().split('T')[0], people: [], notes: '' });
+        try {
+            await api.saveExpenses(newExpenses);
+        } catch (err) {
+            console.error('Erro ao salvar retirada:', err);
+        }
     };
 
     const toggleRetiradaPerson = (person) => {

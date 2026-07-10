@@ -148,16 +148,15 @@ function AppContent() {
         if (isLoading) return;
         localStorage.setItem('expenses', JSON.stringify(expenses));
 
-        if (isOffline) return;
-
+        // Sincroniza com Supabase sempre (saveExpenses tem try/catch e timeout próprios)
         const handler = setTimeout(() => {
             api.saveExpenses(expenses);
-        }, 1500);
+        }, 500);
 
         return () => {
             clearTimeout(handler);
         };
-    }, [expenses, isLoading, isOffline]);
+    }, [expenses, isLoading]);
 
     useEffect(() => {
         if (isLoading) return;
