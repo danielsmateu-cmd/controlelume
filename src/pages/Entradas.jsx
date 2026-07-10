@@ -242,12 +242,13 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     </div>
                 ),
                 onConfirm: async () => {
-                    const updatedOrder = { ...order, isPaid: false, paymentDate: null };
-                    setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
                     try {
                         await api.updateOrder(order.id, { isPaid: false, paymentDate: null });
+                        const updatedOrder = { ...order, isPaid: false, paymentDate: null };
+                        setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
                     } catch (err) {
                         console.error('Erro ao reverter pagamento no Supabase:', err);
+                        alert('❌ Erro ao reverter pagamento no banco de dados. Verifique sua conexão e tente novamente.');
                     }
                 }
             });
@@ -335,14 +336,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 </div>
             ),
             onConfirm: async () => {
-                const updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
-                setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
-                setConfirmingId(null);
-                setPaymentDateStr('');
                 try {
                     await api.updateOrder(orderId, { isPaid: true, paymentDate: isoDate });
+                    const updatedOrder = { ...order, isPaid: true, paymentDate: isoDate };
+                    setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
+                    setConfirmingId(null);
+                    setPaymentDateStr('');
                 } catch (err) {
                     console.error('Erro ao salvar no Supabase:', err);
+                    alert('❌ Erro ao salvar pagamento no banco de dados. Verifique sua conexão e tente novamente.');
                 }
             }
         });
