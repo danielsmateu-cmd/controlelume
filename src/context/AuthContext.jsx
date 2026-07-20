@@ -21,24 +21,37 @@ export function AuthProvider({ children }) {
                 if (savedUsers && savedUsers.length > 0) {
                     let migrated = false;
                     const updatedUsers = savedUsers.map(u => {
-                        // Se for admin, editor, ou login for dsmateu/teste/jsmateu/bsmateu e tiver customPermissions
                         const isEligible = u.role === 'admin' || u.role === 'editor' || u.login === 'dsmateu' || u.login === 'teste' || u.login === 'jsmateu' || u.login === 'bsmateu';
                         
                         if (isEligible && u.customPermissions) {
-                            const vis = u.customPermissions.visibleTabs || [];
-                            const edi = u.customPermissions.editableTabs || [];
+                            let vis = u.customPermissions.visibleTabs || [];
+                            let edi = u.customPermissions.editableTabs || [];
                             
+                            // Migração: estudo_produtos
                             const needsVis = !vis.includes('estudo_produtos');
                             const needsEdi = !edi.includes('estudo_produtos');
-                            
-                            if (needsVis || needsEdi) {
+
+                            // Migração: simulacao → precificacao
+                            const hasOldVis = vis.includes('simulacao');
+                            const hasOldEdi = edi.includes('simulacao');
+                            const missingNewVis = !vis.includes('precificacao');
+                            const missingNewEdi = !edi.includes('precificacao');
+
+                            if (needsVis || needsEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
                                 migrated = true;
+                                if (needsVis) vis = [...vis, 'estudo_produtos'];
+                                if (needsEdi) edi = [...edi, 'estudo_produtos'];
+                                // Remove 'simulacao' e garante 'precificacao'
+                                vis = vis.filter(t => t !== 'simulacao');
+                                edi = edi.filter(t => t !== 'simulacao');
+                                if (missingNewVis) vis = [...vis, 'precificacao'];
+                                if (missingNewEdi) edi = [...edi, 'precificacao'];
                                 return {
                                     ...u,
                                     customPermissions: {
                                         ...u.customPermissions,
-                                        visibleTabs: needsVis ? [...vis, 'estudo_produtos'] : vis,
-                                        editableTabs: needsEdi ? [...edi, 'estudo_produtos'] : edi
+                                        visibleTabs: vis,
+                                        editableTabs: edi
                                     }
                                 };
                             }
