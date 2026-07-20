@@ -1923,36 +1923,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
                                     <tr>
                                         <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
-                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
-                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
-                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
-                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
-                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
+                                        <th colSpan={3} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
+                                        <th colSpan={3} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
+                                        <th colSpan={3} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
+                                        <th colSpan={3} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
+                                        <th colSpan={3} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
                                     </tr>
                                     <tr className="bg-gray-50">
                                         {/* ML */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-yellow-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* TikTok */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-slate-100/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-slate-100/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Amazon */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-amber-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Shopee */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-orange-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Site */}
-                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-indigo-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-indigo-50/20 border-b border-gray-200 min-w-[80px]">Queima</th>
                                     </tr>
@@ -1971,6 +1966,52 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             return fixedCosts / (1 - percentRate);
                                         };
                                         const mclr = (p) => p == null ? '' : p >= 30 ? 'text-emerald-600' : p >= 15 ? 'text-yellow-600' : p >= 0 ? 'text-orange-500' : 'text-red-500';
+
+                                        // Gera a célula combinada (Venda R$ + Margem %)
+                                        const vendaCell = (mktData, mktId, bgCls) => {
+                                            if (mktData.notForSale) {
+                                                return (
+                                                    <td className={`px-2 py-3.5 text-center border-r border-gray-200 ${bgCls}`}>
+                                                        <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span>
+                                                    </td>
+                                                );
+                                            }
+                                            return (
+                                                <td className={`px-2 py-2 border-r border-gray-200 ${bgCls} min-w-[110px]`}>
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <span className="text-[10px] text-gray-400">R$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingValues[`${ft.id}-${mktId}`] !== undefined ? editingValues[`${ft.id}-${mktId}`] : mktData.salePrice}
+                                                                onFocus={() => {
+                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-${mktId}`]: mktData.salePrice }));
+                                                                }}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-${mktId}`]: val }));
+                                                                }}
+                                                                onBlur={async (e) => {
+                                                                    await handleMatrixSalePriceChange(ft, mktId, e.target.value);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                                disabled={readOnly}
+                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                step="0.01"
+                                                                min="0"
+                                                            />
+                                                        </div>
+                                                        <span className={`text-[10px] font-black ${mclr(mktData.marginPercent)}`}>
+                                                            {mktData.marginPercent.toFixed(1)}%
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            );
+                                        };
 
                                         // Gera as 2 células (Rankeamento + Queima) de um marketplace
                                         const rankCells = (mktData, mktId, bgCls, withBorderR) => {
@@ -2041,183 +2082,23 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 </td>
                                                 
                                                 {/* Mercado Livre */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-yellow-50/40", ml.notForSale ? "text-amber-700" : ml.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {ml.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${ml.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-yellow-50/40", ml.notForSale && "text-gray-400")}>
-                                                    {ml.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-meli`] !== undefined ? editingValues[`${ft.id}-meli`] : ml.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-meli`]: ml.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-meli`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'meli', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {vendaCell(ml, 'meli', 'bg-yellow-50/40')}
                                                 {rankCells(ml, 'meli', 'bg-yellow-50/20', true)}
 
                                                 {/* TikTok */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-slate-100/50", tiktok.notForSale ? "text-amber-700" : tiktok.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {tiktok.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${tiktok.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-slate-100/50", tiktok.notForSale && "text-gray-400")}>
-                                                    {tiktok.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-tiktok`] !== undefined ? editingValues[`${ft.id}-tiktok`] : tiktok.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-tiktok`]: tiktok.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-tiktok`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'tiktok', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {vendaCell(tiktok, 'tiktok', 'bg-slate-100/50')}
                                                 {rankCells(tiktok, 'tiktok', 'bg-slate-100/30', true)}
 
                                                 {/* Amazon */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-amber-50/40", amazon.notForSale ? "text-amber-700" : amazon.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {amazon.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${amazon.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-amber-50/40", amazon.notForSale && "text-gray-400")}>
-                                                    {amazon.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-amazon`] !== undefined ? editingValues[`${ft.id}-amazon`] : amazon.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-amazon`]: amazon.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-amazon`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'amazon', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {vendaCell(amazon, 'amazon', 'bg-amber-50/40')}
                                                 {rankCells(amazon, 'amazon', 'bg-amber-50/20', true)}
 
                                                 {/* Shopee */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-orange-50/40", shopee.notForSale ? "text-amber-700" : shopee.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {shopee.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${shopee.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right border-r border-gray-200 font-bold text-gray-700 bg-orange-50/40", shopee.notForSale && "text-gray-400")}>
-                                                    {shopee.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-shopee`] !== undefined ? editingValues[`${ft.id}-shopee`] : shopee.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-shopee`]: shopee.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-shopee`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'shopee', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {vendaCell(shopee, 'shopee', 'bg-orange-50/40')}
                                                 {rankCells(shopee, 'shopee', 'bg-orange-50/20', true)}
 
                                                 {/* Site */}
-                                                <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-indigo-50/40", site.notForSale ? "text-amber-700" : site.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {site.notForSale ? <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Suspenso</span> : `${site.marginPercent.toFixed(1)}%`}
-                                                </td>
-                                                <td className={clsx("px-3 py-2 text-right font-bold text-gray-700 bg-indigo-50/40", site.notForSale && "text-gray-400")}>
-                                                    {site.notForSale ? "—" : (
-                                                        <div className="inline-flex items-center gap-1 justify-end">
-                                                            <span className="text-[10px] text-gray-400 font-medium">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                value={editingValues[`${ft.id}-site`] !== undefined ? editingValues[`${ft.id}-site`] : site.salePrice}
-                                                                onFocus={() => {
-                                                                    setMatrixEditingPrices(prev => ({ ...prev, [`${ft.id}-site`]: site.salePrice }));
-                                                                }}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setEditingValues(prev => ({ ...prev, [`${ft.id}-site`]: val }));
-                                                                }}
-                                                                onBlur={async (e) => {
-                                                                    await handleMatrixSalePriceChange(ft, 'site', e.target.value);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.target.blur();
-                                                                    }
-                                                                }}
-                                                                disabled={readOnly}
-                                                                className="w-16 text-right text-xs font-semibold text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50/50 focus:bg-white border border-indigo-100 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
-                                                                step="0.01"
-                                                                min="0"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {vendaCell(site, 'site', 'bg-indigo-50/40')}
                                                 {rankCells(site, 'site', 'bg-indigo-50/20', false)}
                                             </tr>
                                         );
