@@ -10,7 +10,7 @@ import Orcamentos from './pages/Orcamentos';
 import Compras from './pages/Compras';
 import Tarefas from './pages/Tarefas';
 import ECommerce from './pages/ECommerce';
-import SimulacaoDescontos from './pages/ecommerce/SimulacaoDescontos';
+import Precificacao from './pages/Precificacao';
 import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
 import EstudoProdutos from './pages/EstudoProdutos';
@@ -314,8 +314,8 @@ function AppContent() {
                 return <EstudoProdutos readOnly={!canEdit('estudo_produtos')} />;
             case 'ecommerce':
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
-            case 'simulacao':
-                return <SimulacaoDescontos readOnly={!canEdit('simulacao')} />;
+            case 'precificacao':
+                return <Precificacao readOnly={!canEdit('precificacao')} />;
             case 'tarefas':
                 return <Tarefas />;
             case 'usuarios':
