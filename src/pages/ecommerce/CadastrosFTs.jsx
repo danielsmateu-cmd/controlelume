@@ -79,6 +79,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [allOverrides, setAllOverrides] = useState({});
     const [matrixEditingPrices, setMatrixEditingPrices] = useState({});
     const [editingValues, setEditingValues] = useState({});
+    const [matrixRankValues, setMatrixRankValues] = useState({});
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -909,22 +910,24 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const getMktMetrics = (ft, mkt) => {
         const cleanBaseFt = baseFts.find(b => b.ftCode === ft.ftCode) || ft;
         const overridesForMkt = allOverrides[mkt] || {};
-        const mktFt = overridesForMkt[ft.ftCode] 
+        const mktFt = overridesForMkt[ft.ftCode]
             ? { ...cleanBaseFt, ...overridesForMkt[ft.ftCode], isOverride: true }
             : cleanBaseFt;
 
-        const ftTotalMat = mktFt.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-        const ftTotalDir = mktFt.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-        const ftTotalPerc = mktFt.directCostsPercent.reduce((acc, curr) => {
-            return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(mktFt.salePrice) || 0));
-        }, 0);
-        const ftMarginRS = (parseFloat(mktFt.salePrice) || 0) - ftTotalMat - ftTotalDir - ftTotalPerc;
+        const ftTotalMat  = (mktFt.materials         || []).reduce((acc, curr) => acc + (parseFloat(curr.value)      || 0), 0);
+        const ftTotalDir  = (mktFt.directCostsRS     || []).reduce((acc, curr) => acc + (parseFloat(curr.value)      || 0), 0);
+        const ftPercRate  = (mktFt.directCostsPercent|| []).reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0) / 100;
+        const ftTotalPerc = ftPercRate * (parseFloat(mktFt.salePrice) || 0);
+        const fixedCosts  = ftTotalMat + ftTotalDir;
+        const ftMarginRS  = (parseFloat(mktFt.salePrice) || 0) - fixedCosts - ftTotalPerc;
         const ftMarginPercent = parseFloat(mktFt.salePrice) > 0 ? (ftMarginRS / parseFloat(mktFt.salePrice)) * 100 : 0;
 
         return {
-            salePrice: parseFloat(mktFt.salePrice) || 0,
+            salePrice:     parseFloat(mktFt.salePrice) || 0,
             marginPercent: ftMarginPercent,
-            notForSale: !!mktFt.notForSale
+            notForSale:    !!mktFt.notForSale,
+            fixedCosts,
+            percentRate:   ftPercRate
         };
     };
 
@@ -1920,32 +1923,99 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
                                     <tr>
                                         <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
-                                        <th colSpan={2} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
+                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
+                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
+                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
+                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
+                                        <th colSpan={4} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
                                     </tr>
                                     <tr className="bg-gray-50">
                                         {/* ML */}
                                         <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* TikTok */}
                                         <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-slate-100/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Amazon */}
                                         <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Shopee */}
                                         <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
                                         <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
                                         {/* Site */}
                                         <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[85px]">Margem %</th>
-                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
+                                        <th className="px-3 py-2 font-semibold text-right bg-indigo-50/20 border-b border-gray-200 min-w-[80px]">Queima</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {fts.map((ft, idx) => {
+                                        // Helper: calcula % MC para preço digitado no rankeamento
+                                        const rankPctFor = (raw, fixedCosts, percentRate) => {
+                                            const price = parseFloat(String(raw || '').replace(',', '.')) || null;
+                                            if (!price || price <= 0) return null;
+                                            return ((price - fixedCosts - percentRate * price) / price) * 100;
+                                        };
+                                        // Helper: preço de queima (MC = 0%)
+                                        const queimaFor = (fixedCosts, percentRate) => {
+                                            if (percentRate >= 1 || fixedCosts <= 0) return null;
+                                            return fixedCosts / (1 - percentRate);
+                                        };
+                                        const mclr = (p) => p == null ? '' : p >= 30 ? 'text-emerald-600' : p >= 15 ? 'text-yellow-600' : p >= 0 ? 'text-orange-500' : 'text-red-500';
+
+                                        // Gera as 2 células (Rankeamento + Queima) de um marketplace
+                                        const rankCells = (mktData, mktId, bgCls, withBorderR) => {
+                                            const key = `${ft.id}-${mktId}`;
+                                            const raw = matrixRankValues[key] || '';
+                                            const pct = rankPctFor(raw, mktData.fixedCosts, mktData.percentRate);
+                                            const q   = queimaFor(mktData.fixedCosts, mktData.percentRate);
+                                            const br  = withBorderR ? 'border-r border-gray-200' : '';
+
+                                            if (mktData.notForSale) return (
+                                                <>
+                                                    <td className={`px-3 py-3.5 text-center text-gray-300 border-r border-gray-200 ${bgCls}`}>—</td>
+                                                    <td className={`px-3 py-3.5 text-center text-gray-300 ${br} ${bgCls}`}>—</td>
+                                                </>
+                                            );
+                                            return (
+                                                <>
+                                                    {/* Rankeamento */}
+                                                    <td className={`px-2 py-2 border-r border-gray-200 ${bgCls} min-w-[110px]`}>
+                                                        <div className="flex flex-col items-end gap-0.5">
+                                                            <div className="inline-flex items-center gap-1">
+                                                                <span className="text-[10px] text-gray-400">R$</span>
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="decimal"
+                                                                    placeholder="0,00"
+                                                                    value={raw}
+                                                                    onChange={e => setMatrixRankValues(prev => ({ ...prev, [key]: e.target.value }))}
+                                                                    className="w-16 text-right text-xs font-semibold border border-indigo-100 bg-white focus:bg-indigo-50/40 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
+                                                                />
+                                                            </div>
+                                                            {pct != null && (
+                                                                <span className={`text-[10px] font-black ${mclr(pct)}`}>
+                                                                    {pct.toFixed(1)}%
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    {/* Queima */}
+                                                    <td className={`px-3 py-3.5 text-right text-xs font-bold text-red-400 ${br} ${bgCls} min-w-[80px]`}>
+                                                        {q && q > 0 ? `R$ ${q.toFixed(2).replace('.', ',')}` : '—'}
+                                                    </td>
+                                                </>
+                                            );
+                                        };
                                         const ml = getMktMetrics(ft, 'meli');
                                         const tiktok = getMktMetrics(ft, 'tiktok');
                                         const amazon = getMktMetrics(ft, 'amazon');
@@ -2004,6 +2074,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     )}
                                                 </td>
+                                                {rankCells(ml, 'meli', 'bg-yellow-50/20', true)}
 
                                                 {/* TikTok */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-slate-100/50", tiktok.notForSale ? "text-amber-700" : tiktok.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
@@ -2039,6 +2110,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     )}
                                                 </td>
+                                                {rankCells(tiktok, 'tiktok', 'bg-slate-100/30', true)}
 
                                                 {/* Amazon */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-amber-50/40", amazon.notForSale ? "text-amber-700" : amazon.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
@@ -2074,6 +2146,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     )}
                                                 </td>
+                                                {rankCells(amazon, 'amazon', 'bg-amber-50/20', true)}
 
                                                 {/* Shopee */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-orange-50/40", shopee.notForSale ? "text-amber-700" : shopee.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
@@ -2109,6 +2182,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     )}
                                                 </td>
+                                                {rankCells(shopee, 'shopee', 'bg-orange-50/20', true)}
 
                                                 {/* Site */}
                                                 <td className={clsx("px-3 py-3.5 text-right border-r border-gray-200 font-bold bg-indigo-50/40", site.notForSale ? "text-amber-700" : site.marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
@@ -2144,6 +2218,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     )}
                                                 </td>
+                                                {rankCells(site, 'site', 'bg-indigo-50/20', false)}
                                             </tr>
                                         );
                                     })}
