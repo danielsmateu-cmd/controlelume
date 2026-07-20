@@ -997,7 +997,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
     return (
         <div className="space-y-6">
-            {/* Marketplace Selector */}
+            {!isMatrixOpen && (
+                <>
+                    {/* Marketplace Selector */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <p className="text-xs font-bold text-gray-400 uppercase mb-3">Filtrar por Marketplace (Overrides)</p>
                 <div className="flex flex-wrap gap-3">
@@ -1945,29 +1947,26 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     </div>
                 </div>
             )}
+            </>
+            )}
 
-            {/* Modal de Matriz Venda x Margem */}
+            {/* Matriz Venda x Margem em Tela Cheia */}
             {isMatrixOpen && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMatrixOpen(false)}></div>
-
-                    {/* Content */}
-                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-7xl max-h-[90vh] overflow-hidden z-10 flex flex-col">
-                        {/* Header */}
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <div>
-                                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                                    📊 Matriz Comparativa: Vendas x Margens
-                                </h3>
-                                <p className="text-xs text-gray-500 mt-0.5">Preço de Venda (R$) e Margem de Contribuição (%) cadastrados em cada Marketplace.</p>
-                            </div>
-                            <button onClick={() => setIsMatrixOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                                <X size={20} />
-                            </button>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full flex flex-col min-h-[calc(100vh-10rem)] animate-in fade-in duration-200">
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div>
+                            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                                📊 Matriz Comparativa: Vendas x Margens
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-0.5">Preço de Venda (R$) e Margem de Contribuição (%) cadastrados em cada Marketplace.</p>
                         </div>
+                        <button onClick={() => setIsMatrixOpen(false)} className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                            Voltar para FTs
+                        </button>
+                    </div>
 
-                        {/* Body */}
+                    {/* Body */}
                         <div className="overflow-auto flex-1 min-h-[300px]">
                             <table className="w-full text-xs text-left border-collapse">
                                 <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
@@ -2178,17 +2177,6 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* Footer */}
-                        <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50/50">
-                            <button
-                                onClick={() => setIsMatrixOpen(false)}
-                                className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
-                            >
-                                Fechar Matriz
-                            </button>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>

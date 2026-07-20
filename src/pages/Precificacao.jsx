@@ -63,7 +63,7 @@ const marginColor = (pct) => {
 
 // ─── Linha da tabela ──────────────────────────────────────────────────────────
 
-const FtRow = React.memo(({ ft, platform, savedData, onDataChange }) => {
+const FtRow = React.memo(({ ft, platform, savedData, onDataChange, readOnly }) => {
     const { fixedCosts, percentRate } = useMemo(() => calcFtCosts(ft), [ft]);
     const salePrice   = parseNum(ft.salePrice);
     const currentPct  = useMemo(() => calcMarginPct(salePrice, fixedCosts, percentRate), [salePrice, fixedCosts, percentRate]);
@@ -81,9 +81,13 @@ const FtRow = React.memo(({ ft, platform, savedData, onDataChange }) => {
     const field = (name) => ({
         value: d[name] ?? '',
         onChange: (e) => onDataChange(ft.id, name, e.target.value),
+        disabled: readOnly
     });
 
-    const inputCls = 'w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center font-medium focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition-all bg-white hover:border-gray-300';
+    const inputCls = clsx(
+        'w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center font-medium focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition-all',
+        readOnly ? 'bg-gray-50 cursor-not-allowed text-gray-500 opacity-80' : 'bg-white hover:border-gray-300'
+    );
 
     return (
         <tr className={clsx(
@@ -417,6 +421,7 @@ const Precificacao = ({ readOnly }) => {
                                     filtered.map(ft => (
                                         <FtRow
                                             key={`${ft.id}-${activePlatform}`}
+                                            readOnly={readOnly}
                                             ft={ft}
                                             platform={platform}
                                             savedData={productData[ft.id]}
