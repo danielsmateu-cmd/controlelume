@@ -2009,10 +2009,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             if (!price || price <= 0) return null;
                                             return ((price - fixedCosts - percentRate * price) / price) * 100;
                                         };
-                                        // Helper: preço de queima (MC = 0%)
+                                        // Helper: preço de queima (MC = 10%)
                                         const queimaFor = (fixedCosts, percentRate) => {
-                                            if (percentRate >= 1 || fixedCosts <= 0) return null;
-                                            return fixedCosts / (1 - percentRate);
+                                            if (percentRate >= 0.9 || fixedCosts <= 0) return null;
+                                            return fixedCosts / (1 - percentRate - 0.10);
                                         };
                                         const mclr = (p) => p == null ? '' : p >= 30 ? 'text-emerald-600' : p >= 15 ? 'text-yellow-600' : p >= 0 ? 'text-orange-500' : 'text-red-500';
 

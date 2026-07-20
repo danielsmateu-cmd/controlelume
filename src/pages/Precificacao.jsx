@@ -38,10 +38,10 @@ const calcMarginPct = (price, fixedCosts, percentRate) => {
     return ((price - totalCost) / price) * 100;
 };
 
-/** Valor de Queima: preço onde margem = 0% */
+/** Valor de Queima: preço onde margem = 10% */
 const calcQueima = (fixedCosts, percentRate) => {
-    if (percentRate >= 1) return null;
-    const v = fixedCosts / (1 - percentRate);
+    if (percentRate >= 0.9) return null;
+    const v = fixedCosts / (1 - percentRate - 0.10);
     return v > 0 ? v : null;
 };
 
@@ -137,7 +137,7 @@ const FtRow = React.memo(({ ft, platform, savedData, onDataChange }) => {
                 {queimaPrice != null ? (
                     <>
                         <div className="font-bold text-red-500 text-sm">{fmtBRL(queimaPrice)}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">Margem 0%</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">Margem 10%</div>
                     </>
                 ) : (
                     <span className="text-gray-300 text-sm">—</span>
