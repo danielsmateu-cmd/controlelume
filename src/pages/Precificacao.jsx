@@ -218,6 +218,8 @@ const Precificacao = ({ readOnly }) => {
                     ...ft,
                     ...(overridesData[ft.ftCode] ? { ...overridesData[ft.ftCode], isOverride: true } : { isOverride: false }),
                 }))
+                // Oculta FTs suspensas (marcadas como "Não à Venda") neste marketplace
+                .filter(ft => !ft.notForSale)
                 .sort((a, b) => a.ftCode.localeCompare(b.ftCode, 'pt-BR', { numeric: true }));
 
             setFtsData(enriched);
