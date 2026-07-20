@@ -973,6 +973,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         return {
             salePrice:     parseFloat(mktFt.salePrice) || 0,
             marginPercent: ftMarginPercent,
+            marginRS:      ftMarginRS,
             notForSale:    !!mktFt.notForSale,
             fixedCosts,
             percentRate:   ftPercRate,
@@ -2054,9 +2055,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                 min="0"
                                                             />
                                                         </div>
-                                                        <span className={`text-[10px] font-black ${mclr(mktData.marginPercent)}`}>
-                                                            {mktData.marginPercent.toFixed(1)}%
-                                                        </span>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className={`text-[10px] font-black ${mclr(mktData.marginPercent)}`}>
+                                                                {mktData.marginPercent.toFixed(1)}%
+                                                            </span>
+                                                            <span className={`text-[9px] font-semibold ${mclr(mktData.marginPercent)} opacity-75`}>
+                                                                R$ {mktData.marginRS.toFixed(2).replace('.', ',')}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </td>
                                             );
@@ -2067,6 +2073,13 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             const key = `${ft.id}-${mktId}`;
                                             const raw = matrixRankValues[key] !== undefined ? matrixRankValues[key] : (mktData.rankPrice || '');
                                             const pct = rankPctFor(raw, mktData.fixedCosts, mktData.percentRate);
+                                            
+                                            // Calcula Margem R$ para o Rank
+                                            const rankPriceVal = parseFloat(String(raw || '').replace(',', '.')) || 0;
+                                            const rankMarginRS = rankPriceVal > 0 
+                                                ? rankPriceVal - mktData.fixedCosts - (mktData.percentRate * rankPriceVal)
+                                                : null;
+
                                             const q   = queimaFor(mktData.fixedCosts, mktData.percentRate);
                                             const br  = withBorderR ? 'border-r border-gray-200' : '';
 
@@ -2096,9 +2109,16 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                 />
                                                             </div>
                                                             {pct != null && (
-                                                                <span className={`text-[10px] font-black ${mclr(pct)}`}>
-                                                                    {pct.toFixed(1)}%
-                                                                </span>
+                                                                <div className="flex flex-col items-end mt-0.5">
+                                                                    <span className={`text-[10px] font-black ${mclr(pct)}`}>
+                                                                        {pct.toFixed(1)}%
+                                                                    </span>
+                                                                    {rankMarginRS != null && (
+                                                                        <span className={`text-[9px] font-semibold ${mclr(pct)} opacity-75`}>
+                                                                            R$ {rankMarginRS.toFixed(2).replace('.', ',')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </td>
