@@ -550,6 +550,54 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         }
     };
 
+    const handleMatrixRankPriceChange = async (ft, mkt, newValue) => {
+        if (readOnly) return;
+        const val = parseFloat(newValue.replace(',', '.')) || null;
+
+        const oldVal = parseFloat(getMktMetrics(ft, mkt).rankPrice) || null;
+        if (val === oldVal) return;
+
+        const confirmed = window.confirm(`Deseja salvar o rankeamento R$ ${val ? val.toFixed(2) : 'vazio'} para o produto "${ft.name}" no marketplace "${mkt.toUpperCase()}"?`);
+        if (!confirmed) {
+            setMatrixRankValues(prev => ({ ...prev, [`${ft.id}-${mkt}`]: oldVal || '' }));
+            return;
+        }
+
+        try {
+            const cleanBaseFt = baseFts.find(b => b.ftCode === ft.ftCode) || ft;
+            const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`) || {};
+            const nextOverridesForMkt = {
+                ...mktOverrides,
+                [ft.ftCode]: {
+                    ...(mktOverrides[ft.ftCode] || {
+                        name: cleanBaseFt.name,
+                        variation: cleanBaseFt.variation,
+                        productionTime: cleanBaseFt.productionTime,
+                        materials: cleanBaseFt.materials,
+                        directCostsRS: cleanBaseFt.directCostsRS,
+                        directCostsPercent: cleanBaseFt.directCostsPercent,
+                        salePrice: getMktMetrics(ft, mkt).salePrice
+                    }),
+                    rankPrice: val,
+                    updatedAt: new Date().toISOString()
+                }
+            };
+
+            const success = await api.saveSettings(`ft_overrides_${mkt}`, nextOverridesForMkt);
+            if (success) {
+                setAllOverrides(prev => ({
+                    ...prev,
+                    [mkt]: nextOverridesForMkt
+                }));
+            } else {
+                alert("Erro ao salvar rankeamento no marketplace.");
+            }
+        } catch (err) {
+            console.error("Erro ao atualizar rankeamento na matriz:", err);
+            alert("Erro ao salvar rankeamento.");
+        }
+    };
+
     const handleSaveCostModel = async () => {
         if (readOnly) return;
         const name = window.prompt('Digite um nome para este modelo de custos (ex: Revenda 30%):');
@@ -927,7 +975,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             marginPercent: ftMarginPercent,
             notForSale:    !!mktFt.notForSale,
             fixedCosts,
-            percentRate:   ftPercRate
+            percentRate:   ftPercRate,
+            rankPrice:     parseFloat(mktFt.rankPrice) || null
         };
     };
 
@@ -2016,7 +2065,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         // Gera as 2 células (Rankeamento + Queima) de um marketplace
                                         const rankCells = (mktData, mktId, bgCls, withBorderR) => {
                                             const key = `${ft.id}-${mktId}`;
-                                            const raw = matrixRankValues[key] || '';
+                                            const raw = matrixRankValues[key] !== undefined ? matrixRankValues[key] : (mktData.rankPrice || '');
                                             const pct = rankPctFor(raw, mktData.fixedCosts, mktData.percentRate);
                                             const q   = queimaFor(mktData.fixedCosts, mktData.percentRate);
                                             const br  = withBorderR ? 'border-r border-gray-200' : '';
@@ -2040,6 +2089,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                     placeholder="0,00"
                                                                     value={raw}
                                                                     onChange={e => setMatrixRankValues(prev => ({ ...prev, [key]: e.target.value }))}
+                                                                    onBlur={e => handleMatrixRankPriceChange(ft, mktId, e.target.value)}
+                                                                    onKeyDown={e => e.key === 'Enter' && e.target.blur()}
+                                                                    disabled={readOnly}
                                                                     className="w-16 text-right text-xs font-semibold border border-indigo-100 bg-white focus:bg-indigo-50/40 focus:border-indigo-300 rounded px-1 py-0.5 outline-none transition-colors"
                                                                 />
                                                             </div>

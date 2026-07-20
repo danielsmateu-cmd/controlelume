@@ -64,20 +64,13 @@ const marginColor = (pct) => {
 // ─── Linha da tabela ──────────────────────────────────────────────────────────
 
 const FtRow = React.memo(({ ft, platform, savedData, onDataChange }) => {
-    // Estado local do campo de rankeamento (input livre em R$)
-    const [rankInput, setRankInput] = useState('');
-
     const { fixedCosts, percentRate } = useMemo(() => calcFtCosts(ft), [ft]);
     const salePrice   = parseNum(ft.salePrice);
     const currentPct  = useMemo(() => calcMarginPct(salePrice, fixedCosts, percentRate), [salePrice, fixedCosts, percentRate]);
     const queimaPrice = useMemo(() => calcQueima(fixedCosts, percentRate),               [fixedCosts, percentRate]);
 
     // Calcula margem do valor de rankeamento em tempo real
-    const rankPrice = useMemo(() => {
-        const n = parseFloat(rankInput.replace(/[R$\s.]/g, '').replace(',', '.'));
-        return !isNaN(n) && n > 0 ? n : null;
-    }, [rankInput]);
-
+    const rankPrice = parseNum(ft.rankPrice) || null;
     const rankPct = useMemo(
         () => rankPrice ? calcMarginPct(rankPrice, fixedCosts, percentRate) : null,
         [rankPrice, fixedCosts, percentRate]
@@ -125,28 +118,17 @@ const FtRow = React.memo(({ ft, platform, savedData, onDataChange }) => {
                 )}
             </td>
 
-            {/* Valor de Rankeamento — input R$ + % abaixo */}
-            <td className="px-4 py-3 w-40">
-                <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-400 font-semibold">R$</span>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={rankInput}
-                        onChange={e => setRankInput(e.target.value)}
-                        className={clsx(
-                            'flex-1 border rounded-lg px-2 py-1.5 text-sm text-right font-semibold outline-none transition-all',
-                            rankPct != null
-                                ? 'border-indigo-200 bg-indigo-50/50 focus:ring-2 focus:ring-indigo-300'
-                                : 'border-gray-200 bg-white focus:ring-2 focus:ring-gray-200'
-                        )}
-                    />
-                </div>
-                {rankPct != null && (
-                    <div className={clsx('mt-1 text-xs font-black text-right', marginColor(rankPct))}>
-                        {fmtPct(rankPct)}
-                    </div>
+            {/* Valor de Rankeamento — apenas display */}
+            <td className="px-4 py-3 text-right w-40">
+                {rankPrice != null ? (
+                    <>
+                        <div className="font-bold text-gray-800 text-sm">{fmtBRL(rankPrice)}</div>
+                        <div className={clsx('text-xs font-bold mt-0.5', marginColor(rankPct))}>
+                            {fmtPct(rankPct)}
+                        </div>
+                    </>
+                ) : (
+                    <span className="text-gray-300 text-sm">—</span>
                 )}
             </td>
 
