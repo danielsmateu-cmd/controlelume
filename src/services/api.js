@@ -321,7 +321,22 @@ const supabaseApi = {
                 .update(dbUpdates)
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === 'PGRST204' || error.message?.includes('column') || error.code === '42703') {
+                    console.warn('Colunas recentes ausentes na tabela expenses no Supabase. Atualizando sem elas...');
+                    delete dbUpdates.due_date;
+                    delete dbUpdates.payment_date;
+                    delete dbUpdates.people;
+                    delete dbUpdates.barcode;
+                    const retryResult = await supabase
+                        .from('expenses')
+                        .update(dbUpdates)
+                        .eq('id', id);
+                    if (retryResult.error) throw retryResult.error;
+                    return true;
+                }
+                throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase updateExpense:', err);
@@ -351,7 +366,29 @@ const supabaseApi = {
                     }))
                 );
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === 'PGRST204' || error.message?.includes('column') || error.code === '42703') {
+                    console.warn('Colunas recentes ausentes na tabela expenses no Supabase. Salvando sem elas...');
+                    const retryResult = await supabase
+                        .from('expenses')
+                        .upsert(
+                            expensesList.map(e => ({
+                                id: e.id,
+                                type: e.type || 'fixos',
+                                year: e.year || new Date().getFullYear(),
+                                month: e.month || 0,
+                                category: e.category || null,
+                                description: e.description || null,
+                                amount: e.amount || 0,
+                                date: e.date || null,
+                                paid: Boolean(e.paid)
+                            }))
+                        );
+                    if (retryResult.error) throw retryResult.error;
+                    return true;
+                }
+                throw error;
+            }
             return true;
         } catch (err) {
             console.error('Supabase saveExpenses:', err);
