@@ -13,6 +13,7 @@ const MODULES = [
     { id: 'estudo_produtos', label: 'Estudo de Produtos' },
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'ecommerce', label: 'E-Commerce' },
+    { id: 'precificacao', label: 'Precificação' },
     { id: 'simulacao', label: 'Simulação de Descontos' }
 ];
 
