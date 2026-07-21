@@ -426,7 +426,7 @@ const supabaseApi = {
             if (error) {
                 // Se der erro de coluna não encontrada, tenta novamente sem as colunas de margem
                 if (error.code === 'PGRST204' || error.message?.includes('contrib_margin') || error.message?.includes('column') || error.code === '42703') {
-                    console.warn('Colunas contrib_margin_value/perc ausentes no Supabase. Salvando sem elas...');
+                    console.warn('Colunas recentes ausentes no Supabase. Salvando sem elas...');
                     const fallbackToMap = (o) => ({
                         client_name: o.clientName,
                         description: o.description,
@@ -435,9 +435,7 @@ const supabaseApi = {
                         payment_date: o.paymentDate,
                         is_paid: Boolean(o.isPaid),
                         payment_method: o.paymentMethod,
-                        year: o.year,
-                        boleto_number: o.boletoNumber,
-                        nf_number: o.nfNumber
+                        year: o.year
                     });
 
                     const retryResult = await supabase
@@ -506,9 +504,11 @@ const supabaseApi = {
 
             if (error) {
                 if (error.code === 'PGRST204' || error.message?.includes('contrib_margin') || error.message?.includes('column') || error.code === '42703') {
-                    console.warn('Colunas contrib_margin_value/perc ausentes no Supabase. Atualizando sem elas...');
+                    console.warn('Colunas recentes ausentes no Supabase. Atualizando sem elas...');
                     delete dbUpdates.contrib_margin_value;
                     delete dbUpdates.contrib_margin_perc;
+                    delete dbUpdates.nf_number;
+                    delete dbUpdates.boleto_number;
                     const retryResult = await supabase
                         .from('orders')
                         .update(dbUpdates)
