@@ -91,7 +91,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const newDates = [...formData.installmentDates];
         newDates[index] = value;
         setFormData(prev => ({ ...prev, installmentDates: newDates }));
-    };    // Importar dados de um orçamento aprovado
+    };
+
+    const getBudgetPixTotal = (b) => {
+        const subtotalPix = (b.items || []).reduce((sum, item) => sum + (Math.round((item.unitPrice || 0) * 0.9 * 100) / 100 * (item.quantity || 1)), 0);
+        const installationPix = Math.round((parseFloat(b.clientData?.installationValue) || 0) * 0.9 * 100) / 100;
+        return subtotalPix + installationPix;
+    };
+    
+    // Importar dados de um orçamento aprovado
     const handleImportBudget = async (budget, option = 'cheio') => {
         const totalMaterialCost = budget.items?.reduce((sum, item) => sum + ((item.unitMaterialCost || 0) * item.quantity), 0) || 0;
         const totalTaxAndNfCost = budget.items?.reduce((sum, item) => {
@@ -107,14 +115,14 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         let descSuffix = '';
         
         if (option === 'desconto') {
-            targetValue = (budget.total || 0) * 0.9;
+            targetValue = getBudgetPixTotal(budget);
             descSuffix = ' (À Vista 10% desc.)';
             // Recalcula a margem proporcionalmente aplicando o desconto
             const taxRate = budget.total > 0 ? (totalTaxAndNfCost / budget.total) : 0;
             totalMargin = targetValue - totalMaterialCost - (targetValue * taxRate);
             marginPerc = targetValue > 0 ? (totalMargin / targetValue) * 100 : 0;
         } else if (option === 'parcelado') {
-            targetValue = (budget.total || 0) * 0.9;
+            targetValue = getBudgetPixTotal(budget);
             targetInstallments = 2;
             descSuffix = ' (2x 50% Pedido / 50% Retirada)';
             // Recalcula a margem proporcionalmente aplicando o desconto de 10%
@@ -588,7 +596,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                     title="Importa o valor com 10% de desconto em 1x"
                                                 >
                                                     <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-wide">À Vista (-10%)</span>
-                                                    <span>{fmt((budget.total || 0) * 0.9)}</span>
+                                                    <span>{fmt(getBudgetPixTotal(budget))}</span>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -597,7 +605,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                     title="Importa o valor com 10% de desconto dividido em 2 parcelas (50% no pedido e 50% na retirada)"
                                                 >
                                                     <span className="text-[8px] font-medium text-gray-400 uppercase tracking-wide">Parcelado (2x)</span>
-                                                    <span>2x de {fmt(((budget.total || 0) * 0.9) / 2)}</span>
+                                                    <span>2x de {fmt(getBudgetPixTotal(budget) / 2)}</span>
                                                 </button>
                                             </div>
                                         </div>
