@@ -179,7 +179,7 @@ export default function WhatsAppChat() {
     const userLogin = currentUser?.name || currentUser?.login || '';
 
     if (filterTab === 'aguardando') {
-      return chat.status === 'aguardando_atendente';
+      return chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status;
     }
     if (filterTab === 'minhas') {
       return chat.status === 'em_atendimento' && chat.assigned_to === userLogin;
