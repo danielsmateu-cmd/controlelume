@@ -31,16 +31,22 @@ export function AuthProvider({ children }) {
                             const needsVis = !vis.includes('estudo_produtos');
                             const needsEdi = !edi.includes('estudo_produtos');
 
+                            // Migração: whatsapp
+                            const needsWhatsAppVis = !vis.includes('whatsapp');
+                            const needsWhatsAppEdi = !edi.includes('whatsapp');
+
                             // Migração: simulacao → precificacao
                             const hasOldVis = vis.includes('simulacao');
                             const hasOldEdi = edi.includes('simulacao');
                             const missingNewVis = !vis.includes('precificacao');
                             const missingNewEdi = !edi.includes('precificacao');
 
-                            if (needsVis || needsEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
+                            if (needsVis || needsEdi || needsWhatsAppVis || needsWhatsAppEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
                                 migrated = true;
                                 if (needsVis) vis = [...vis, 'estudo_produtos'];
                                 if (needsEdi) edi = [...edi, 'estudo_produtos'];
+                                if (needsWhatsAppVis) vis = [...vis, 'whatsapp'];
+                                if (needsWhatsAppEdi) edi = [...edi, 'whatsapp'];
                                 // Remove 'simulacao' e garante 'precificacao'
                                 vis = vis.filter(t => t !== 'simulacao');
                                 edi = edi.filter(t => t !== 'simulacao');
@@ -126,8 +132,8 @@ export function AuthProvider({ children }) {
     const activeUser = currentUser ? usersList.find(u => u.id === currentUser.id) : null;
     const permissions = activeUser?.customPermissions || (activeUser ? ROLE_PERMISSIONS[activeUser.role] : null);
 
-    const canEdit = (tab) => permissions?.editableTabs?.includes(tab);
-    const canView = (tab) => permissions?.visibleTabs?.includes(tab);
+    const canEdit = (tab) => tab === 'whatsapp' ? true : permissions?.editableTabs?.includes(tab);
+    const canView = (tab) => tab === 'whatsapp' ? true : permissions?.visibleTabs?.includes(tab);
 
     return (
         <AuthContext.Provider value={{ 
