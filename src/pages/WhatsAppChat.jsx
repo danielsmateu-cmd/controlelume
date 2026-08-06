@@ -76,7 +76,7 @@ export default function WhatsAppChat() {
 
     const loadMessages = async () => {
       setLoadingMessages(true);
-      const data = await whatsappService.getMessages(activeChat.id);
+      const data = await whatsappService.getMessages(activeChat);
       setMessages(data);
       setLoadingMessages(false);
       scrollToBottom();
@@ -94,7 +94,7 @@ export default function WhatsAppChat() {
           event: 'INSERT', 
           schema: 'public', 
           table: 'whatsapp_messages', 
-          filter: `chat_id=eq.${activeChat.id}` 
+          filter: `remote_jid=eq.${activeChat.remote_jid}` 
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
@@ -106,7 +106,7 @@ export default function WhatsAppChat() {
     return () => {
       supabase.removeChannel(messagesChannel);
     };
-  }, [activeChat?.id]);
+  }, [activeChat?.id, activeChat?.remote_jid]);
 
   useEffect(() => {
     scrollToBottom();
@@ -124,7 +124,7 @@ export default function WhatsAppChat() {
     try {
       await whatsappService.sendMessage(activeChat, textToSend, currentUser?.name || 'Atendente');
       // Atualizar lista local de mensagens caso o realtime demore
-      const refreshed = await whatsappService.getMessages(activeChat.id);
+      const refreshed = await whatsappService.getMessages(activeChat);
       setMessages(refreshed);
       scrollToBottom();
     } catch (err) {

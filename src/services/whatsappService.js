@@ -21,13 +21,14 @@ export const whatsappService = {
     }
   },
 
-  // Buscar mensagens de um chat específico
-  async getMessages(chatId) {
+  // Buscar mensagens de um chat específico (por chat_id OU remote_jid)
+  async getMessages(chat) {
+    if (!chat) return [];
     try {
       const { data, error } = await supabase
         .from('whatsapp_messages')
         .select('*')
-        .eq('chat_id', chatId)
+        .or(`chat_id.eq.${chat.id},remote_jid.eq.${chat.remote_jid}`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -38,37 +39,36 @@ export const whatsappService = {
     }
   },
 
-  // Enviar mensagem para o cliente via Evolution API e registrar no Supabase
+  // Enviar mensagem para o cliente
   async sendMessage(chat, text, senderName = 'Atendente') {
     try {
       const cleanNumber = chat.phone_number || chat.remote_jid.replace('@s.whatsapp.net', '');
 
-      // 1. Enviar via Evolution API
-      const response = await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
-        method: 'POST',
-        headers: {
-          'apikey': API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          number: cleanNumber,
-          text: text
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Evolution API error: ${response.statusText}`);
+      // 1. Tentar envio direto (funciona em localhost)
+      let sentDirectly = false;
+      try {
+        const response = await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
+          method: 'POST',
+          headers: {
+            'apikey': API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            number: cleanNumber,
+            text: text
+          })
+        });
+        if (response.ok) sentDirectly = true;
+      } catch (directErr) {
+        console.warn('Envio direto bloqueado pelo navegador (Mixed Content). Gravando no Supabase...');
       }
 
-      const resData = await response.json();
-
-      // 2. Registrar no Supabase
+      // 2. Registrar no Supabase (HTTPS - sempre funciona no Vercel)
       const { data: newMsg, error: msgErr } = await supabase
         .from('whatsapp_messages')
         .insert([{
           chat_id: chat.id,
           remote_jid: chat.remote_jid,
-          message_id: resData?.key?.id || null,
           from_me: true,
           sender_name: senderName,
           text: text,
