@@ -14,6 +14,7 @@ import Precificacao from './pages/Precificacao';
 import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
 import EstudoProdutos from './pages/EstudoProdutos';
+import WhatsAppChat from './pages/WhatsAppChat';
 import { api } from './services/api';
 
 function AppContent() {
@@ -300,6 +301,8 @@ function AppContent() {
         switch (activeTab) {
             case 'resumo':
                 return <Resumo expenses={expenses} orders={orders} />;
+            case 'whatsapp':
+                return <WhatsAppChat />;
             case 'saida':
                 return <Saida expenses={expenses} setExpenses={setExpenses} readOnly={!canEdit('saida')} />;
             case 'vendas':
