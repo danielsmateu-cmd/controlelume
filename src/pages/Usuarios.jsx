@@ -6,6 +6,7 @@ import clsx from 'clsx';
 const MODULES = [
     { id: 'resumo', label: 'Resumo' },
     { id: 'whatsapp', label: 'WhatsApp Lume' },
+    { id: 'agenda', label: 'Agenda Lume' },
     { id: 'vendas', label: 'Entradas/Vendas' },
     { id: 'saida', label: 'Saídas' },
     { id: 'orcamentos', label: 'Orçamentos' },

@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
 import EstudoProdutos from './pages/EstudoProdutos';
 import WhatsAppChat from './pages/WhatsAppChat';
+import Agenda from './pages/Agenda';
 import { api } from './services/api';
 
 function AppContent() {
@@ -303,6 +304,8 @@ function AppContent() {
                 return <Resumo expenses={expenses} orders={orders} />;
             case 'whatsapp':
                 return <WhatsAppChat />;
+            case 'agenda':
+                return <Agenda />;
             case 'saida':
                 return <Saida expenses={expenses} setExpenses={setExpenses} readOnly={!canEdit('saida')} />;
             case 'vendas':

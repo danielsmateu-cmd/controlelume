@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList, CheckCircle2, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList, CheckCircle2, AlertTriangle, AlertOctagon, Printer, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 
-const fmt = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const Entradas = ({ orders, setOrders, readOnly = false }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState('all');
     const years = Array.from({ length: 13 }, (_, i) => 2024 + i);
+    const monthsNames = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
     const [searchQuery, setSearchQuery] = useState('');
     const [layoutMode, setLayoutMode] = useState(() => {
         return localStorage.getItem('entradas_layout_mode') || 'single';
@@ -438,7 +443,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const orderYear = order.year || new Date(order.orderDate + 'T00:00:00').getUTCFullYear();
         const matchesYear = orderYear === selectedYear;
 
-        if (!searchQuery.trim()) return matchesYear;
+        let matchesMonth = true;
+        if (selectedMonth !== 'all') {
+            const orderMonth = new Date(order.orderDate + 'T00:00:00').getUTCMonth();
+            matchesMonth = orderMonth === parseInt(selectedMonth);
+        }
+
+        if (!matchesYear || !matchesMonth) return false;
+
+        if (!searchQuery.trim()) return true;
 
         const q = searchQuery.toLowerCase().trim();
         const matchesName = order.clientName?.toLowerCase().includes(q);
@@ -456,7 +469,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             matchesStatus = order.isPaid;
         }
 
-        return matchesYear && (
+        return (
             matchesName || 
             matchesDesc || 
             matchesVal || 
@@ -467,10 +480,78 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         );
     });
 
+    const filteredSummary = {
+        count: filteredOrders.length,
+        total: filteredOrders.reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0),
+        paid: filteredOrders.filter(o => o.isPaid).reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0),
+        pending: filteredOrders.filter(o => !o.isPaid).reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0)
+    };
+
     return (
         <div className="space-y-4">
+            {/* BLOCO DE IMPRESSÃO OTIMIZADO PARA PAPEL / PDF */}
+            <div className="hidden print:block p-4 bg-white text-black space-y-4">
+                <div className="flex items-center justify-between border-b-2 border-black pb-3">
+                    <div>
+                        <h1 className="text-xl font-bold uppercase tracking-wide">Relatório de Vendas / Entradas - Lume Acrílicos</h1>
+                        <p className="text-[10px] text-gray-600">Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+                    </div>
+                    <div className="text-right text-xs font-semibold text-gray-700">
+                        <p>Ano: {selectedYear}</p>
+                        <p>Mês: {selectedMonth === 'all' ? 'Todos os Meses' : monthsNames[parseInt(selectedMonth)]}</p>
+                        {searchQuery && <p>Filtro: "{searchQuery}"</p>}
+                    </div>
+                </div>
+
+                {/* CARD DE RESUMO FINANCEIRO DOS FILTROS */}
+                <div className="grid grid-cols-4 gap-3 p-3 border border-black rounded-lg text-center bg-gray-50 text-xs">
+                    <div>
+                        <span className="block text-[9px] font-bold uppercase text-gray-600">Total de Entradas</span>
+                        <span className="text-sm font-bold">{filteredSummary.count}</span>
+                    </div>
+                    <div>
+                        <span className="block text-[9px] font-bold uppercase text-gray-600">Valor Total Bruto</span>
+                        <span className="text-sm font-bold">{fmt(filteredSummary.total)}</span>
+                    </div>
+                    <div>
+                        <span className="block text-[9px] font-bold uppercase text-emerald-800">Total Recebido / Pago</span>
+                        <span className="text-sm font-bold text-emerald-800">{fmt(filteredSummary.paid)}</span>
+                    </div>
+                    <div>
+                        <span className="block text-[9px] font-bold uppercase text-red-800">Total Pendente</span>
+                        <span className="text-sm font-bold text-red-800">{fmt(filteredSummary.pending)}</span>
+                    </div>
+                </div>
+
+                {/* TABELA FORMATADA: 1 CLIENTE / PEDIDO POR LINHA */}
+                <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                        <tr className="border-b-2 border-black bg-gray-100 text-[10px] uppercase">
+                            <th className="py-1.5 px-2 font-bold">Data</th>
+                            <th className="py-1.5 px-2 font-bold">Cliente</th>
+                            <th className="py-1.5 px-2 font-bold">Descrição / Peças</th>
+                            <th className="py-1.5 px-2 font-bold">Forma Pagto</th>
+                            <th className="py-1.5 px-2 font-bold text-center">Status</th>
+                            <th className="py-1.5 px-2 font-bold text-right">Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-300">
+                        {filteredOrders.map((order, i) => (
+                            <tr key={order.id || i} className="page-break-inside-avoid">
+                                <td className="py-1.5 px-2 whitespace-nowrap">{new Date((order.orderDate || '') + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                <td className="py-1.5 px-2 font-bold">{order.clientName}</td>
+                                <td className="py-1.5 px-2">{order.description}</td>
+                                <td className="py-1.5 px-2">{order.paymentMethod || 'Pix'}</td>
+                                <td className="py-1.5 px-2 text-center font-bold">{order.isPaid ? 'PAGO' : 'PENDENTE'}</td>
+                                <td className="py-1.5 px-2 text-right font-bold">{fmt(order.value)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
             {/* Cabeçalho */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between print:hidden">
                 <h2 className="text-xl font-bold text-gray-800">Entradas</h2>
                 {readOnly ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700">
@@ -490,7 +571,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                         </div>
                         <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2 text-sm text-gray-500">
-                                <span className="font-bold uppercase tracking-widest text-[10px]">Filtrar por Ano:</span>
+                                <span className="font-bold uppercase tracking-widest text-[10px]">Ano:</span>
                                 <select
                                     value={selectedYear}
                                     onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -499,6 +580,32 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                     {years.map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
+
+                            {/* Filtro de Mês */}
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <span className="font-bold uppercase tracking-widest text-[10px]">Mês:</span>
+                                <select
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-semibold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+                                >
+                                    <option value="all">Todos os Meses</option>
+                                    {monthsNames.map((m, idx) => (
+                                        <option key={idx} value={String(idx)}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Botão Imprimir Relatório */}
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all print:hidden"
+                                title="Imprimir relatório das vendas filtradas"
+                            >
+                                <Printer size={14} />
+                                Imprimir Relatório
+                            </button>
                             
                             {/* Alternador de Layout de Meses */}
                             <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 shadow-inner">

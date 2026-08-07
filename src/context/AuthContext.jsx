@@ -35,18 +35,24 @@ export function AuthProvider({ children }) {
                             const needsWhatsAppVis = !vis.includes('whatsapp');
                             const needsWhatsAppEdi = !edi.includes('whatsapp');
 
+                            // Migração: agenda
+                            const needsAgendaVis = !vis.includes('agenda');
+                            const needsAgendaEdi = !edi.includes('agenda');
+
                             // Migração: simulacao → precificacao
                             const hasOldVis = vis.includes('simulacao');
                             const hasOldEdi = edi.includes('simulacao');
                             const missingNewVis = !vis.includes('precificacao');
                             const missingNewEdi = !edi.includes('precificacao');
 
-                            if (needsVis || needsEdi || needsWhatsAppVis || needsWhatsAppEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
+                            if (needsVis || needsEdi || needsWhatsAppVis || needsWhatsAppEdi || needsAgendaVis || needsAgendaEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
                                 migrated = true;
                                 if (needsVis) vis = [...vis, 'estudo_produtos'];
                                 if (needsEdi) edi = [...edi, 'estudo_produtos'];
                                 if (needsWhatsAppVis) vis = [...vis, 'whatsapp'];
                                 if (needsWhatsAppEdi) edi = [...edi, 'whatsapp'];
+                                if (needsAgendaVis) vis = [...vis, 'agenda'];
+                                if (needsAgendaEdi) edi = [...edi, 'agenda'];
                                 // Remove 'simulacao' e garante 'precificacao'
                                 vis = vis.filter(t => t !== 'simulacao');
                                 edi = edi.filter(t => t !== 'simulacao');
