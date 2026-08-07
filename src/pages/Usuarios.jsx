@@ -5,6 +5,7 @@ import clsx from 'clsx';
 
 const MODULES = [
     { id: 'resumo', label: 'Resumo' },
+    { id: 'whatsapp', label: 'WhatsApp Lume' },
     { id: 'vendas', label: 'Entradas/Vendas' },
     { id: 'saida', label: 'Saídas' },
     { id: 'orcamentos', label: 'Orçamentos' },
@@ -13,8 +14,7 @@ const MODULES = [
     { id: 'estudo_produtos', label: 'Estudo de Produtos' },
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'ecommerce', label: 'E-Commerce' },
-    { id: 'precificacao', label: 'Precificação' },
-    { id: 'simulacao', label: 'Simulação de Descontos' }
+    { id: 'precificacao', label: 'Precificação' }
 ];
 
 export default function Usuarios() {

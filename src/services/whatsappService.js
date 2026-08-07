@@ -44,6 +44,9 @@ export const whatsappService = {
     try {
       const cleanNumber = chat.phone_number || chat.remote_jid.replace('@s.whatsapp.net', '');
 
+      // Formatar mensagem para incluir o nome do atendente no topo em negrito
+      const formattedText = senderName ? `*${senderName}:*\n${text}` : text;
+
       // 1. Tentar envio direto (funciona em localhost)
       let sentDirectly = false;
       try {
@@ -55,7 +58,7 @@ export const whatsappService = {
           },
           body: JSON.stringify({
             number: cleanNumber,
-            text: text
+            text: formattedText
           })
         });
         if (response.ok) sentDirectly = true;
@@ -71,7 +74,7 @@ export const whatsappService = {
           remote_jid: chat.remote_jid,
           from_me: true,
           sender_name: senderName,
-          text: text,
+          text: formattedText,
           timestamp: Date.now()
         }])
         .select()
@@ -83,7 +86,7 @@ export const whatsappService = {
       await supabase
         .from('whatsapp_chats')
         .update({
-          last_message: text,
+          last_message: formattedText,
           updated_at: new Date().toISOString()
         })
         .eq('id', chat.id);
