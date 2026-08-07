@@ -25,6 +25,7 @@ export default function WhatsAppChat() {
   const [inputMessage, setInputMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState('aguardando'); // 'aguardando', 'minhas', 'todas', 'finalizados'
+  const [subFilter, setSubFilter] = useState('todos'); // 'todos', 'em_atendimento', 'aguardando_retorno', 'finalizado'
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -145,6 +146,16 @@ export default function WhatsAppChat() {
     }
   };
 
+  // Alterar Status Direto
+  const handleSetStatus = async (newStatus) => {
+    if (!activeChat) return;
+    const success = await whatsappService.updateStatus(activeChat.id, newStatus);
+    if (success) {
+      setActiveChat({ ...activeChat, status: newStatus });
+      fetchChats();
+    }
+  };
+
   // Finalizar Atendimento
   const handleClose = async () => {
     if (!activeChat) return;
@@ -178,16 +189,30 @@ export default function WhatsAppChat() {
 
     const userLogin = currentUser?.name || currentUser?.login || '';
 
+    // 1ª Linha: Filtros de Categoria (Aguardando / Minhas / Todas / Fim)
+    let matchesTab = true;
     if (filterTab === 'aguardando') {
-      return chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status;
+      matchesTab = chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status;
+    } else if (filterTab === 'minhas') {
+      matchesTab = chat.assigned_to === userLogin;
+    } else if (filterTab === 'finalizados') {
+      matchesTab = chat.status === 'finalizado';
     }
-    if (filterTab === 'minhas') {
-      return chat.status === 'em_atendimento' && chat.assigned_to === userLogin;
+
+    if (!matchesTab) return false;
+
+    // 2ª Linha: Sub-Filtros de Atendimento (Em Atendimento / Aguardando Retorno / Finalizadas)
+    if (subFilter === 'em_atendimento') {
+      return chat.status === 'em_atendimento';
     }
-    if (filterTab === 'finalizados') {
+    if (subFilter === 'aguardando_retorno') {
+      return chat.status === 'aguardando_retorno';
+    }
+    if (subFilter === 'finalizado') {
       return chat.status === 'finalizado';
     }
-    return true; // 'todas'
+
+    return true;
   });
 
   const getSetorBadge = (setorId) => {
@@ -202,11 +227,13 @@ export default function WhatsAppChat() {
       case 'aguardando_atendente':
         return { label: 'Aguardando', color: 'bg-red-50 text-red-700 border-red-200 font-bold animate-pulse' };
       case 'em_atendimento':
-        return { label: 'Em Atendimento', color: 'bg-green-50 text-green-700 border-green-200' };
+        return { label: 'Em Atendimento', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold' };
+      case 'aguardando_retorno':
+        return { label: 'Aguardando Retorno', color: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold' };
       case 'finalizado':
         return { label: 'Finalizado', color: 'bg-gray-100 text-gray-600 border-gray-200' };
       default:
-        return { label: status, color: 'bg-gray-50 text-gray-600' };
+        return { label: status || 'Novo', color: 'bg-gray-50 text-gray-600' };
     }
   };
 
@@ -215,7 +242,7 @@ export default function WhatsAppChat() {
       {/* ================= COLUNA ESQUERDA: LISTA DE CONVERSAS ================= */}
       <div className="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
         {/* Header Esquerdo */}
-        <div className="p-4 border-b border-gray-100 space-y-3">
+        <div className="p-4 border-b border-gray-100 space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
@@ -247,10 +274,10 @@ export default function WhatsAppChat() {
             />
           </div>
 
-          {/* Abas / Filtros */}
+          {/* 1ª LINHA DE ABAS (Filtros Principais) */}
           <div className="flex p-1 bg-gray-100/80 rounded-xl text-xs font-medium text-gray-600 gap-1">
             <button
-              onClick={() => setFilterTab('aguardando')}
+              onClick={() => { setFilterTab('aguardando'); setSubFilter('todos'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'aguardando'
@@ -261,7 +288,7 @@ export default function WhatsAppChat() {
               Aguardando
             </button>
             <button
-              onClick={() => setFilterTab('minhas')}
+              onClick={() => { setFilterTab('minhas'); setSubFilter('todos'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'minhas'
@@ -272,7 +299,7 @@ export default function WhatsAppChat() {
               Minhas
             </button>
             <button
-              onClick={() => setFilterTab('todas')}
+              onClick={() => { setFilterTab('todas'); setSubFilter('todos'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'todas'
@@ -283,7 +310,7 @@ export default function WhatsAppChat() {
               Todas
             </button>
             <button
-              onClick={() => setFilterTab('finalizados')}
+              onClick={() => { setFilterTab('finalizados'); setSubFilter('todos'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'finalizados'
@@ -292,6 +319,54 @@ export default function WhatsAppChat() {
               )}
             >
               Fim
+            </button>
+          </div>
+
+          {/* 2ª LINHA DE ABAS (Sub-Status de Atendimento) */}
+          <div className="flex p-0.5 bg-slate-100/90 rounded-lg text-[11px] font-medium text-gray-500 gap-0.5 border border-slate-200/60">
+            <button
+              onClick={() => setSubFilter('todos')}
+              className={clsx(
+                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
+                subFilter === 'todos'
+                  ? 'bg-white text-gray-900 font-bold shadow-xs border border-gray-200'
+                  : 'hover:text-gray-900'
+              )}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setSubFilter('em_atendimento')}
+              className={clsx(
+                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
+                subFilter === 'em_atendimento'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'hover:text-emerald-700'
+              )}
+            >
+              Em Atendimento
+            </button>
+            <button
+              onClick={() => setSubFilter('aguardando_retorno')}
+              className={clsx(
+                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
+                subFilter === 'aguardando_retorno'
+                  ? 'bg-amber-500 text-white font-bold shadow-xs'
+                  : 'hover:text-amber-700'
+              )}
+            >
+              Aguard. Retorno
+            </button>
+            <button
+              onClick={() => setSubFilter('finalizado')}
+              className={clsx(
+                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
+                subFilter === 'finalizado'
+                  ? 'bg-gray-700 text-white font-bold shadow-xs'
+                  : 'hover:text-gray-900'
+              )}
+            >
+              Finalizadas
             </button>
           </div>
         </div>
@@ -403,7 +478,7 @@ export default function WhatsAppChat() {
 
             {/* Ações do Header */}
             <div className="flex items-center gap-2">
-              {activeChat.status !== 'em_atendimento' && activeChat.status !== 'finalizado' && (
+              {activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno' && activeChat.status !== 'finalizado' && (
                 <button
                   onClick={handleAssign}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
@@ -415,6 +490,25 @@ export default function WhatsAppChat() {
 
               {activeChat.status !== 'finalizado' && (
                 <>
+                  {activeChat.status === 'em_atendimento' ? (
+                    <button
+                      onClick={() => handleSetStatus('aguardando_retorno')}
+                      title="Marcar que enviou orçamento/resposta e aguarda cliente"
+                      className="px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      Aguardando Retorno
+                    </button>
+                  ) : activeChat.status === 'aguardando_retorno' ? (
+                    <button
+                      onClick={() => handleSetStatus('em_atendimento')}
+                      className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      Em Atendimento
+                    </button>
+                  ) : null}
+
                   <button
                     onClick={() => setTransferModalOpen(true)}
                     className="px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"

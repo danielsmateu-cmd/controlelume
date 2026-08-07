@@ -101,9 +101,8 @@ export const whatsappService = {
       const { error } = await supabase
         .from('whatsapp_chats')
         .update({
-          assigned_to: userName,
           status: 'em_atendimento',
-          unread_count: 0,
+          assigned_to: userName,
           updated_at: new Date().toISOString()
         })
         .eq('id', chatId);
@@ -112,6 +111,25 @@ export const whatsappService = {
       return true;
     } catch (err) {
       console.error('Error assigning chat:', err);
+      return false;
+    }
+  },
+
+  // Atualizar Status da Conversa (em_atendimento, aguardando_retorno, finalizado)
+  async updateStatus(chatId, newStatus) {
+    try {
+      const { error } = await supabase
+        .from('whatsapp_chats')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chatId);
+
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating chat status:', err);
       return false;
     }
   },
