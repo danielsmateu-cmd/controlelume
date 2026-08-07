@@ -550,8 +550,10 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 </table>
             </div>
 
-            {/* Cabeçalho */}
-            <div className="flex items-center justify-between print:hidden">
+            {/* INTERFACE DE TELA DE ENTRADAS (OCULTA NA IMPRESSÃO) */}
+            <div className="print:hidden space-y-4">
+                {/* Cabeçalho */}
+                <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">Entradas</h2>
                 {readOnly ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700">
@@ -1257,6 +1259,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     </div>
                 </div>
             )}
+            </div> {/* Fim do wrapper print:hidden */}
         </div>
     );
 };
