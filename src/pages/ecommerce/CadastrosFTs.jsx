@@ -2164,10 +2164,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 )}
                                             >
                                                 {/* FT Name (sticky left) */}
-                                                <td className="px-4 py-3.5 font-bold text-gray-800 border-r border-gray-200 bg-inherit sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[9px] text-gray-400 font-mono tracking-wider">{ft.ftCode}</span>
-                                                        <span className="truncate max-w-[220px]" title={ft.name}>
+                                                <td className="px-4 py-2 font-bold text-gray-800 border-r border-gray-200 bg-inherit sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                                                    <div className="flex flex-col justify-center h-full">
+                                                        <span className="text-[9px] text-gray-400 font-mono tracking-wider mb-0.5">{ft.ftCode}</span>
+                                                        <span className="line-clamp-2 w-[220px] whitespace-normal leading-tight text-[11px]" title={ft.name}>
                                                             {ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-0.5">({ft.variation})</span>}
                                                         </span>
                                                     </div>
