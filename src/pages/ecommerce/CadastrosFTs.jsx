@@ -81,6 +81,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [editingValues, setEditingValues] = useState({});
     const [matrixRankValues, setMatrixRankValues] = useState({});
     const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
+    const [ftSearchTerm, setFtSearchTerm] = useState('');
     const [matrixPlatformFilter, setMatrixPlatformFilter] = useState('todos');
 
     const getNewFtCode = (currentFts = fts) => {
@@ -1705,8 +1706,28 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             {fts.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                        <h3 className="font-semibold text-gray-800">Fichas Técnicas Cadastradas</h3>
-                        <span className="text-xs font-medium bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">{fts.length} itens</span>
+                        <div className="flex items-center gap-4">
+                            <h3 className="font-semibold text-gray-800">Fichas Técnicas Cadastradas</h3>
+                            <span className="text-xs font-medium bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">{fts.filter(ft => ft.name.toLowerCase().includes(ftSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(ftSearchTerm.toLowerCase())).length} itens</span>
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar Ficha Técnica..."
+                                value={ftSearchTerm}
+                                onChange={(e) => setFtSearchTerm(e.target.value)}
+                                className="w-64 pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                            />
+                            {ftSearchTerm && (
+                                <button 
+                                    onClick={() => setFtSearchTerm('')} 
+                                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
@@ -1726,7 +1747,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {fts.map((ft, idx) => {
+                                {fts.filter(ft => ft.name.toLowerCase().includes(ftSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(ftSearchTerm.toLowerCase())).map((ft, idx) => {
                                     const ftTotalMat = ft.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
                                     const ftTotalDir = ft.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
                                     const ftTotalPerc = ft.directCostsPercent.reduce((acc, curr) => {
