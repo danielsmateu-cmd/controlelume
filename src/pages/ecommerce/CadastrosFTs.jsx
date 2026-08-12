@@ -80,6 +80,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [matrixEditingPrices, setMatrixEditingPrices] = useState({});
     const [editingValues, setEditingValues] = useState({});
     const [matrixRankValues, setMatrixRankValues] = useState({});
+    const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -1961,9 +1962,29 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                             </h3>
                             <p className="text-xs text-gray-500 mt-0.5">Preço de Venda (R$) e Margem de Contribuição (%) cadastrados em cada Marketplace.</p>
                         </div>
-                        <button onClick={() => setIsMatrixOpen(false)} className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                            Voltar para FTs
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar Ficha Técnica..."
+                                    value={matrixSearchTerm}
+                                    onChange={(e) => setMatrixSearchTerm(e.target.value)}
+                                    className="w-64 pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
+                                />
+                                {matrixSearchTerm && (
+                                    <button 
+                                        onClick={() => setMatrixSearchTerm('')} 
+                                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                            <button onClick={() => setIsMatrixOpen(false)} className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap">
+                                Voltar para FTs
+                            </button>
+                        </div>
                     </div>
 
                     {/* Body */}
@@ -2002,7 +2023,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {fts.map((ft, idx) => {
+                                    {fts.filter(ft => ft.name.toLowerCase().includes(matrixSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(matrixSearchTerm.toLowerCase())).map((ft, idx) => {
                                         // Helper: calcula % MC para preço digitado no rankeamento
                                         const rankPctFor = (raw, fixedCosts, percentRate) => {
                                             const price = parseFloat(String(raw || '').replace(',', '.')) || null;
