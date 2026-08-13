@@ -535,5 +535,49 @@ export const localApi = {
         settings['compras'] = compras;
         setLocal('settings', settings);
         return true;
+    },
+
+    // ==================== FUNCIONÁRIOS E PONTO ====================
+    async getFuncionarios() {
+        return getLocal('funcionarios', []);
+    },
+
+    async saveFuncionario(funcionario) {
+        const current = getLocal('funcionarios', []);
+        let savedFunc;
+        if (funcionario.id) {
+            const idx = current.findIndex(f => f.id === funcionario.id);
+            if (idx > -1) {
+                current[idx] = { ...current[idx], ...funcionario };
+                savedFunc = current[idx];
+            } else {
+                savedFunc = funcionario;
+                current.push(funcionario);
+            }
+        } else {
+            savedFunc = { ...funcionario, id: generateId(), created_at: new Date().toISOString() };
+            current.push(savedFunc);
+        }
+        setLocal('funcionarios', current);
+        return savedFunc;
+    },
+
+    async getRegistrosPonto(funcionarioId, ano, mes) {
+        const all = getLocal('registros_ponto', []);
+        return all.filter(r => r.funcionario_id === funcionarioId && r.data.startsWith(`${ano}-${String(mes).padStart(2, '0')}`));
+    },
+
+    async upsertRegistroPonto(registro) {
+        const current = getLocal('registros_ponto', []);
+        if (!registro.id) registro.id = generateId();
+        
+        const existingIdx = current.findIndex(r => r.funcionario_id === registro.funcionario_id && r.data === registro.data);
+        if (existingIdx > -1) {
+            current[existingIdx] = { ...current[existingIdx], ...registro };
+        } else {
+            current.push(registro);
+        }
+        setLocal('registros_ponto', current);
+        return existingIdx > -1 ? current[existingIdx] : registro;
     }
 };

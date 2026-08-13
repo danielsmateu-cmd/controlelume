@@ -16,6 +16,7 @@ import Usuarios from './pages/Usuarios';
 import EstudoProdutos from './pages/EstudoProdutos';
 import WhatsAppChat from './pages/WhatsAppChat';
 import Agenda from './pages/Agenda';
+import Funcionarios from './pages/Funcionarios';
 import { api } from './services/api';
 
 function AppContent() {
@@ -324,6 +325,8 @@ function AppContent() {
                 return <Precificacao readOnly={!canEdit('precificacao')} />;
             case 'tarefas':
                 return <Tarefas />;
+            case 'funcionarios':
+                return <Funcionarios />;
             case 'usuarios':
                 return <Usuarios />;
             default:

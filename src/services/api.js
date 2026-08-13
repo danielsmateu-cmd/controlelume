@@ -992,6 +992,84 @@ const supabaseApi = {
             console.error('Supabase saveCompras:', err);
             return false;
         }
+    },
+
+    // ==================== FUNCIONÁRIOS & PONTO ====================
+    async getFuncionarios() {
+        try {
+            const { data, error } = await supabase
+                .from('funcionarios')
+                .select('*')
+                .order('nome', { ascending: true });
+            if (error) throw error;
+            return data;
+        } catch (err) {
+            console.error('Supabase getFuncionarios error:', err);
+            return [];
+        }
+    },
+    
+    async saveFuncionario(funcionario) {
+        try {
+            if (funcionario.id) {
+                const { data, error } = await supabase
+                    .from('funcionarios')
+                    .update(funcionario)
+                    .eq('id', funcionario.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            } else {
+                const { data, error } = await supabase
+                    .from('funcionarios')
+                    .insert([funcionario])
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            }
+        } catch (err) {
+            console.error('Supabase saveFuncionario error:', err);
+            throw err;
+        }
+    },
+    
+    async getRegistrosPonto(funcionarioId, ano, mes) {
+        try {
+            const padMes = String(mes).padStart(2, '0');
+            const dataInicial = `${ano}-${padMes}-01`;
+            const lastDay = new Date(ano, mes, 0).getDate();
+            const dataFinal = `${ano}-${padMes}-${String(lastDay).padStart(2, '0')}`;
+            
+            const { data, error } = await supabase
+                .from('registros_ponto')
+                .select('*')
+                .eq('funcionario_id', funcionarioId)
+                .gte('data', dataInicial)
+                .lte('data', dataFinal);
+                
+            if (error) throw error;
+            return data || [];
+        } catch (err) {
+            console.error('Supabase getRegistrosPonto error:', err);
+            return [];
+        }
+    },
+    
+    async upsertRegistroPonto(registro) {
+        try {
+            const { data, error } = await supabase
+                .from('registros_ponto')
+                .upsert(registro, { onConflict: 'funcionario_id, data' })
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        } catch (err) {
+            console.error('Supabase upsertRegistroPonto error:', err);
+            throw err;
+        }
     }
 };
 

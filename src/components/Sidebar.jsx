@@ -45,6 +45,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'compras', label: 'Compras', icon: ShoppingBag },
         { id: 'estudo_produtos', label: 'Estudo de Produtos', icon: Lightbulb },
         { id: 'tarefas', label: 'Tarefas', icon: ClipboardList },
+        { id: 'funcionarios', label: 'Funcionários', icon: Users },
         { id: 'ecommerce', label: 'E-Commerce', icon: ShoppingCart },
         { id: 'precificacao', label: 'Precificação', icon: Tag },
     ];
