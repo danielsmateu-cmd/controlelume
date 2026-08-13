@@ -14,6 +14,7 @@ const MODULES = [
     { id: 'compras', label: 'Compras' },
     { id: 'estudo_produtos', label: 'Estudo de Produtos' },
     { id: 'tarefas', label: 'Tarefas' },
+    { id: 'funcionarios', label: 'Funcionários' },
     { id: 'ecommerce', label: 'E-Commerce' },
     { id: 'precificacao', label: 'Precificação' }
 ];

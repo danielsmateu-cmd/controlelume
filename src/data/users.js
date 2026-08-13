@@ -68,13 +68,13 @@ export const USERS = [
 // Permissões por role
 export const ROLE_PERMISSIONS = {
     admin: {
-        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'precificacao', 'compras', 'estudo_produtos'],
-        editableTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'precificacao', 'compras', 'estudo_produtos'],
+        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos'],
+        editableTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos'],
         canExportImport: true
     },
     editor: {
-        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'precificacao', 'compras', 'estudo_produtos'],
-        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'contas', 'tarefas', 'precificacao', 'compras', 'estudo_produtos'],
+        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos'],
+        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'contas', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos'],
         canExportImport: false
     },
     budget_only: {
