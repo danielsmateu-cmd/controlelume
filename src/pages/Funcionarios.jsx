@@ -17,7 +17,7 @@ function Funcionarios() {
     // Cadastro State
     const [isEditingFunc, setIsEditingFunc] = useState(false);
     const [currentFunc, setCurrentFunc] = useState(null);
-    const [funcForm, setFuncForm] = useState({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true });
+    const [funcForm, setFuncForm] = useState({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true });
     const [searchFunc, setSearchFunc] = useState('');
 
     // Ponto State
@@ -66,11 +66,12 @@ function Funcionarios() {
                 nome: funcForm.nome,
                 cargo: funcForm.cargo,
                 valor_vt_diario: parseFloat(funcForm.valor_vt_diario) || 0,
+                valor_hora: parseFloat(funcForm.valor_hora) || 0,
                 ativo: funcForm.ativo
             });
             await loadFuncionarios();
             setIsEditingFunc(false);
-            setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true });
+            setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true });
         } catch (err) {
             alert('Erro ao salvar funcionário');
         } finally {
@@ -84,6 +85,7 @@ function Funcionarios() {
             nome: func.nome,
             cargo: func.cargo,
             valor_vt_diario: func.valor_vt_diario,
+            valor_hora: func.valor_hora || 0,
             ativo: func.ativo
         });
         setIsEditingFunc(true);
@@ -211,6 +213,8 @@ function Funcionarios() {
         });
     }
 
+    const totalSalaryPaid = totalHoursWorked * (selectedFunc?.valor_hora || 0);
+
     const filteredFts = funcionarios.filter(f => f.nome.toLowerCase().includes(searchFunc.toLowerCase()));
 
     return (
@@ -289,6 +293,21 @@ function Funcionarios() {
                                             />
                                         </div>
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Valor da Hora Trabalhada (R$)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                min="0"
+                                                value={funcForm.valor_hora} 
+                                                onChange={e => setFuncForm({...funcForm, valor_hora: e.target.value})}
+                                                className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                                disabled={!canEdit}
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="flex items-center gap-2 pt-2">
                                         <input 
                                             type="checkbox"
@@ -304,7 +323,7 @@ function Funcionarios() {
                                         {isEditingFunc && (
                                             <button 
                                                 type="button"
-                                                onClick={() => { setIsEditingFunc(false); setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true }); }}
+                                                onClick={() => { setIsEditingFunc(false); setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true }); }}
                                                 className="flex-1 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                                             >
                                                 Cancelar
@@ -345,6 +364,7 @@ function Funcionarios() {
                                             <tr>
                                                 <th className="px-6 py-3 font-medium">Nome</th>
                                                 <th className="px-6 py-3 font-medium">Cargo</th>
+                                                <th className="px-6 py-3 font-medium text-center">Valor Hora</th>
                                                 <th className="px-6 py-3 font-medium text-center">VT Diário</th>
                                                 <th className="px-6 py-3 font-medium text-center">Status</th>
                                                 <th className="px-6 py-3 font-medium text-right">Ações</th>
@@ -358,6 +378,9 @@ function Funcionarios() {
                                                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                                                         <td className="px-6 py-4 font-semibold text-gray-800">{f.nome}</td>
                                                         <td className="px-6 py-4 text-gray-600">{f.cargo || '-'}</td>
+                                                        <td className="px-6 py-4 text-center font-medium text-blue-600">
+                                                            R$ {parseFloat(f.valor_hora || 0).toFixed(2).replace('.', ',')}
+                                                        </td>
                                                         <td className="px-6 py-4 text-center font-medium text-emerald-600">
                                                             R$ {parseFloat(f.valor_vt_diario).toFixed(2).replace('.', ',')}
                                                         </td>
@@ -446,7 +469,7 @@ function Funcionarios() {
                         {selectedFuncId ? (
                             <>
                                 {/* Resumo Financeiro */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                                             <CalendarDays size={24} />
@@ -463,6 +486,16 @@ function Funcionarios() {
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Horas Acumuladas</p>
                                             <p className="text-2xl font-bold text-gray-800">{formatHours(totalHoursWorked)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-xl border border-blue-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 z-0"></div>
+                                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 z-10">
+                                            <span className="font-bold text-xl">R$</span>
+                                        </div>
+                                        <div className="z-10">
+                                            <p className="text-sm font-medium text-blue-800">Total Salário (Mês)</p>
+                                            <p className="text-2xl font-bold text-blue-700">R$ {totalSalaryPaid.toFixed(2).replace('.', ',')}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white p-5 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
