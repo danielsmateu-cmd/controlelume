@@ -1,0 +1,585 @@
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check } from 'lucide-react';
+import clsx from 'clsx';
+
+function Funcionarios() {
+    const { canEdit, canView } = useAuth();
+    
+    // UI State
+    const [activeTab, setActiveTab] = useState('cadastro'); // 'cadastro' | 'ponto'
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Data State
+    const [funcionarios, setFuncionarios] = useState([]);
+    
+    // Cadastro State
+    const [isEditingFunc, setIsEditingFunc] = useState(false);
+    const [currentFunc, setCurrentFunc] = useState(null);
+    const [funcForm, setFuncForm] = useState({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true });
+    const [searchFunc, setSearchFunc] = useState('');
+
+    // Ponto State
+    const [selectedFuncId, setSelectedFuncId] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [registros, setRegistros] = useState([]);
+    const [savingPonto, setSavingPonto] = useState(false);
+
+    useEffect(() => {
+        loadFuncionarios();
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === 'ponto' && selectedFuncId) {
+            loadRegistros();
+        }
+    }, [activeTab, selectedFuncId, selectedMonth, selectedYear]);
+
+    const loadFuncionarios = async () => {
+        setIsLoading(true);
+        const data = await api.getFuncionarios();
+        setFuncionarios(data || []);
+        if (data && data.length > 0 && !selectedFuncId) {
+            setSelectedFuncId(data[0].id);
+        }
+        setIsLoading(false);
+    };
+
+    const loadRegistros = async () => {
+        setIsLoading(true);
+        const data = await api.getRegistrosPonto(selectedFuncId, selectedYear, selectedMonth);
+        setRegistros(data || []);
+        setIsLoading(false);
+    };
+
+    const handleSaveFuncionario = async (e) => {
+        e.preventDefault();
+        if (!canEdit) return alert('Sem permissão!');
+        if (!funcForm.nome) return alert('Nome é obrigatório');
+
+        setIsLoading(true);
+        try {
+            await api.saveFuncionario({
+                ...(isEditingFunc ? { id: currentFunc.id } : {}),
+                nome: funcForm.nome,
+                cargo: funcForm.cargo,
+                valor_vt_diario: parseFloat(funcForm.valor_vt_diario) || 0,
+                ativo: funcForm.ativo
+            });
+            await loadFuncionarios();
+            setIsEditingFunc(false);
+            setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true });
+        } catch (err) {
+            alert('Erro ao salvar funcionário');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleEditFuncClick = (func) => {
+        setCurrentFunc(func);
+        setFuncForm({
+            nome: func.nome,
+            cargo: func.cargo,
+            valor_vt_diario: func.valor_vt_diario,
+            ativo: func.ativo
+        });
+        setIsEditingFunc(true);
+    };
+
+    const toggleFuncAtivo = async (func) => {
+        if (!canEdit) return;
+        try {
+            await api.saveFuncionario({ ...func, ativo: !func.ativo });
+            loadFuncionarios();
+        } catch (err) {
+            alert('Erro ao atualizar status');
+        }
+    };
+
+    const handlePontoChange = async (dateStr, field, value) => {
+        if (!canEdit) return;
+        
+        // Find existing record or create optimistic one
+        const existing = registros.find(r => r.data === dateStr) || {
+            funcionario_id: selectedFuncId,
+            data: dateStr,
+            horario_entrada: null,
+            horario_saida: null,
+            recebeu_vt: false,
+            observacoes: ''
+        };
+
+        const updated = { ...existing, [field]: value };
+        
+        // Optimistic update in UI
+        setRegistros(prev => {
+            const idx = prev.findIndex(r => r.data === dateStr);
+            if (idx >= 0) {
+                const copy = [...prev];
+                copy[idx] = updated;
+                return copy;
+            }
+            return [...prev, updated];
+        });
+
+        // Save to DB
+        try {
+            setSavingPonto(true);
+            const saved = await api.upsertRegistroPonto(updated);
+            // Re-update with real DB data just in case
+            setRegistros(prev => {
+                const idx = prev.findIndex(r => r.data === dateStr);
+                if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = saved;
+                    return copy;
+                }
+                return [...prev, saved];
+            });
+        } catch (err) {
+            alert('Erro ao salvar registro.');
+            loadRegistros(); // revert
+        } finally {
+            setSavingPonto(false);
+        }
+    };
+
+    // --- Helpers ---
+    const calculateHours = (start, end) => {
+        if (!start || !end) return 0;
+        const [h1, m1] = start.split(':').map(Number);
+        const [h2, m2] = end.split(':').map(Number);
+        
+        let startMinutes = h1 * 60 + m1;
+        let endMinutes = h2 * 60 + m2;
+        
+        // If end time is before start time, assume it goes into next day
+        if (endMinutes < startMinutes) {
+            endMinutes += 24 * 60;
+        }
+        
+        return (endMinutes - startMinutes) / 60;
+    };
+
+    const formatHours = (decimalHours) => {
+        if (!decimalHours) return '-';
+        const h = Math.floor(decimalHours);
+        const m = Math.round((decimalHours - h) * 60);
+        return `${h}h ${m > 0 ? String(m).padStart(2, '0') + 'm' : ''}`;
+    };
+
+    // Generate days for selected month
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const daysArray = Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const d = new Date(selectedYear, selectedMonth - 1, day);
+        return {
+            dateStr: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+            dayNum: day,
+            weekDay: d.toLocaleDateString('pt-BR', { weekday: 'short' }),
+            isWeekend: d.getDay() === 0 || d.getDay() === 6
+        };
+    });
+
+    const selectedFunc = funcionarios.find(f => f.id === selectedFuncId);
+    
+    // Calculations for the month
+    let totalDaysWorked = 0;
+    let totalHoursWorked = 0;
+    let totalVTPaid = 0;
+    
+    if (selectedFunc) {
+        daysArray.forEach(d => {
+            const r = registros.find(reg => reg.data === d.dateStr);
+            if (r) {
+                const hrs = calculateHours(r.horario_entrada, r.horario_saida);
+                if (hrs > 0) {
+                    totalDaysWorked++;
+                    totalHoursWorked += hrs;
+                }
+                
+                // Usually VT is paid if there are hours worked, OR if specifically marked
+                // Let's assume if 'recebeu_vt' is true, OR if they worked. 
+                // Let's use `recebeu_vt` checkbox to explicitly track if VT was due/credited.
+                if (r.recebeu_vt) {
+                    totalVTPaid += selectedFunc.valor_vt_diario;
+                }
+            }
+        });
+    }
+
+    const filteredFts = funcionarios.filter(f => f.nome.toLowerCase().includes(searchFunc.toLowerCase()));
+
+    return (
+        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+            {/* Header */}
+            <div className="bg-white px-6 py-4 border-b border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <Users className="text-indigo-600" />
+                        Gestão de Funcionários
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-1">Gerencie cadastros, ponto e vales-transporte.</p>
+                </div>
+                
+                <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+                    <button 
+                        onClick={() => setActiveTab('cadastro')}
+                        className={clsx("px-4 py-2 text-sm font-medium rounded-md transition-all", activeTab === 'cadastro' ? "bg-white text-indigo-700 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50")}
+                    >
+                        Cadastro
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('ponto')}
+                        className={clsx("px-4 py-2 text-sm font-medium rounded-md transition-all", activeTab === 'ponto' ? "bg-white text-indigo-700 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50")}
+                    >
+                        Controle de Ponto
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-auto p-6">
+                {activeTab === 'cadastro' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Form Column */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    {isEditingFunc ? <Edit2 size={18} className="text-amber-500" /> : <Plus size={18} className="text-indigo-600" />}
+                                    {isEditingFunc ? 'Editar Funcionário' : 'Novo Funcionário'}
+                                </h3>
+                                <form onSubmit={handleSaveFuncionario} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                                        <input 
+                                            type="text" 
+                                            value={funcForm.nome} 
+                                            onChange={e => setFuncForm({...funcForm, nome: e.target.value})}
+                                            className="w-full text-sm border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                            required
+                                            disabled={!canEdit}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Cargo / Função</label>
+                                        <input 
+                                            type="text" 
+                                            value={funcForm.cargo} 
+                                            onChange={e => setFuncForm({...funcForm, cargo: e.target.value})}
+                                            className="w-full text-sm border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                            disabled={!canEdit}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Valor do VT Diário (R$)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                min="0"
+                                                value={funcForm.valor_vt_diario} 
+                                                onChange={e => setFuncForm({...funcForm, valor_vt_diario: e.target.value})}
+                                                className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                                disabled={!canEdit}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <input 
+                                            type="checkbox"
+                                            id="ativo-chk"
+                                            checked={funcForm.ativo}
+                                            onChange={e => setFuncForm({...funcForm, ativo: e.target.checked})}
+                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            disabled={!canEdit}
+                                        />
+                                        <label htmlFor="ativo-chk" className="text-sm font-medium text-gray-700">Funcionário Ativo</label>
+                                    </div>
+                                    <div className="pt-4 flex gap-2">
+                                        {isEditingFunc && (
+                                            <button 
+                                                type="button"
+                                                onClick={() => { setIsEditingFunc(false); setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, ativo: true }); }}
+                                                className="flex-1 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        )}
+                                        <button 
+                                            type="submit"
+                                            disabled={!canEdit || isLoading}
+                                            className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            <Save size={16} />
+                                            {isEditingFunc ? 'Atualizar' : 'Salvar'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* List Column */}
+                        <div className="lg:col-span-2">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                                    <h3 className="font-semibold text-gray-800">Funcionários Cadastrados</h3>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar..."
+                                            value={searchFunc}
+                                            onChange={e => setSearchFunc(e.target.value)}
+                                            className="w-48 pl-9 pr-4 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-gray-500 bg-white uppercase border-b border-gray-200">
+                                            <tr>
+                                                <th className="px-6 py-3 font-medium">Nome</th>
+                                                <th className="px-6 py-3 font-medium">Cargo</th>
+                                                <th className="px-6 py-3 font-medium text-center">VT Diário</th>
+                                                <th className="px-6 py-3 font-medium text-center">Status</th>
+                                                <th className="px-6 py-3 font-medium text-right">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {filteredFts.length === 0 ? (
+                                                <tr><td colSpan={5} className="p-6 text-center text-gray-500">Nenhum funcionário encontrado.</td></tr>
+                                            ) : (
+                                                filteredFts.map(f => (
+                                                    <tr key={f.id} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-6 py-4 font-semibold text-gray-800">{f.nome}</td>
+                                                        <td className="px-6 py-4 text-gray-600">{f.cargo || '-'}</td>
+                                                        <td className="px-6 py-4 text-center font-medium text-emerald-600">
+                                                            R$ {parseFloat(f.valor_vt_diario).toFixed(2).replace('.', ',')}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <span className={clsx("px-2 py-1 text-[10px] font-bold rounded-full uppercase", f.ativo ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                                                                {f.ativo ? 'Ativo' : 'Inativo'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button onClick={() => toggleFuncAtivo(f)} className={clsx("p-1.5 rounded transition-colors", f.ativo ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50")} title={f.ativo ? "Desativar" : "Ativar"} disabled={!canEdit}>
+                                                                    {f.ativo ? <X size={16} /> : <Check size={16} />}
+                                                                </button>
+                                                                <button onClick={() => handleEditFuncClick(f)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Editar" disabled={!canEdit}>
+                                                                    <Edit2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'ponto' && (
+                    <div className="space-y-6 max-w-6xl mx-auto">
+                        
+                        {/* Ponto Top Controls */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                <div className="flex-1 sm:w-64">
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Funcionário</label>
+                                    <select
+                                        value={selectedFuncId}
+                                        onChange={e => setSelectedFuncId(e.target.value)}
+                                        className="w-full text-sm font-medium text-gray-800 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    >
+                                        <option value="" disabled>Selecione um funcionário</option>
+                                        {funcionarios.filter(f => f.ativo).map(f => (
+                                            <option key={f.id} value={f.id}>{f.nome}</option>
+                                        ))}
+                                        {funcionarios.filter(f => !f.ativo).length > 0 && (
+                                            <optgroup label="Inativos">
+                                                {funcionarios.filter(f => !f.ativo).map(f => (
+                                                    <option key={f.id} value={f.id}>{f.nome} (Inativo)</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 sm:w-32">
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Mês</label>
+                                    <select
+                                        value={selectedMonth}
+                                        onChange={e => setSelectedMonth(Number(e.target.value))}
+                                        className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    >
+                                        {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                                            <option key={m} value={m}>{new Date(2000, m-1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex-1 sm:w-24">
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ano</label>
+                                    <select
+                                        value={selectedYear}
+                                        onChange={e => setSelectedYear(Number(e.target.value))}
+                                        className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    >
+                                        {[2024, 2025, 2026, 2027].map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {selectedFuncId ? (
+                            <>
+                                {/* Resumo Financeiro */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                            <CalendarDays size={24} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Dias Trabalhados</p>
+                                            <p className="text-2xl font-bold text-gray-800">{totalDaysWorked}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                            <Clock size={24} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Horas Acumuladas</p>
+                                            <p className="text-2xl font-bold text-gray-800">{formatHours(totalHoursWorked)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 z-0"></div>
+                                        <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 z-10">
+                                            <Bus size={24} />
+                                        </div>
+                                        <div className="z-10">
+                                            <p className="text-sm font-medium text-emerald-800">Total VT (Mês)</p>
+                                            <p className="text-2xl font-bold text-emerald-700">R$ {totalVTPaid.toFixed(2).replace('.', ',')}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Grade de Ponto */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-[11px] text-gray-500 bg-gray-50 uppercase border-b border-gray-200">
+                                                <tr>
+                                                    <th className="px-4 py-3 font-semibold text-center w-20">Data</th>
+                                                    <th className="px-4 py-3 font-semibold w-24">Dia</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-32">Entrada</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-32">Saída</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-28">Total H.</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-32">Recebeu VT?</th>
+                                                    <th className="px-4 py-3 font-semibold">Observações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {daysArray.map((day) => {
+                                                    const reg = registros.find(r => r.data === day.dateStr) || {};
+                                                    const hrs = calculateHours(reg.horario_entrada, reg.horario_saida);
+                                                    
+                                                    return (
+                                                        <tr key={day.dateStr} className={clsx("hover:bg-slate-50 transition-colors", day.isWeekend && "bg-gray-50/50")}>
+                                                            <td className="px-4 py-2 text-center font-mono font-medium text-gray-700 border-r border-gray-100">
+                                                                {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
+                                                            </td>
+                                                            <td className={clsx("px-4 py-2 text-xs font-semibold uppercase tracking-wider", day.isWeekend ? "text-amber-600" : "text-gray-500")}>
+                                                                {day.weekDay}
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <input 
+                                                                    type="time" 
+                                                                    value={reg.horario_entrada || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'horario_entrada', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-indigo-900 bg-indigo-50/30"
+                                                                    disabled={!canEdit}
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <input 
+                                                                    type="time" 
+                                                                    value={reg.horario_saida || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'horario_saida', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-indigo-900 bg-indigo-50/30"
+                                                                    disabled={!canEdit}
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                <span className="font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                                                                    {formatHours(hrs)}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                <label className="flex items-center justify-center gap-2 cursor-pointer">
+                                                                    <input 
+                                                                        type="checkbox"
+                                                                        checked={reg.recebeu_vt || false}
+                                                                        onChange={e => handlePontoChange(day.dateStr, 'recebeu_vt', e.target.checked)}
+                                                                        className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                                                                        disabled={!canEdit}
+                                                                    />
+                                                                    <span className="text-xs font-medium text-gray-600">Sim</span>
+                                                                </label>
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="Adicionar nota..."
+                                                                    value={reg.observacoes || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'observacoes', e.target.value)}
+                                                                    className="w-full p-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none bg-transparent"
+                                                                    disabled={!canEdit}
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 shadow-sm text-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                                    <Users size={32} />
+                                </div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum funcionário selecionado</h3>
+                                <p className="text-gray-500 text-sm">Selecione um funcionário acima para visualizar e editar o controle de ponto mensal.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+            
+            {/* Saving indicator */}
+            {savingPonto && (
+                <div className="fixed bottom-4 right-4 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-pulse z-50">
+                    <span className="w-2 h-2 bg-indigo-400 rounded-full"></span>
+                    Salvando ponto...
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default Funcionarios;
