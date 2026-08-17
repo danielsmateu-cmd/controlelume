@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check } from 'lucide-react';
+import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check, Printer } from 'lucide-react';
 import clsx from 'clsx';
 
 function Funcionarios() {
@@ -109,6 +109,8 @@ function Funcionarios() {
             funcionario_id: selectedFuncId,
             data: dateStr,
             horario_entrada: null,
+            inicio_descanso: null,
+            fim_descanso: null,
             horario_saida: null,
             recebeu_vt: false,
             observacoes: ''
@@ -150,20 +152,34 @@ function Funcionarios() {
     };
 
     // --- Helpers ---
-    const calculateHours = (start, end) => {
+    const calculateHours = (start, breakStart, breakEnd, end) => {
         if (!start || !end) return 0;
-        const [h1, m1] = start.split(':').map(Number);
-        const [h2, m2] = end.split(':').map(Number);
         
-        let startMinutes = h1 * 60 + m1;
-        let endMinutes = h2 * 60 + m2;
+        const parseMinutes = (timeStr) => {
+            if (!timeStr) return null;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        let startMin = parseMinutes(start);
+        let endMin = parseMinutes(end);
+        let breakStartMin = parseMinutes(breakStart);
+        let breakEndMin = parseMinutes(breakEnd);
         
-        // If end time is before start time, assume it goes into next day
-        if (endMinutes < startMinutes) {
-            endMinutes += 24 * 60;
+        if (endMin < startMin) endMin += 24 * 60;
+        
+        let totalWorked = endMin - startMin;
+        
+        // Subtract break if present
+        if (breakStartMin !== null && breakEndMin !== null) {
+            if (breakEndMin < breakStartMin) breakEndMin += 24 * 60; // if break crosses midnight
+            let breakDuration = breakEndMin - breakStartMin;
+            if (breakDuration > 0) {
+                totalWorked -= breakDuration;
+            }
         }
         
-        return (endMinutes - startMinutes) / 60;
+        return totalWorked > 0 ? totalWorked / 60 : 0;
     };
 
     const formatHours = (decimalHours) => {
@@ -197,7 +213,7 @@ function Funcionarios() {
         daysArray.forEach(d => {
             const r = registros.find(reg => reg.data === d.dateStr);
             if (r) {
-                const hrs = calculateHours(r.horario_entrada, r.horario_saida);
+                const hrs = calculateHours(r.horario_entrada, r.inicio_descanso, r.fim_descanso, r.horario_saida);
                 if (hrs > 0) {
                     totalDaysWorked++;
                     totalHoursWorked += hrs;
@@ -229,7 +245,7 @@ function Funcionarios() {
                     <p className="text-sm text-gray-500 mt-1">Gerencie cadastros, ponto e vales-transporte.</p>
                 </div>
                 
-                <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+                <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 print:hidden">
                     <button 
                         onClick={() => setActiveTab('cadastro')}
                         className={clsx("px-4 py-2 text-sm font-medium rounded-md transition-all", activeTab === 'cadastro' ? "bg-white text-indigo-700 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50")}
@@ -246,7 +262,7 @@ function Funcionarios() {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 overflow-auto p-6 print:p-0 print:overflow-visible">
                 {activeTab === 'cadastro' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Form Column */}
@@ -411,10 +427,10 @@ function Funcionarios() {
                 )}
 
                 {activeTab === 'ponto' && (
-                    <div className="space-y-6 max-w-6xl mx-auto">
+                    <div className="space-y-6 max-w-6xl mx-auto print:max-w-none print:m-0 print:space-y-0">
                         
                         {/* Ponto Top Controls */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
                             <div className="flex items-center gap-4 w-full sm:w-auto">
                                 <div className="flex-1 sm:w-64">
                                     <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Funcionário</label>
@@ -464,12 +480,22 @@ function Funcionarios() {
                                     </select>
                                 </div>
                             </div>
+                            
+                            {selectedFuncId && (
+                                <button 
+                                    onClick={() => window.print()}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm"
+                                >
+                                    <Printer size={16} />
+                                    Imprimir Folha
+                                </button>
+                            )}
                         </div>
 
                         {selectedFuncId ? (
                             <>
                                 {/* Resumo Financeiro */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
                                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                                             <CalendarDays size={24} />
@@ -511,24 +537,26 @@ function Funcionarios() {
                                 </div>
 
                                 {/* Grade de Ponto */}
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:hidden">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm text-left">
                                             <thead className="text-[11px] text-gray-500 bg-gray-50 uppercase border-b border-gray-200">
                                                 <tr>
                                                     <th className="px-4 py-3 font-semibold text-center w-20">Data</th>
                                                     <th className="px-4 py-3 font-semibold w-24">Dia</th>
-                                                    <th className="px-4 py-3 font-semibold text-center w-32">Entrada</th>
-                                                    <th className="px-4 py-3 font-semibold text-center w-32">Saída</th>
-                                                    <th className="px-4 py-3 font-semibold text-center w-28">Total H.</th>
-                                                    <th className="px-4 py-3 font-semibold text-center w-32">Recebeu VT?</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-28">Entrada</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-28">Saída (Pausa)</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-28">Retorno</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-28">Saída</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-24">Total H.</th>
+                                                    <th className="px-4 py-3 font-semibold text-center w-24">Recebeu VT?</th>
                                                     <th className="px-4 py-3 font-semibold">Observações</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
                                                 {daysArray.map((day) => {
                                                     const reg = registros.find(r => r.data === day.dateStr) || {};
-                                                    const hrs = calculateHours(reg.horario_entrada, reg.horario_saida);
+                                                    const hrs = calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida);
                                                     
                                                     return (
                                                         <tr key={day.dateStr} className={clsx("hover:bg-slate-50 transition-colors", day.isWeekend && "bg-gray-50/50")}>
@@ -538,21 +566,39 @@ function Funcionarios() {
                                                             <td className={clsx("px-4 py-2 text-xs font-semibold uppercase tracking-wider", day.isWeekend ? "text-amber-600" : "text-gray-500")}>
                                                                 {day.weekDay}
                                                             </td>
-                                                            <td className="px-4 py-2">
+                                                            <td className="px-2 py-2">
                                                                 <input 
                                                                     type="time" 
                                                                     value={reg.horario_entrada || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'horario_entrada', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-indigo-900 bg-indigo-50/30"
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30"
                                                                     disabled={!canEdit}
                                                                 />
                                                             </td>
-                                                            <td className="px-4 py-2">
+                                                            <td className="px-2 py-2">
+                                                                <input 
+                                                                    type="time" 
+                                                                    value={reg.inicio_descanso || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'inicio_descanso', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30"
+                                                                    disabled={!canEdit}
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-2">
+                                                                <input 
+                                                                    type="time" 
+                                                                    value={reg.fim_descanso || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'fim_descanso', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30"
+                                                                    disabled={!canEdit}
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-2">
                                                                 <input 
                                                                     type="time" 
                                                                     value={reg.horario_saida || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'horario_saida', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-indigo-900 bg-indigo-50/30"
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30"
                                                                     disabled={!canEdit}
                                                                 />
                                                             </td>
@@ -588,6 +634,102 @@ function Funcionarios() {
                                                 })}
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+
+                                {/* Printable Area - Visible only on Print */}
+                                <div className="hidden print:block font-sans text-gray-900 bg-white min-h-screen">
+                                    <div className="text-center mb-6">
+                                        <h2 className="text-2xl font-bold uppercase tracking-wider">Folha de Ponto Mensal</h2>
+                                        <p className="text-lg mt-1">{String(selectedMonth).padStart(2, '0')} / {selectedYear}</p>
+                                    </div>
+
+                                    <div className="mb-6 grid grid-cols-2 gap-4 border border-gray-400 p-4 rounded-lg bg-gray-50">
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase">Nome do Funcionário</p>
+                                            <p className="text-lg font-semibold">{selectedFunc.nome}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase">Cargo / Função</p>
+                                            <p className="text-lg font-semibold">{selectedFunc.cargo || 'Não informado'}</p>
+                                        </div>
+                                    </div>
+
+                                    <table className="w-full border-collapse border border-gray-400 text-sm mb-6">
+                                        <thead>
+                                            <tr className="bg-gray-100">
+                                                <th className="border border-gray-400 px-2 py-2 w-16 text-center">Data</th>
+                                                <th className="border border-gray-400 px-2 py-2 w-20">Dia</th>
+                                                <th className="border border-gray-400 px-2 py-2 text-center">Entrada</th>
+                                                <th className="border border-gray-400 px-2 py-2 text-center">Pausa (Saída)</th>
+                                                <th className="border border-gray-400 px-2 py-2 text-center">Pausa (Retorno)</th>
+                                                <th className="border border-gray-400 px-2 py-2 text-center">Saída</th>
+                                                <th className="border border-gray-400 px-2 py-2 text-center w-24">Total H.</th>
+                                                <th className="border border-gray-400 px-2 py-2">Observações</th>
+                                                <th className="border border-gray-400 px-2 py-2 w-24">Assinatura</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {daysArray.map((day) => {
+                                                const reg = registros.find(r => r.data === day.dateStr) || {};
+                                                const hrs = calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida);
+                                                return (
+                                                    <tr key={day.dateStr} className={clsx(day.isWeekend && "bg-gray-50")}>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                            {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-xs uppercase">
+                                                            {day.weekDay}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                            {reg.horario_entrada || ''}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono text-gray-500">
+                                                            {reg.inicio_descanso || ''}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono text-gray-500">
+                                                            {reg.fim_descanso || ''}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                            {reg.horario_saida || ''}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-bold">
+                                                            {formatHours(hrs)}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5 text-xs">
+                                                            {reg.observacoes || ''}
+                                                        </td>
+                                                        <td className="border border-gray-400 px-2 py-1.5"></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="bg-gray-100 font-bold">
+                                                <td colSpan={6} className="border border-gray-400 px-2 py-2 text-right">TOTAL ACUMULADO NO MÊS:</td>
+                                                <td className="border border-gray-400 px-2 py-2 text-center">{formatHours(totalHoursWorked)}</td>
+                                                <td colSpan={2} className="border border-gray-400 px-2 py-2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+
+                                    <div className="mt-16 flex justify-between gap-12 px-8">
+                                        <div className="flex-1 text-center">
+                                            <div className="border-t border-gray-800 pt-2 font-bold uppercase text-sm">
+                                                Assinatura do Funcionário
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">{selectedFunc.nome}</div>
+                                        </div>
+                                        <div className="flex-1 text-center">
+                                            <div className="border-t border-gray-800 pt-2 font-bold uppercase text-sm">
+                                                Assinatura do Empregador
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">Responsável / Gerência</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mt-8 text-center text-xs text-gray-400">
+                                        Documento gerado pelo sistema em {new Date().toLocaleDateString('pt-BR')}
                                     </div>
                                 </div>
                             </>
