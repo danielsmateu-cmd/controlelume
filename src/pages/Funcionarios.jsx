@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check, Printer } from 'lucide-react';
+import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check, Printer, Zap } from 'lucide-react';
 import clsx from 'clsx';
 
 function Funcionarios() {
@@ -26,6 +26,16 @@ function Funcionarios() {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [registros, setRegistros] = useState([]);
     const [savingPonto, setSavingPonto] = useState(false);
+
+    // Auto-fill state
+    const [defaultTimes, setDefaultTimes] = useState(() => {
+        const saved = localStorage.getItem('lume_ponto_default_times');
+        return saved ? JSON.parse(saved) : { entrada: '08:00', inicio_descanso: '12:00', fim_descanso: '13:00', saida: '17:00' };
+    });
+
+    useEffect(() => {
+        localStorage.setItem('lume_ponto_default_times', JSON.stringify(defaultTimes));
+    }, [defaultTimes]);
 
     useEffect(() => {
         loadFuncionarios();
@@ -146,6 +156,111 @@ function Funcionarios() {
         } catch (err) {
             alert('Erro ao salvar registro.');
             loadRegistros(); // revert
+        } finally {
+            setSavingPonto(false);
+        }
+    };
+
+    const handleFillDay = async (dateStr) => {
+        if (!canEdit) return;
+        
+        const existing = registros.find(r => r.data === dateStr) || {
+            funcionario_id: selectedFuncId,
+            data: dateStr,
+            recebeu_vt: false,
+            observacoes: ''
+        };
+
+        const updated = {
+            ...existing,
+            horario_entrada: defaultTimes.entrada,
+            inicio_descanso: defaultTimes.inicio_descanso,
+            fim_descanso: defaultTimes.fim_descanso,
+            horario_saida: defaultTimes.saida,
+        };
+
+        // Optimistic
+        setRegistros(prev => {
+            const idx = prev.findIndex(r => r.data === dateStr);
+            if (idx >= 0) {
+                const copy = [...prev];
+                copy[idx] = updated;
+                return copy;
+            }
+            return [...prev, updated];
+        });
+
+        try {
+            setSavingPonto(true);
+            const saved = await api.upsertRegistroPonto(updated);
+            setRegistros(prev => {
+                const idx = prev.findIndex(r => r.data === dateStr);
+                if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = saved;
+                    return copy;
+                }
+                return [...prev, saved];
+            });
+        } catch (err) {
+            alert('Erro ao preencher o dia.');
+            loadRegistros();
+        } finally {
+            setSavingPonto(false);
+        }
+    };
+
+    const handleFillMonth = async () => {
+        if (!canEdit) return;
+        const confirm = window.confirm('Deseja preencher automaticamente todos os dias ÚTEIS vazios com o horário padrão?');
+        if (!confirm) return;
+
+        setSavingPonto(true);
+        try {
+            const updates = [];
+            
+            // Generate days for selected month (same logic as below)
+            const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+            const daysArrayTemp = Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const d = new Date(selectedYear, selectedMonth - 1, day);
+                return {
+                    dateStr: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                    isWeekend: d.getDay() === 0 || d.getDay() === 6
+                };
+            });
+
+            for (const day of daysArrayTemp) {
+                if (day.isWeekend) continue; // Skip weekends
+                const r = registros.find(reg => reg.data === day.dateStr);
+                // If it's completely empty (no checkins)
+                if (!r || (!r.horario_entrada && !r.horario_saida)) {
+                    const existing = r || {
+                        funcionario_id: selectedFuncId,
+                        data: day.dateStr,
+                        recebeu_vt: false,
+                        observacoes: ''
+                    };
+                    const updated = {
+                        ...existing,
+                        horario_entrada: defaultTimes.entrada,
+                        inicio_descanso: defaultTimes.inicio_descanso,
+                        fim_descanso: defaultTimes.fim_descanso,
+                        horario_saida: defaultTimes.saida,
+                    };
+                    updates.push(api.upsertRegistroPonto(updated));
+                }
+            }
+
+            if (updates.length > 0) {
+                await Promise.all(updates);
+                await loadRegistros(); // refresh all
+            } else {
+                alert('Nenhum dia útil vazio encontrado para preencher.');
+            }
+        } catch (err) {
+            alert('Erro ao preencher o mês em lote.');
+            loadRegistros();
         } finally {
             setSavingPonto(false);
         }
@@ -494,6 +609,47 @@ function Funcionarios() {
 
                         {selectedFuncId ? (
                             <>
+                                {/* Bloco de Preenchimento Rápido */}
+                                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-xl border border-indigo-100 shadow-sm print:hidden">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
+                                        <div>
+                                            <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                                                <Zap size={16} className="text-indigo-600" />
+                                                Preenchimento Rápido
+                                            </h3>
+                                            <p className="text-xs text-indigo-700/70 mt-0.5">Defina o horário padrão abaixo e use o raio ⚡ na tabela para preencher os dias mais rápido.</p>
+                                        </div>
+                                        {canEdit && (
+                                            <button 
+                                                onClick={handleFillMonth}
+                                                disabled={savingPonto}
+                                                className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded shadow-sm text-xs font-bold hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+                                            >
+                                                <CalendarDays size={14} />
+                                                Preencher Dias Vazios do Mês
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-end gap-3">
+                                        <div className="flex-1 min-w-[100px]">
+                                            <label className="block text-[10px] font-bold text-indigo-800 uppercase mb-1">Entrada</label>
+                                            <input type="time" value={defaultTimes.entrada} onChange={e => setDefaultTimes(prev => ({...prev, entrada: e.target.value}))} className="w-full p-1.5 text-sm font-mono border border-indigo-200 rounded text-indigo-900 bg-white focus:ring-2 focus:ring-indigo-400 outline-none" />
+                                        </div>
+                                        <div className="flex-1 min-w-[100px]">
+                                            <label className="block text-[10px] font-bold text-orange-800 uppercase mb-1">Saída (Pausa)</label>
+                                            <input type="time" value={defaultTimes.inicio_descanso} onChange={e => setDefaultTimes(prev => ({...prev, inicio_descanso: e.target.value}))} className="w-full p-1.5 text-sm font-mono border border-orange-200 rounded text-orange-900 bg-white focus:ring-2 focus:ring-orange-400 outline-none" />
+                                        </div>
+                                        <div className="flex-1 min-w-[100px]">
+                                            <label className="block text-[10px] font-bold text-orange-800 uppercase mb-1">Retorno</label>
+                                            <input type="time" value={defaultTimes.fim_descanso} onChange={e => setDefaultTimes(prev => ({...prev, fim_descanso: e.target.value}))} className="w-full p-1.5 text-sm font-mono border border-orange-200 rounded text-orange-900 bg-white focus:ring-2 focus:ring-orange-400 outline-none" />
+                                        </div>
+                                        <div className="flex-1 min-w-[100px]">
+                                            <label className="block text-[10px] font-bold text-indigo-800 uppercase mb-1">Saída</label>
+                                            <input type="time" value={defaultTimes.saida} onChange={e => setDefaultTimes(prev => ({...prev, saida: e.target.value}))} className="w-full p-1.5 text-sm font-mono border border-indigo-200 rounded text-indigo-900 bg-white focus:ring-2 focus:ring-indigo-400 outline-none" />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Resumo Financeiro */}
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
                                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
@@ -542,6 +698,7 @@ function Funcionarios() {
                                         <table className="w-full text-sm text-left">
                                             <thead className="text-[11px] text-gray-500 bg-gray-50 uppercase border-b border-gray-200">
                                                 <tr>
+                                                    <th className="px-2 py-3 font-semibold text-center w-8 print:hidden"></th>
                                                     <th className="px-4 py-3 font-semibold text-center w-20">Data</th>
                                                     <th className="px-4 py-3 font-semibold w-24">Dia</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-28">Entrada</th>
@@ -560,6 +717,16 @@ function Funcionarios() {
                                                     
                                                     return (
                                                         <tr key={day.dateStr} className={clsx("hover:bg-slate-50 transition-colors", day.isWeekend && "bg-gray-50/50")}>
+                                                            <td className="px-2 py-2 text-center border-r border-gray-100 print:hidden">
+                                                                <button 
+                                                                    onClick={() => handleFillDay(day.dateStr)}
+                                                                    disabled={!canEdit || savingPonto}
+                                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                                                                    title="Preencher com o horário padrão"
+                                                                >
+                                                                    <Zap size={14} className={clsx((reg.horario_entrada && reg.horario_saida) && "text-indigo-400")} />
+                                                                </button>
+                                                            </td>
                                                             <td className="px-4 py-2 text-center font-mono font-medium text-gray-700 border-r border-gray-100">
                                                                 {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
                                                             </td>
