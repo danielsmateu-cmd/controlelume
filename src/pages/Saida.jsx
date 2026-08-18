@@ -22,6 +22,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         installmentDates: [new Date().toISOString().split('T')[0]]
     });
     const [retiradaForm, setRetiradaForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], people: [], notes: '' });
+    const [acertoForm, setAcertoForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], person: 'Daniel', notes: '' });
 
     const withdrawalPeople = ['Juliana', 'Daniel', 'Bruno', 'Outros'];
 
@@ -375,6 +376,34 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         });
     };
 
+    const handleAddAcerto = async (e) => {
+        e.preventDefault();
+        if (!acertoForm.person || !acertoForm.value) return;
+
+        const newExpense = {
+            id: Date.now(),
+            type: 'retirada', // Salvamos como retirada para entrar nos totais gerais de saída
+            description: `Retirada: [ACERTO SÓCIOS] ${acertoForm.person}`,
+            notes: acertoForm.notes,
+            amount: parseFloat(acertoForm.value) || 0,
+            date: acertoForm.date,
+            month: new Date(acertoForm.date + 'T00:00:00').getUTCMonth(),
+            year: new Date(acertoForm.date + 'T00:00:00').getUTCFullYear(),
+            people: [acertoForm.person],
+            paid: true
+        };
+
+        setExpenses([newExpense, ...expenses]);
+        setAcertoForm({ ...acertoForm, value: '', notes: '' });
+        
+        try {
+            await api.saveExpenses([newExpense]);
+        } catch (err) {
+            alert('Erro ao salvar acerto.');
+            setExpenses(expenses);
+        }
+    };
+
     const handleDelete = async (expense) => {
         if (!expense || !expense.id) return;
 
@@ -657,7 +686,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                     { id: 'fixos', label: 'Gastos Fixos' },
                     { id: 'mercado', label: 'Gastos Extras' },
                     { id: 'fornecedores', label: 'Fornecedores' },
-                    { id: 'retirada', label: 'Retirada' }
+                    { id: 'retirada', label: 'Retirada' },
+                    { id: 'acerto_socios', label: 'Acerto Sócios' }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -1193,6 +1223,152 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 <button type="submit" className="w-full md:w-auto px-6 bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
                                     <Plus size={16} /> Registrar Retirada
                                 </button>
+                            </form>
+                        )}
+                    </div>
+                )}
+
+                {/* ACERTO ENTRE SÓCIOS */}
+                {activeTab === 'acerto_socios' && (
+                    <div className="space-y-6">
+                        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-sm text-indigo-900 leading-relaxed">
+                            <h3 className="font-bold text-base mb-2">Resumo do Acerto — Opção B (Acerto Operacional via Caixa da LUME)</h3>
+                            <p className="mb-2">Neste formato, a <strong>LUME</strong> quita todas as pendências operacionais internas e equipara as retiradas societárias diretamente pelo seu caixa. O empréstimo do cheque da Marcenaria permanece como uma pendência pessoal de Juliana com os sócios da Marcenaria.</p>
+                            
+                            <h4 className="font-bold mt-4 mb-1">1. Composição dos Valores a Retirar da LUME</h4>
+                            <ul className="list-disc pl-5 mb-2 space-y-1">
+                                <li><strong>Equiparação de Retiradas:</strong> Como Juliana já retirou <strong>R$ 5.380,00</strong>, Daniel e Bruno retiram o mesmo valor para igualar.</li>
+                                <li><strong>Materiais da Marcenaria:</strong> A LUME paga a dívida de materiais (R$ 3.860,00) dividindo 50/50 (<strong>R$ 1.930,00</strong> para cada).</li>
+                                <li><strong>Dívida Direta com Bruno:</strong> A LUME quita o valor integral devido a ele (<strong>R$ 3.950,00</strong>).</li>
+                            </ul>
+
+                            <h4 className="font-bold mt-4 mb-1">2. Valores Finais de Retirada por Pessoa</h4>
+                            <div className="bg-white rounded-lg border border-indigo-100 overflow-hidden mb-2 mt-2">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-indigo-100">
+                                        <tr>
+                                            <th className="px-3 py-2 font-bold">Sócio</th>
+                                            <th className="px-3 py-2 font-bold text-center">Equiparação</th>
+                                            <th className="px-3 py-2 font-bold text-center">Materiais (50%)</th>
+                                            <th className="px-3 py-2 font-bold text-center">Dívida Direta</th>
+                                            <th className="px-3 py-2 font-bold text-right">Total a Receber</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-indigo-50">
+                                        <tr>
+                                            <td className="px-3 py-2 font-bold">Daniel</td>
+                                            <td className="px-3 py-2 text-center">R$ 5.380,00</td>
+                                            <td className="px-3 py-2 text-center">R$ 1.930,00</td>
+                                            <td className="px-3 py-2 text-center">R$ 0,00</td>
+                                            <td className="px-3 py-2 font-bold text-right text-green-700">R$ 7.310,00</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="px-3 py-2 font-bold">Bruno</td>
+                                            <td className="px-3 py-2 text-center">R$ 5.380,00</td>
+                                            <td className="px-3 py-2 text-center">R$ 1.930,00</td>
+                                            <td className="px-3 py-2 text-center">R$ 3.950,00</td>
+                                            <td className="px-3 py-2 font-bold text-right text-green-700">R$ 11.260,00</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="px-3 py-2 font-bold">Juliana</td>
+                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00 (já retirou)</td>
+                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00</td>
+                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00</td>
+                                            <td className="px-3 py-2 font-bold text-right text-gray-500">R$ 0,00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Progresso do Acerto */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {['Daniel', 'Bruno'].map(person => {
+                                const target = person === 'Daniel' ? 7310 : 11260;
+                                const current = expenses
+                                    .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO SÓCIOS]') && e.people?.includes(person))
+                                    .reduce((acc, curr) => acc + curr.amount, 0);
+                                const percentage = Math.min(100, Math.round((current / target) * 100));
+                                const remaining = target - current;
+
+                                return (
+                                    <div key={person} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="font-bold text-gray-800">{person}</h4>
+                                            <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded text-gray-600">
+                                                Meta: {target.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                                            <div className="bg-indigo-600 h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                                        </div>
+                                        
+                                        <div className="flex justify-between text-[11px] font-medium text-gray-500">
+                                            <span>Pago: {current.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ({percentage}%)</span>
+                                            <span className={remaining > 0 ? 'text-orange-600' : 'text-green-600'}>
+                                                {remaining > 0 ? `Falta: ${remaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : 'Acerto Concluído! 🎉'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <hr className="border-gray-200" />
+
+                        <h3 className="text-sm font-semibold text-gray-800">Registrar Lançamento de Acerto</h3>
+                        <p className="text-xs text-gray-500 mb-4">Lançamentos feitos por aqui serão inseridos nas saídas como "Retirada" com a tag [ACERTO SÓCIOS].</p>
+                        
+                        {!readOnly && (
+                            <form onSubmit={handleAddAcerto} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Sócio</label>
+                                        <select
+                                            required
+                                            value={acertoForm.person}
+                                            onChange={(e) => setAcertoForm({ ...acertoForm, person: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                                        >
+                                            <option value="Daniel">Daniel</option>
+                                            <option value="Bruno">Bruno</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
+                                        <input
+                                            type="number" step="0.01" required
+                                            value={acertoForm.value}
+                                            onChange={(e) => setAcertoForm({ ...acertoForm, value: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                        <input
+                                            type="date" required
+                                            value={acertoForm.date}
+                                            onChange={(e) => setAcertoForm({ ...acertoForm, date: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Obs. (Opcional)</label>
+                                        <input
+                                            type="text"
+                                            value={acertoForm.notes}
+                                            placeholder="Ex: Ref. à venda X"
+                                            onChange={(e) => setAcertoForm({ ...acertoForm, notes: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex justify-end">
+                                    <button type="submit" className="px-6 bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
+                                        <Plus size={16} /> Lançar Acerto
+                                    </button>
+                                </div>
                             </form>
                         )}
                     </div>
