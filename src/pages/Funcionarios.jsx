@@ -122,9 +122,13 @@ function Funcionarios() {
             inicio_descanso: null,
             fim_descanso: null,
             horario_saida: null,
+            falta: false,
+            horas_extras: 0,
+            multiplicador_extra: 1.5,
             recebeu_vt: false,
             observacoes: ''
         };
+
 
         const updated = { ...existing, [field]: value };
         
@@ -167,6 +171,9 @@ function Funcionarios() {
         const existing = registros.find(r => r.data === dateStr) || {
             funcionario_id: selectedFuncId,
             data: dateStr,
+            falta: false,
+            horas_extras: 0,
+            multiplicador_extra: 1.5,
             recebeu_vt: false,
             observacoes: ''
         };
@@ -238,6 +245,9 @@ function Funcionarios() {
                     const existing = r || {
                         funcionario_id: selectedFuncId,
                         data: day.dateStr,
+                        falta: false,
+                        horas_extras: 0,
+                        multiplicador_extra: 1.5,
                         recebeu_vt: false,
                         observacoes: ''
                     };
@@ -322,21 +332,27 @@ function Funcionarios() {
     // Calculations for the month
     let totalDaysWorked = 0;
     let totalHoursWorked = 0;
+    let totalExtraHours = 0;
+    let extraSalaryPaid = 0;
     let totalVTPaid = 0;
     
     if (selectedFunc) {
         daysArray.forEach(d => {
             const r = registros.find(reg => reg.data === d.dateStr);
-            if (r) {
+            if (r && !r.falta) {
                 const hrs = calculateHours(r.horario_entrada, r.inicio_descanso, r.fim_descanso, r.horario_saida);
                 if (hrs > 0) {
                     totalDaysWorked++;
                     totalHoursWorked += hrs;
+                    
+                    const extras = Number(r.horas_extras) || 0;
+                    if (extras > 0) {
+                        totalExtraHours += extras;
+                        const mult = Number(r.multiplicador_extra) || 1.5;
+                        extraSalaryPaid += extras * mult * (selectedFunc.valor_hora || 0);
+                    }
                 }
                 
-                // Usually VT is paid if there are hours worked, OR if specifically marked
-                // Let's assume if 'recebeu_vt' is true, OR if they worked. 
-                // Let's use `recebeu_vt` checkbox to explicitly track if VT was due/credited.
                 if (r.recebeu_vt) {
                     totalVTPaid += selectedFunc.valor_vt_diario;
                 }
@@ -344,7 +360,10 @@ function Funcionarios() {
         });
     }
 
-    const totalSalaryPaid = totalHoursWorked * (selectedFunc?.valor_hora || 0);
+    const valorHora = selectedFunc?.valor_hora || 0;
+    const totalNormalHours = Math.max(0, totalHoursWorked - totalExtraHours);
+    const baseSalaryPaid = totalNormalHours * valorHora;
+    const totalSalaryPaid = baseSalaryPaid + extraSalaryPaid;
 
     const filteredFts = funcionarios.filter(f => f.nome.toLowerCase().includes(searchFunc.toLowerCase()));
 
@@ -651,7 +670,7 @@ function Funcionarios() {
                                 </div>
 
                                 {/* Resumo Financeiro */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:hidden">
                                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                                             <CalendarDays size={24} />
@@ -676,8 +695,18 @@ function Funcionarios() {
                                             <span className="font-bold text-xl">R$</span>
                                         </div>
                                         <div className="z-10">
-                                            <p className="text-sm font-medium text-blue-800">Total Salário (Mês)</p>
-                                            <p className="text-2xl font-bold text-blue-700">R$ {totalSalaryPaid.toFixed(2).replace('.', ',')}</p>
+                                            <p className="text-sm font-medium text-blue-800">Salário (Normal)</p>
+                                            <p className="text-2xl font-bold text-blue-700">R$ {baseSalaryPaid.toFixed(2).replace('.', ',')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-xl border border-purple-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 z-0"></div>
+                                        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 z-10">
+                                            <Plus size={24} />
+                                        </div>
+                                        <div className="z-10">
+                                            <p className="text-sm font-medium text-purple-800">Total H. Extras</p>
+                                            <p className="text-2xl font-bold text-purple-700">R$ {extraSalaryPaid.toFixed(2).replace('.', ',')}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white p-5 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
@@ -701,11 +730,14 @@ function Funcionarios() {
                                                     <th className="px-2 py-3 font-semibold text-center w-8 print:hidden"></th>
                                                     <th className="px-4 py-3 font-semibold text-center w-20">Data</th>
                                                     <th className="px-4 py-3 font-semibold w-24">Dia</th>
+                                                    <th className="px-2 py-3 font-semibold text-center w-12 text-red-600">Falta?</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-28">Entrada</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-28">Saída (Pausa)</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-28">Retorno</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-28">Saída</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-24">Total H.</th>
+                                                    <th className="px-2 py-3 font-semibold text-center w-20 text-purple-600">H. Extra</th>
+                                                    <th className="px-2 py-3 font-semibold text-center w-20 text-purple-600">Add.</th>
                                                     <th className="px-4 py-3 font-semibold text-center w-24">Recebeu VT?</th>
                                                     <th className="px-4 py-3 font-semibold">Observações</th>
                                                 </tr>
@@ -716,12 +748,12 @@ function Funcionarios() {
                                                     const hrs = calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida);
                                                     
                                                     return (
-                                                        <tr key={day.dateStr} className={clsx("hover:bg-slate-50 transition-colors", day.isWeekend && "bg-gray-50/50")}>
+                                                        <tr key={day.dateStr} className={clsx("hover:bg-slate-50 transition-colors", day.isWeekend && "bg-gray-50/50", reg.falta && "bg-red-50/30 opacity-75")}>
                                                             <td className="px-2 py-2 text-center border-r border-gray-100 print:hidden">
                                                                 <button 
                                                                     onClick={() => handleFillDay(day.dateStr)}
-                                                                    disabled={!canEdit || savingPonto}
-                                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                                                                    disabled={!canEdit || savingPonto || reg.falta}
+                                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-30"
                                                                     title="Preencher com o horário padrão"
                                                                 >
                                                                     <Zap size={14} className={clsx((reg.horario_entrada && reg.horario_saida) && "text-indigo-400")} />
@@ -730,16 +762,26 @@ function Funcionarios() {
                                                             <td className="px-4 py-2 text-center font-mono font-medium text-gray-700 border-r border-gray-100">
                                                                 {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
                                                             </td>
-                                                            <td className={clsx("px-4 py-2 text-xs font-semibold uppercase tracking-wider", day.isWeekend ? "text-amber-600" : "text-gray-500")}>
+                                                            <td className={clsx("px-4 py-2 text-xs font-semibold uppercase tracking-wider", day.isWeekend ? "text-amber-600" : "text-gray-500", reg.falta && "text-red-600")}>
                                                                 {day.weekDay}
+                                                            </td>
+                                                            <td className="px-2 py-2 text-center bg-red-50/30 border-x border-red-100">
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    checked={reg.falta || false}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'falta', e.target.checked)}
+                                                                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
+                                                                    disabled={!canEdit}
+                                                                    title="Marcar Falta"
+                                                                />
                                                             </td>
                                                             <td className="px-2 py-2">
                                                                 <input 
                                                                     type="time" 
                                                                     value={reg.horario_entrada || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'horario_entrada', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30"
-                                                                    disabled={!canEdit}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
                                                                 />
                                                             </td>
                                                             <td className="px-2 py-2">
@@ -747,8 +789,8 @@ function Funcionarios() {
                                                                     type="time" 
                                                                     value={reg.inicio_descanso || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'inicio_descanso', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30"
-                                                                    disabled={!canEdit}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
                                                                 />
                                                             </td>
                                                             <td className="px-2 py-2">
@@ -756,8 +798,8 @@ function Funcionarios() {
                                                                     type="time" 
                                                                     value={reg.fim_descanso || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'fim_descanso', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30"
-                                                                    disabled={!canEdit}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-orange-500 outline-none text-xs font-mono text-orange-900 bg-orange-50/30 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
                                                                 />
                                                             </td>
                                                             <td className="px-2 py-2">
@@ -765,14 +807,35 @@ function Funcionarios() {
                                                                     type="time" 
                                                                     value={reg.horario_saida || ''}
                                                                     onChange={e => handlePontoChange(day.dateStr, 'horario_saida', e.target.value)}
-                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30"
-                                                                    disabled={!canEdit}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono text-indigo-900 bg-indigo-50/30 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
                                                                 />
                                                             </td>
                                                             <td className="px-4 py-2 text-center">
-                                                                <span className="font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                                                                    {formatHours(hrs)}
+                                                                <span className={clsx("font-bold px-2 py-1 rounded text-xs", reg.falta ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700")}>
+                                                                    {reg.falta ? 'FALTA' : formatHours(hrs)}
                                                                 </span>
+                                                            </td>
+                                                            <td className="px-2 py-2 bg-purple-50/30 border-l border-purple-100">
+                                                                <input 
+                                                                    type="number" step="0.5" min="0"
+                                                                    value={reg.horas_extras || ''}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'horas_extras', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 outline-none text-xs font-mono text-purple-900 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
+                                                                    placeholder="0"
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-2 bg-purple-50/30 border-r border-purple-100">
+                                                                <select
+                                                                    value={reg.multiplicador_extra || '1.5'}
+                                                                    onChange={e => handlePontoChange(day.dateStr, 'multiplicador_extra', e.target.value)}
+                                                                    className="w-full p-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 outline-none text-[10px] font-bold text-purple-900 disabled:opacity-50"
+                                                                    disabled={!canEdit || reg.falta}
+                                                                >
+                                                                    <option value="1.5">50%</option>
+                                                                    <option value="2.0">100%</option>
+                                                                </select>
                                                             </td>
                                                             <td className="px-4 py-2 text-center">
                                                                 <label className="flex items-center justify-center gap-2 cursor-pointer">
@@ -861,7 +924,7 @@ function Funcionarios() {
                                                             {reg.horario_saida || ''}
                                                         </td>
                                                         <td className="border border-gray-400 px-2 py-1.5 text-center font-bold">
-                                                            {formatHours(hrs)}
+                                                            {reg.falta ? <span className="text-gray-500">FALTA</span> : formatHours(hrs)}
                                                         </td>
                                                         <td className="border border-gray-400 px-2 py-1.5 text-xs">
                                                             {reg.observacoes || ''}
