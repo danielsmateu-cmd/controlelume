@@ -868,35 +868,35 @@ function Funcionarios() {
                                 </div>
 
                                 {/* Printable Area - Visible only on Print */}
-                                <div className="hidden print:block font-sans text-gray-900 bg-white min-h-screen">
-                                    <div className="text-center mb-6">
-                                        <h2 className="text-2xl font-bold uppercase tracking-wider">Folha de Ponto Mensal</h2>
-                                        <p className="text-lg mt-1">{String(selectedMonth).padStart(2, '0')} / {selectedYear}</p>
+                                <div className="hidden print:block font-sans text-gray-900 bg-white" style={{ pageBreakInside: 'avoid' }}>
+                                    <div className="text-center mb-2">
+                                        <h2 className="text-xl font-bold uppercase tracking-wider">Folha de Ponto Mensal</h2>
+                                        <p className="text-base mt-0.5">{String(selectedMonth).padStart(2, '0')} / {selectedYear}</p>
                                     </div>
 
-                                    <div className="mb-6 grid grid-cols-2 gap-4 border border-gray-400 p-4 rounded-lg bg-gray-50">
+                                    <div className="mb-2 grid grid-cols-2 gap-2 border border-gray-400 p-2 rounded-lg bg-gray-50">
                                         <div>
-                                            <p className="text-xs font-bold text-gray-500 uppercase">Nome do Funcionário</p>
-                                            <p className="text-lg font-semibold">{selectedFunc.nome}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Nome do Funcionário</p>
+                                            <p className="text-sm font-semibold">{selectedFunc.nome}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-bold text-gray-500 uppercase">Cargo / Função</p>
-                                            <p className="text-lg font-semibold">{selectedFunc.cargo || 'Não informado'}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Cargo / Função</p>
+                                            <p className="text-sm font-semibold">{selectedFunc.cargo || 'Não informado'}</p>
                                         </div>
                                     </div>
 
-                                    <table className="w-full border-collapse border border-gray-400 text-sm mb-6">
+                                    <table className="w-full border-collapse border border-gray-400 text-[10px] mb-2">
                                         <thead>
                                             <tr className="bg-gray-100">
-                                                <th className="border border-gray-400 px-2 py-2 w-16 text-center">Data</th>
-                                                <th className="border border-gray-400 px-2 py-2 w-20">Dia</th>
-                                                <th className="border border-gray-400 px-2 py-2 text-center">Entrada</th>
-                                                <th className="border border-gray-400 px-2 py-2 text-center">Pausa (Saída)</th>
-                                                <th className="border border-gray-400 px-2 py-2 text-center">Pausa (Retorno)</th>
-                                                <th className="border border-gray-400 px-2 py-2 text-center">Saída</th>
-                                                <th className="border border-gray-400 px-2 py-2 text-center w-24">Total H.</th>
-                                                <th className="border border-gray-400 px-2 py-2">Observações</th>
-                                                <th className="border border-gray-400 px-2 py-2 w-24">Assinatura</th>
+                                                <th className="border border-gray-400 px-1 py-1 w-12 text-center">Data</th>
+                                                <th className="border border-gray-400 px-1 py-1 w-16">Dia</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center">Entrada</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center">Pausa (Saída)</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center">Pausa (Retorno)</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center">Saída</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center w-16">Total H.</th>
+                                                <th className="border border-gray-400 px-1 py-1">Observações</th>
+                                                <th className="border border-gray-400 px-1 py-1 w-20">Assinatura</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -905,56 +905,56 @@ function Funcionarios() {
                                                 const hrs = calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida);
                                                 return (
                                                     <tr key={day.dateStr} className={clsx(day.isWeekend && "bg-gray-50")}>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
                                                             {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-xs uppercase">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-[9px] uppercase">
                                                             {day.weekDay}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
                                                             {reg.horario_entrada || ''}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono text-gray-500">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-gray-500">
                                                             {reg.inicio_descanso || ''}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono text-gray-500">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-gray-500">
                                                             {reg.fim_descanso || ''}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-mono">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
                                                             {reg.horario_saida || ''}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-center font-bold">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-bold">
                                                             {reg.falta ? <span className="text-gray-500">FALTA</span> : formatHours(hrs)}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5 text-xs">
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-[9px]">
                                                             {reg.observacoes || ''}
                                                         </td>
-                                                        <td className="border border-gray-400 px-2 py-1.5"></td>
+                                                        <td className="border border-gray-400 px-1 py-0.5"></td>
                                                     </tr>
                                                 );
                                             })}
                                         </tbody>
                                         <tfoot>
                                             <tr className="bg-gray-100 font-bold">
-                                                <td colSpan={6} className="border border-gray-400 px-2 py-2 text-right">TOTAL ACUMULADO NO MÊS:</td>
-                                                <td className="border border-gray-400 px-2 py-2 text-center">{formatHours(totalHoursWorked)}</td>
-                                                <td colSpan={2} className="border border-gray-400 px-2 py-2"></td>
+                                                <td colSpan={6} className="border border-gray-400 px-1 py-1 text-right">TOTAL ACUMULADO:</td>
+                                                <td className="border border-gray-400 px-1 py-1 text-center">{formatHours(totalHoursWorked)}</td>
+                                                <td colSpan={2} className="border border-gray-400 px-1 py-1"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
 
-                                    <div className="mt-16 flex justify-between gap-12 px-8">
+                                    <div className="mt-6 flex justify-between gap-8 px-8">
                                         <div className="flex-1 text-center">
-                                            <div className="border-t border-gray-800 pt-2 font-bold uppercase text-sm">
+                                            <div className="border-t border-gray-800 pt-1 font-bold uppercase text-[10px]">
                                                 Assinatura do Funcionário
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">{selectedFunc.nome}</div>
+                                            <div className="text-[9px] text-gray-500 mt-0.5">{selectedFunc.nome}</div>
                                         </div>
                                         <div className="flex-1 text-center">
-                                            <div className="border-t border-gray-800 pt-2 font-bold uppercase text-sm">
+                                            <div className="border-t border-gray-800 pt-1 font-bold uppercase text-[10px]">
                                                 Assinatura do Empregador
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Responsável / Gerência</div>
+                                            <div className="text-[9px] text-gray-500 mt-0.5">Responsável / Gerência</div>
                                         </div>
                                     </div>
                                     
