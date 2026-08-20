@@ -891,20 +891,40 @@ const supabaseApi = {
                 direct_costs_percent: model.directCostsPercent || []
             };
 
+            const returnedData = {
+                id: modelId,
+                name: model.name,
+                materials: model.materials || [],
+                directCostsRS: model.directCostsRS || [],
+                directCostsPercent: model.directCostsPercent || []
+            };
+
             const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(modelId);
 
             if (!modelId || !isUUID) {
                 const { data, error } = await supabase.from('ft_cost_models').insert([modelData]).select();
                 if (error) throw error;
-                return { success: true, data: { ...modelData, id: data[0].id } };
+                returnedData.id = data[0].id;
+                return { success: true, data: returnedData };
             } else {
                 const { error } = await supabase.from('ft_cost_models').update(modelData).eq('id', modelId);
                 if (error) throw error;
-                return { success: true, data: { ...modelData, id: modelId } };
+                return { success: true, data: returnedData };
             }
         } catch (err) {
             console.error('Supabase saveFtCostModel:', err);
             return { success: false, error: err };
+        }
+    },
+
+    async deleteFtCostModel(id) {
+        try {
+            const { error } = await supabase.from('ft_cost_models').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteFtCostModel:', err);
+            return false;
         }
     },
 

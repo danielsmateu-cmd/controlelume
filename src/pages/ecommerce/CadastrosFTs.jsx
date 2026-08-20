@@ -116,6 +116,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [overrides, setOverrides] = useState({});
     const [registeredMaterials, setRegisteredMaterials] = useState([]);
     const [isMaterialSelectorOpen, setIsMaterialSelectorOpen] = useState(false);
+    const [isManageModelsModalOpen, setIsManageModelsModalOpen] = useState(false);
     const [tempMeasurements, setTempMeasurements] = useState({});
     const [tempUnitQtys, setTempUnitQtys] = useState({});
     const [tempLinearLengths, setTempLinearLengths] = useState({});
@@ -598,6 +599,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         } catch (err) {
             console.error("Erro ao atualizar rankeamento na matriz:", err);
             alert("Erro ao salvar rankeamento.");
+        }
+    };
+
+    
+    const handleDeleteCostModel = async (id, name) => {
+        if (confirm(`Deseja realmente excluir o modelo "${name}"?`)) {
+            const success = await api.deleteFtCostModel(id);
+            if (success) {
+                setCostModels(costModels.filter(m => m.id !== id));
+            } else {
+                alert('Erro ao excluir o modelo.');
+            }
         }
     };
 
@@ -2292,6 +2305,35 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 </tbody>
                             </table>
                         </div>
+                </div>
+            )}
+        
+            {isManageModelsModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800">Gerenciar Modelos</h3>
+                            <button onClick={() => setIsManageModelsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-4 max-h-[60vh] overflow-y-auto">
+                            {costModels.length === 0 ? (
+                                <p className="text-sm text-gray-500 text-center py-4">Nenhum modelo cadastrado.</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {costModels.map(m => (
+                                        <li key={m.id} className="flex justify-between items-center p-2 rounded-lg border border-gray-100 hover:bg-gray-50">
+                                            <span className="text-sm font-medium text-gray-700">{m.name}</span>
+                                            <button onClick={() => handleDeleteCostModel(m.id, m.name)} className="text-red-500 hover:text-red-700 p-1">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
