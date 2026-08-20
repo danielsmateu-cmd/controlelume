@@ -5,6 +5,8 @@ import { api } from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from '../lib/supabase';
+import ClientesOrcamento from '../components/ClientesOrcamento';
+import ProdutosOrcamento from '../components/ProdutosOrcamento';
 
 const TrendingUp = ({ size }) => (
     <svg
@@ -41,7 +43,9 @@ const getBudgetPixTotal = (b) => {
 };
 
 const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
-    const [view, setView] = useState('budget'); // 'budget' or 'register'
+    const [view, setView] = useState('budget');
+    const [clientesCadastrados, setClientesCadastrados] = useState([]);
+    const [produtosCadastrados, setProdutosCadastrados] = useState([]); // 'budget' or 'register'
     const [markup, setMarkup] = useState('3');
     const [globalQty, setGlobalQty] = useState('1');
     const [nfPercentage, setNfPercentage] = useState('6');
@@ -797,7 +801,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleSetView = (newView) => {
-        if (view === 'budget' && (newView === 'saved_list' || newView === 'register')) {
+        if (view === 'budget' && (newView === 'saved_list' || newView === 'register' || newView === 'clientes' || newView === 'produtos')) {
             const currentDataStr = JSON.stringify({
                 items: budgetItems,
                 clientData,
@@ -1346,6 +1350,34 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    
+    const handleSaveAsProduct = async () => {
+        if (!itemName) {
+            alert('Por favor, dê um nome ao item/produto para poder salvar.');
+            return;
+        }
+        if (confirm(`Deseja salvar '${itemName}' como um produto cadastrado (receita) no sistema?`)) {
+            const materiaisJson = {
+                measurements,
+                unitQtys,
+                linearLengths
+            };
+            const novoProduto = {
+                nome: itemName,
+                descricao: itemDescription || `Dimensões base: ${itemWidth || 0}x${itemHeight || 0}x${itemDepth || 0}`,
+                largura: parseFloat(itemWidth) || 0,
+                altura: parseFloat(itemHeight) || 0,
+                profundidade: parseFloat(itemDepth) || 0,
+                materiais: materiaisJson
+            };
+            const saved = await api.saveOrcamentoProduto(novoProduto);
+            if (saved) {
+                setProdutosCadastrados([...produtosCadastrados, saved]);
+                alert('Produto cadastrado com sucesso!');
+            }
+        }
+    };
+
     const handleCancelBuilder = () => {
         setMeasurements({});
         setUnitQtys({});
@@ -1716,6 +1748,67 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         </>
     );
 }
+
+    
+    if (view === 'clientes') {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setView('budget')} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
+                            <ArrowLeft size={20} />
+                        </button>
+                        <h2 className="text-2xl font-bold text-gray-800">Cadastro de Clientes</h2>
+                    </div>
+                </div>
+                <ClientesOrcamento onClientSelect={(cliente) => {
+                    setClientData({
+                        name: cliente.nome || '',
+                        doc: cliente.documento || '',
+                        address: cliente.endereco || '',
+                        number: cliente.numero || '',
+                        neighborhood: cliente.bairro || '',
+                        city: cliente.cidade || '',
+                        zip: cliente.cep || '',
+                        phone: cliente.telefone || '',
+                        email: cliente.email || '',
+                        installationValue: clientData.installationValue || ''
+                    });
+                    setView('budget');
+                }} />
+            </div>
+        );
+    }
+
+    if (view === 'produtos') {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setView('budget')} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
+                            <ArrowLeft size={20} />
+                        </button>
+                        <h2 className="text-2xl font-bold text-gray-800">Produtos (Receitas)</h2>
+                    </div>
+                </div>
+                <ProdutosOrcamento onProductSelect={(produto) => {
+                    setItemName(produto.nome || '');
+                    setItemDescription(produto.descricao || '');
+                    setItemWidth(produto.largura || '');
+                    setItemHeight(produto.altura || '');
+                    setItemDepth(produto.profundidade || '');
+                    if (produto.materiais) {
+                        setMeasurements(produto.materiais.measurements || {});
+                        setUnitQtys(produto.materiais.unitQtys || {});
+                        setLinearLengths(produto.materiais.linearLengths || {});
+                    }
+                    setIsAddingItem(true);
+                    setEditingItemId(null);
+                    setView('budget');
+                }} />
+            </div>
+        );
+    }
 
     if (view === 'register') {
         return (

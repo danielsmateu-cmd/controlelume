@@ -1070,6 +1070,110 @@ const supabaseApi = {
             console.error('Supabase upsertRegistroPonto error:', err);
             throw err;
         }
+    },
+
+    // ==================== CLIENTES (Orçamentos) ====================
+    async getClientes() {
+        try {
+            const { data, error } = await supabase
+                .from('clientes')
+                .select('*')
+                .order('nome', { ascending: true });
+            if (error) throw error;
+            return data || [];
+        } catch (err) {
+            console.error('Supabase getClientes error:', err);
+            return [];
+        }
+    },
+
+    async saveCliente(cliente) {
+        try {
+            if (cliente.id) {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .update(cliente)
+                    .eq('id', cliente.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            } else {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .insert([cliente])
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            }
+        } catch (err) {
+            console.error('Supabase saveCliente error:', err);
+            throw err;
+        }
+    },
+
+    async deleteCliente(id) {
+        try {
+            const { error } = await supabase.from('clientes').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteCliente error:', err);
+            return false;
+        }
+    },
+
+    // ==================== PRODUTOS (Orçamentos) ====================
+    async getOrcamentoProdutos() {
+        try {
+            const { data, error } = await supabase
+                .from('orcamento_produtos')
+                .select('*')
+                .order('nome', { ascending: true });
+            if (error) throw error;
+            return data || [];
+        } catch (err) {
+            console.error('Supabase getOrcamentoProdutos error:', err);
+            return [];
+        }
+    },
+
+    async saveOrcamentoProduto(produto) {
+        try {
+            if (produto.id) {
+                const { data, error } = await supabase
+                    .from('orcamento_produtos')
+                    .update(produto)
+                    .eq('id', produto.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            } else {
+                const { data, error } = await supabase
+                    .from('orcamento_produtos')
+                    .insert([produto])
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            }
+        } catch (err) {
+            console.error('Supabase saveOrcamentoProduto error:', err);
+            throw err;
+        }
+    },
+
+    async deleteOrcamentoProduto(id) {
+        try {
+            const { error } = await supabase.from('orcamento_produtos').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Supabase deleteOrcamentoProduto error:', err);
+            return false;
+        }
     }
 };
 
