@@ -1219,6 +1219,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         )}
                                         <button
                                             type="button"
+                                            onClick={() => setIsManageModelsModalOpen(true)}
+                                            disabled={readOnly}
+                                            className="px-2 py-1 text-[10px] font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            Gerenciar Modelos
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={handleSaveCostModel}
                                             disabled={readOnly}
                                             className="px-2 py-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
