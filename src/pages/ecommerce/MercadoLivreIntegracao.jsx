@@ -10,7 +10,7 @@ const STATUS_COLORS = {
 };
 const STATUS_LABELS = { active: 'Ativo', paused: 'Pausado', closed: 'Encerrado' };
 
-export default function MercadoLivreIntegracao({ fts }) {
+export default function MercadoLivreIntegracao() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -27,7 +27,23 @@ export default function MercadoLivreIntegracao({ fts }) {
     return d.toISOString().split('T')[0];
   });
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-  const [pasteUrl, setPasteUrl] = useState("");
+  
+
+  const [fts, setFts] = useState([]);
+
+  useEffect(() => {
+    const loadFts = async () => {
+      try {
+        const ftsData = await api.getFts();
+        setFts(ftsData || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadFts();
+  }, []);
+
+const [pasteUrl, setPasteUrl] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [exchanging, setExchanging] = useState(false);
   useEffect(() => {
