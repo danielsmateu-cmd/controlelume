@@ -38,6 +38,19 @@ export default function MercadoLivreIntegracao({ fts }) {
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [salesTally, setSalesTally] = useState(null);
+  const [calculatingTally, setCalculatingTally] = useState(false);
+  const [coverageDays, setCoverageDays] = useState(30);
+
+  const handleCalculateTally = async () => {
+    setCalculatingTally(true);
+    try {
+      const tally = await mlApi.calculateSalesVelocity(coverageDays);
+      setSalesTally(tally);
+    } catch(e) { alert("Erro ao calcular: "+e.message); }
+    setCalculatingTally(false);
+  };
+
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -267,7 +280,29 @@ export default function MercadoLivreIntegracao({ fts }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleSync} disabled={syncing} className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold rounded-xl text-sm transition-all">
+          
+        <div className="flex items-center gap-2">
+          <select 
+            value={coverageDays} 
+            onChange={e => setCoverageDays(Number(e.target.value))}
+            className="text-xs border border-gray-200 rounded px-2 py-1.5"
+          >
+            <option value={7}>7 dias</option>
+            <option value={15}>15 dias</option>
+            <option value={30}>30 dias</option>
+            <option value={60}>60 dias</option>
+          </select>
+          <button 
+            onClick={handleCalculateTally} 
+            disabled={calculatingTally}
+            className="flex items-center gap-2 px-4 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-lg text-sm transition-colors disabled:opacity-50"
+          >
+            {calculatingTally ? <RefreshCw size={14} className="animate-spin" /> : <BarChart2 size={14} />}
+            Calcular Sugest�o
+          </button>
+        </div>
+        <button onClick={handleSync} disabled={syncing}
+ className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold rounded-xl text-sm transition-all">
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Sincronizando...' : 'Sincronizar'}
           </button>
@@ -311,6 +346,7 @@ export default function MercadoLivreIntegracao({ fts }) {
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>Status ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_ml')}>Estoque ML ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_physical')}>Físico ↕</th>
+                    {salesTally && <th className="px-4 py-3 text-center text-xs font-bold text-blue-600 uppercase">Sugest�o ({coverageDays}d)</th>}
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('price')}>Preço Orig. ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Promoção</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ações</th>
