@@ -323,14 +323,14 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
             .filter(e => e.paid === false)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const totalSaidas = fixos + mercado + fornecedores + retirada;
+        const totalSaídas = fixos + mercado + fornecedores + retirada;
         const lumeEcomm = getEcommTotalLume(monthIndex, year);
-        const saldo = entradas + lumeEcomm - totalSaidas;
+        const saldo = entradas + lumeEcomm - totalSaídas;
 
         const vendasTotalLume = entradas + entradasPendentes;
         const ecommTotalFat = getEcommTotalFaturamento(monthIndex, year);
 
-        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaidas, saldo, lumeEcomm, vendasTotalLume, ecommTotalFat };
+        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaídas, saldo, lumeEcomm, vendasTotalLume, ecommTotalFat };
     };
 
     // Calcular totais anuais
@@ -345,7 +345,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
         acc.mercado += parseFloat(data.mercado) || 0;
         acc.fornecedores += parseFloat(data.fornecedores) || 0;
         acc.retirada += parseFloat(data.retirada) || 0;
-        acc.totalSaidas += parseFloat(data.totalSaidas) || 0;
+        acc.totalSaídas += parseFloat(data.totalSaídas) || 0;
         acc.saidasPendentes += parseFloat(data.saidasPendentes) || 0;
         acc.saldo += parseFloat(data.saldo) || 0;
         return acc;
@@ -359,7 +359,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
         mercado: 0, 
         fornecedores: 0, 
         retirada: 0, 
-        totalSaidas: 0, 
+        totalSaídas: 0, 
         saidasPendentes: 0, 
         saldo: 0 
     });
@@ -368,11 +368,10 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
         <div className="space-y-3">
 
             {/* Acesso R�pido */}
-            {setActiveTab && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <button onClick={() => setActiveTab('ecommerce')} className="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-4 rounded-xl transition-colors border border-indigo-100 shadow-sm">
                         <Store size={18} />
-                        Integra��o ML
+                        Integração ML
                     </button>
                     <button onClick={() => setActiveTab('vendas')} className="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors border border-green-100 shadow-sm">
                         <ShoppingCart size={18} />
@@ -380,14 +379,13 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                     </button>
                     <button onClick={() => setActiveTab('saida')} className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-3 px-4 rounded-xl transition-colors border border-red-100 shadow-sm">
                         <Wallet size={18} />
-                        Sa�das
+                        Saídas
                     </button>
                     <button onClick={() => setActiveTab('precificacao')} className="flex items-center justify-center gap-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-bold py-3 px-4 rounded-xl transition-colors border border-yellow-100 shadow-sm">
                         <Tag size={18} />
-                        Precifica��o / FTs
+                        Precificação / FTs
                     </button>
                 </div>
-            )}
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -420,7 +418,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                 />
                 <StatCard
                     title={`Total Saídas (Pagas) - Ano ${selectedYear}`}
-                    value={annualTotals.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    value={annualTotals.totalSaídas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     type="negative"
                 />
                 <StatCard
@@ -512,7 +510,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                                             {data.retirada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-red-600 border-l border-gray-100 bg-red-50/30">
-                                            {data.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            {data.totalSaídas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-orange-500 bg-orange-50/30">
                                             {data.saidasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -558,7 +556,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                                     {annualTotals.retirada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold border-l border-indigo-700 bg-indigo-700/30">
-                                    {annualTotals.totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    {annualTotals.totalSaídas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold bg-indigo-700/30">
                                     {annualTotals.saidasPendentes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
