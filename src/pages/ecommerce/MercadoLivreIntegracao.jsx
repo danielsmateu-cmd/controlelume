@@ -298,7 +298,7 @@ export default function MercadoLivreIntegracao({ fts }) {
             className="flex items-center gap-2 px-4 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-lg text-sm transition-colors disabled:opacity-50"
           >
             {calculatingTally ? <RefreshCw size={14} className="animate-spin" /> : <BarChart2 size={14} />}
-            Calcular Sugest�o
+            Calcular Sugestão
           </button>
         </div>
         <button onClick={handleSync} disabled={syncing}
@@ -315,7 +315,7 @@ export default function MercadoLivreIntegracao({ fts }) {
         {[
           { key: 'estoque', icon: <Package size={16} />, label: 'Estoque' },
           { key: 'pedidos', icon: <ShoppingBag size={16} />, label: 'A Enviar Hoje' },
-          { key: 'historico', icon: <BarChart2 size={16} />, label: 'Hist�rico' },
+          { key: 'historico', icon: <BarChart2 size={16} />, label: 'Histórico' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -346,7 +346,7 @@ export default function MercadoLivreIntegracao({ fts }) {
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>Status ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_ml')}>Estoque ML ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_physical')}>Físico ↕</th>
-                    {salesTally && <th className="px-4 py-3 text-center text-xs font-bold text-blue-600 uppercase">Sugest�o ({coverageDays}d)</th>}
+                    {salesTally && <th className="px-4 py-3 text-center text-xs font-bold text-blue-600 uppercase">Sugestão ({coverageDays}d)</th>}
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('price')}>Preço Orig. ↕</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Promoção</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ações</th>
@@ -421,10 +421,15 @@ export default function MercadoLivreIntegracao({ fts }) {
                           </div>
                         ) : (
                           <button onClick={() => { setEditingStock(listing.id + '_phy'); setStockValue(listing.stock_physical ?? 0); }} className="flex items-center gap-1 mx-auto font-bold text-blue-700 hover:text-blue-800">
-                            {listing.stock_physical ?? 0} <Edit2 size={10} />
-                          </button>
+                              {listing.stock_physical ?? 0} <Edit2 size={10} />
+                            </button>
+                          )}
+                        </td>
+                        {salesTally && (
+                          <td className="px-4 py-3 text-center text-xs font-bold text-blue-600 bg-blue-50/50">
+                            {salesTally[listing.ml_item_id] ? Math.max(0, salesTally[listing.ml_item_id].total - (listing.stock_ml || 0)) : 0}
+                          </td>
                         )}
-                      </td>
                       <td className={`px-4 py-3 text-center text-xs font-bold ${listing.price_promo ? "text-gray-400 line-through" : "text-gray-700"}`}>
                         R$ {Number(listing.price || 0).toFixed(2)}
                       </td>
@@ -462,11 +467,16 @@ export default function MercadoLivreIntegracao({ fts }) {
                             </div>
                           ) : (
                             <button onClick={() => { setEditingStock(`${listing.id}_phy_var_${variation.id}`); setStockValue(variation.stock_physical ?? 0); }} className="flex items-center gap-1 mx-auto font-bold text-blue-700 hover:text-blue-800">
-                              {variation.stock_physical ?? 0} <Edit2 size={10} />
-                            </button>
+                                {variation.stock_physical ?? 0} <Edit2 size={10} />
+                              </button>
+                            )}
+                          </td>
+                          {salesTally && (
+                            <td className="px-4 py-2 text-center text-blue-600 font-bold bg-blue-50/50">
+                              {salesTally[listing.ml_item_id]?.variations?.[variation.id] ? Math.max(0, salesTally[listing.ml_item_id].variations[variation.id] - (variation.stock || 0)) : 0}
+                            </td>
                           )}
-                        </td>
-                        <td className="px-4 py-2 text-center text-gray-400">-</td>
+                          <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                       </tr>
