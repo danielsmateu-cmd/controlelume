@@ -164,21 +164,56 @@ export default function MercadoLivreIntegracao({ fts }) {
     </div>
   );
 
+
+  const [pasteUrl, setPasteUrl] = React.useState("");
+  const [showPaste, setShowPaste] = React.useState(false);
+  const [exchanging, setExchanging] = React.useState(false);
+
+  const handlePasteConnect = async () => {
+    try {
+      const url = new URL(pasteUrl);
+      const code = url.searchParams.get("code");
+      if (!code) { alert("URL invalida."); return; }
+      setExchanging(true);
+      const res = await mlAuth.exchangeCode(code);
+      if (res.success) { await checkConnection(); } else { alert("Erro: " + JSON.stringify(res.error)); }
+      setExchanging(false);
+    } catch(e) { alert("URL invalida."); }
+  };
+
   if (!connected) return (
-    <div className="flex flex-col items-center justify-center h-64 gap-6">
+    <div className="flex flex-col items-center justify-center gap-6 p-8 max-w-lg mx-auto">
       <div className="text-center">
         <div className="w-20 h-20 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
           <WifiOff size={40} className="text-yellow-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Mercado Livre não conectado</h2>
-        <p className="text-gray-500 text-sm">Clique abaixo para autorizar o acesso à sua conta</p>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Mercado Livre nao conectado</h2>
+        <p className="text-gray-500 text-sm">Siga os 2 passos abaixo</p>
       </div>
-      <button
-        onClick={handleConnect}
-        className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold rounded-2xl shadow-lg transition-all"
-      >
-        ?? Conectar Mercado Livre
-      </button>
+      <div className="w-full space-y-3">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
+          <p className="text-sm font-bold text-yellow-900 mb-2">Passo 1: Autorizar no ML</p>
+          <button onClick={() => { window.open(mlAuth.getAuthUrl(), "_blank"); setShowPaste(true); }}
+            className="w-full py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold rounded-xl text-sm"
+          >Abrir Mercado Livre para Autorizar</button>
+        </div>
+        {showPaste && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
+            <p className="text-sm font-bold text-blue-900">Passo 2: Cole a URL de redirecionamento</p>
+            <p className="text-xs text-blue-700">Apos autorizar no ML, o navegador abre uma pagina de erro 404. Copie a URL completa daquela pagina e cole aqui:</p>
+            <input type="text" value={pasteUrl} onChange={e => setPasteUrl(e.target.value)}
+              placeholder="https://danielsmateu-cmd.github.io/controlelume/ml-callback?code=..."
+              className="w-full px-3 py-2 text-xs border border-blue-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-300 outline-none"
+            />
+            <div className="flex gap-2">
+              <button onClick={handlePasteConnect} disabled={!pasteUrl || exchanging}
+                className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl text-sm disabled:opacity-50"
+              >{exchanging ? "Conectando..." : "Conectar"}</button>
+              <button onClick={() => setShowPaste(false)} className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50">Voltar</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -442,4 +477,5 @@ export default function MercadoLivreIntegracao({ fts }) {
     </div>
   );
 }
+
 
