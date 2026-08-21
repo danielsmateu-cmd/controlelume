@@ -27,7 +27,9 @@ export default function MercadoLivreIntegracao({ fts }) {
     return d.toISOString().split('T')[0];
   });
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [showPaste, setShowPaste] = useState(false);
+  const [exchanging, setExchanging] = useState(false);
   useEffect(() => {
     checkConnection();
     handleCallbackIfNeeded();
@@ -165,9 +167,6 @@ export default function MercadoLivreIntegracao({ fts }) {
   );
 
 
-  const [pasteUrl, setPasteUrl] = React.useState("");
-  const [showPaste, setShowPaste] = React.useState(false);
-  const [exchanging, setExchanging] = React.useState(false);
 
   const handlePasteConnect = async () => {
     try {
