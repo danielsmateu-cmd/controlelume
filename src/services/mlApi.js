@@ -220,6 +220,7 @@ export const mlListings = {
             variations: item.variations && item.variations.length > 0 ? item.variations.map(v => ({
                 id: v.id,
                 stock: v.available_quantity,
+                thumbnail: v.picture_ids && v.picture_ids.length > 0 ? `https://http2.mlstatic.com/D_${v.picture_ids[0]}-I.jpg` : null,
                 attributes: v.attribute_combinations ? v.attribute_combinations.map(a => a.value_name).join(' / ') : 'Variado'
             })) : null,
             updated_at: new Date().toISOString(),

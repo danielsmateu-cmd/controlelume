@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { mlAuth, mlApi, mlListings } from '../../services/mlApi';
 import { api } from '../../services/api';
 import { RefreshCw, Link2, Package, ShoppingBag, BarChart2, Pause, Play, Edit2, Check, X, AlertTriangle, Wifi, WifiOff, ChevronDown } from 'lucide-react';
@@ -267,18 +267,18 @@ export default function MercadoLivreIntegracao({ fts }) {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Produto</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">FT</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estoque ML</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">F�sico</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Pre�o Orig.</th>
-   <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Promo��o</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">A��es</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('title')}>Produto ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('ft_id')}>FT ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>Status ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_ml')}>Estoque ML ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('stock_physical')}>Físico ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onClick={() => handleSort('price')}>Preço Orig. ↕</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Promoção</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {listings.map(listing => (
+                  {filteredListings.map(listing => (
                     <React.Fragment key={listing.id}>
 <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3">
@@ -371,9 +371,10 @@ export default function MercadoLivreIntegracao({ fts }) {
                     {listing.variations && listing.variations.map(variation => (
                       <tr key={variation.id} className="border-b border-gray-50 bg-gray-50/40 text-[11px]">
                         <td className="px-4 py-2 pl-12 flex items-center gap-2">
-                          <div className="w-1 h-3 bg-gray-300 rounded-full"></div>
-                          <span className="text-gray-600 font-medium">Varia��o: {variation.attributes}</span>
-                        </td>
+    <div className="w-1 h-3 bg-gray-300 rounded-full"></div>
+    {variation.thumbnail && <img src={variation.thumbnail} alt="" className="w-6 h-6 rounded object-cover" />}
+    <span className="text-gray-600 font-medium text-xs">Variação: {variation.attributes}</span>
+  </td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-yellow-600 font-bold">{variation.stock}</td>
