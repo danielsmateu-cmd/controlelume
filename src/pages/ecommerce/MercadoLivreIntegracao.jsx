@@ -417,7 +417,19 @@ export default function MercadoLivreIntegracao({ fts }) {
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-yellow-600 font-bold">{variation.stock}</td>
-                        <td className="px-4 py-2 text-center text-gray-400">-</td>
+                        <td className="px-4 py-2 text-center">
+                          {editingStock === `${listing.id}_phy_var_${variation.id}` ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <input type="number" value={stockValue} onChange={e => setStockValue(e.target.value)} className="w-16 text-xs border border-gray-200 rounded px-1 py-0.5 text-center" />
+                              <button onClick={() => handleUpdateVariationPhysicalStock(listing, variation.id)} className="text-green-600 hover:text-green-700"><Check size={14} /></button>
+                              <button onClick={() => setEditingStock(null)} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setEditingStock(`${listing.id}_phy_var_${variation.id}`); setStockValue(variation.stock_physical ?? 0); }} className="flex items-center gap-1 mx-auto font-bold text-blue-700 hover:text-blue-800">
+                              {variation.stock_physical ?? 0} <Edit2 size={10} />
+                            </button>
+                          )}
+                        </td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
                         <td className="px-4 py-2 text-center text-gray-400">-</td>
