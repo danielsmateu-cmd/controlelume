@@ -124,7 +124,12 @@ export const mlAuth = {
 async function mlFetch(path, options = {}) {
     const token = await mlAuth.getValidToken();
     if (!token) throw new Error('ML nao conectado');
-    const response = await fetch(`${ML_BASE_URL}${path}`, {
+
+    // Usamos nosso Vercel Serverless Function como Proxy para contornar o CORS do ML
+    const targetUrl = `${ML_BASE_URL}${path}`;
+    const proxyUrl = `/api/mlproxy?target=${encodeURIComponent(targetUrl)}`;
+    
+    const response = await fetch(proxyUrl, {
         ...options,
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -241,5 +246,7 @@ export const mlListings = {
         return !error;
     },
 };
+
+
 
 
