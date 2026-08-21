@@ -19,14 +19,17 @@ export const mlAuth = {
         try {
             const response = await fetch(`${ML_BASE_URL}/oauth/token`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: { 
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded' 
+                },
                 body: new URLSearchParams({
                     grant_type: 'authorization_code',
                     client_id: ML_CLIENT_ID,
                     client_secret: ML_CLIENT_SECRET,
                     code,
                     redirect_uri: ML_REDIRECT_URI,
-                }),
+                }).toString(),
             });
             const data = await response.json();
             if (data.access_token) {
@@ -42,15 +45,22 @@ export const mlAuth = {
 
     async saveTokens(tokenData) {
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-        const { error } = await supabase.from('marketplace_tokens').upsert({
+        const payload = {
             platform: 'ml',
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
             ml_user_id: String(tokenData.user_id),
             expires_at: expiresAt,
             updated_at: new Date().toISOString(),
-        }, { onConflict: 'platform' });
-        if (error) console.error('Save tokens error:', error);
+        };
+        const { data: existing } = await supabase.from('marketplace_tokens').select('id').eq('platform', 'ml').single();
+        if (existing) {
+            const { error } = await supabase.from('marketplace_tokens').update(payload).eq('id', existing.id);
+            if (error) console.error('Update tokens error:', error);
+        } else {
+            const { error } = await supabase.from('marketplace_tokens').insert([payload]);
+            if (error) console.error('Insert tokens error:', error);
+        }
     },
 
     async getTokens() {
@@ -231,3 +241,5 @@ export const mlListings = {
         return !error;
     },
 };
+
+
