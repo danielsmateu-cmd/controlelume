@@ -16,6 +16,7 @@ import Parcerias from './ecommerce/Parcerias';
 import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
 import VisaoGeral from './ecommerce/VisaoGeral';
+import MercadoLivreIntegracao from './ecommerce/MercadoLivreIntegracao';
 
 const PLATFORMS = [
     {
@@ -136,10 +137,27 @@ const ECommerce = ({ readOnly }) => {
                             </div>
                         </div>
 
-                        {/* Conteúdo */}
-                        <div>
+                        {/* Tabs por plataforma */}
+                        {activePlatform === 'meli' && (
+                            <div className="space-y-4">
+                                <div className="flex gap-2 border-b border-gray-100 pb-2">
+                                    <button
+                                        onClick={() => setActiveMktTab('vendas')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${activeMktTab === 'vendas' ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:bg-gray-100'}`}
+                                    >Vendas / FTs</button>
+                                    <button
+                                        onClick={() => setActiveMktTab('integracao')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${activeMktTab === 'integracao' ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:bg-gray-100'}`}
+                                    >🔗 Integração API</button>
+                                </div>
+                                {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={readOnly} />}
+                                {activeMktTab === 'integracao' && <MercadoLivreIntegracao />}
+                            </div>
+                        )}
+
+                        {activePlatform !== 'meli' && (
                             <Vendas marketplace={activePlatform} readOnly={readOnly} />
-                        </div>
+                        )}
                     </div>
                 );
             case 'cadastros_fts':
