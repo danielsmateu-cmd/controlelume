@@ -287,6 +287,13 @@ export default function MercadoLivreIntegracao({ fts }) {
                             <p className="font-medium text-gray-800 text-xs leading-tight line-clamp-2 max-w-[200px]">{listing.title}</p>
                             <p className="text-[10px] text-gray-400">{listing.ml_item_id}</p>
                             {listing.sku && <p className="text-[10px] text-gray-400">SKU: {listing.sku}</p>}
+                            {listing.logistic_type === 'fulfillment' ? (
+                              <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 text-green-700">? FULL</span>
+                            ) : listing.logistic_type === 'cross_docking' ? (
+                              <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">Envio Imediato</span>
+                            ) : listing.logistic_type ? (
+                              <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600">Normal</span>
+                            ) : null}
                           </div>
                         </div>
                       </td>
