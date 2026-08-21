@@ -342,12 +342,12 @@ export default function MercadoLivreIntegracao({ fts }) {
                           </button>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center text-xs font-bold text-gray-500 line-through">
-     R$ {Number(listing.price || 0).toFixed(2)}
-   </td>
-   <td className="px-4 py-3 text-center text-xs font-bold text-green-700">
-     {listing.price_promo ? `R$ ${Number(listing.price_promo).toFixed(2)}` : '�'}
-   </td>
+                      <td className={`px-4 py-3 text-center text-xs font-bold ${listing.price_promo ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                        R$ {Number(listing.price || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-green-700">
+                        {listing.price_promo ? `R$ ${Number(listing.price_promo).toFixed(2)}` : "-"}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {listing.status === 'active' ? (
                           <button onClick={() => handlePauseItem(listing)} title="Pausar an�ncio" className="p-1.5 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors">
@@ -480,6 +480,7 @@ export default function MercadoLivreIntegracao({ fts }) {
     </div>
   );
 }
+
 
 
 
