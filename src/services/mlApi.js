@@ -214,6 +214,7 @@ export const mlListings = {
             thumbnail_url: item.thumbnail?.replace('http://', 'https://') || '',
             status: item.status,
             price: item.price || 0,
+            stock_ml: item.available_quantity || 0,
             updated_at: new Date().toISOString(),
         }));
         const { error } = await supabase.from('marketplace_listings').upsert(rows, { onConflict: 'ml_item_id' });
@@ -246,6 +247,7 @@ export const mlListings = {
         return !error;
     },
 };
+
 
 
 
