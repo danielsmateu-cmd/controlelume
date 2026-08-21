@@ -302,7 +302,7 @@ function AppContent() {
 
         switch (activeTab) {
             case 'resumo':
-                return <Resumo expenses={expenses} orders={orders} />;
+                return <Resumo expenses={expenses} orders={orders} setActiveTab={setActiveTab} />;
             case 'whatsapp':
                 return <WhatsAppChat />;
             case 'agenda':

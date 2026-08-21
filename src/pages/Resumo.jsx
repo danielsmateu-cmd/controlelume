@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { api } from '../services/api';
+import { ShoppingCart, Wallet, Tag, Store } from 'lucide-react';
 
 const getWorkHoursInMonth = (monthStr) => {
     if (!monthStr) return 0;
@@ -57,7 +58,7 @@ const StatCard = ({ title, value, type }) => {
     );
 };
 
-const Resumo = ({ expenses, orders }) => {
+const Resumo = ({ expenses, orders, setActiveTab }) => {
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const currentDate = new Date();
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -365,6 +366,29 @@ const Resumo = ({ expenses, orders }) => {
 
     return (
         <div className="space-y-3">
+
+            {/* Acesso R�pido */}
+            {setActiveTab && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <button onClick={() => setActiveTab('ecommerce')} className="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-4 rounded-xl transition-colors border border-indigo-100 shadow-sm">
+                        <Store size={18} />
+                        Integra��o ML
+                    </button>
+                    <button onClick={() => setActiveTab('vendas')} className="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors border border-green-100 shadow-sm">
+                        <ShoppingCart size={18} />
+                        Entradas
+                    </button>
+                    <button onClick={() => setActiveTab('saida')} className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-3 px-4 rounded-xl transition-colors border border-red-100 shadow-sm">
+                        <Wallet size={18} />
+                        Sa�das
+                    </button>
+                    <button onClick={() => setActiveTab('precificacao')} className="flex items-center justify-center gap-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-bold py-3 px-4 rounded-xl transition-colors border border-yellow-100 shadow-sm">
+                        <Tag size={18} />
+                        Precifica��o / FTs
+                    </button>
+                </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-gray-800">Resumo Financeiro</h2>
