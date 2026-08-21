@@ -158,7 +158,7 @@ export const mlApi = {
     async getItemsDetails(itemIds) {
         if (!itemIds || itemIds.length === 0) return [];
         const ids = itemIds.slice(0, 20).join(',');
-        const data = await mlFetch(`/items?ids=${ids}&attributes=id,title,price,base_price,original_price,available_quantity,thumbnail,status,seller_sku,shipping`);
+        const data = await mlFetch(`/items?ids=${ids}&attributes=id,title,price,base_price,original_price,available_quantity,thumbnail,status,seller_sku,shipping,variations`);
         return data.map(r => r.body).filter(Boolean);
     },
 
@@ -217,6 +217,11 @@ export const mlListings = {
             price_promo: (item.original_price || (item.base_price && item.base_price > item.price)) ? item.price : null,
             stock_ml: item.available_quantity || 0,
             logistic_type: item.shipping?.logistic_type || 'default',
+            variations: item.variations && item.variations.length > 0 ? item.variations.map(v => ({
+                id: v.id,
+                stock: v.available_quantity,
+                attributes: v.attribute_combinations ? v.attribute_combinations.map(a => a.value_name).join(' / ') : 'Variado'
+            })) : null,
             updated_at: new Date().toISOString(),
         }));
         const { error } = await supabase.from('marketplace_listings').upsert(rows, { onConflict: 'ml_item_id' });
@@ -249,6 +254,7 @@ export const mlListings = {
         return !error;
     },
 };
+
 
 
 
