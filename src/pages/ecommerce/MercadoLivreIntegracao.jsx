@@ -241,7 +241,7 @@ export default function MercadoLivreIntegracao({ fts }) {
         {[
           { key: 'estoque', icon: <Package size={16} />, label: 'Estoque' },
           { key: 'pedidos', icon: <ShoppingBag size={16} />, label: 'A Enviar Hoje' },
-          { key: 'historico', icon: <BarChart2 size={16} />, label: 'Histórico' },
+          { key: 'historico', icon: <BarChart2 size={16} />, label: 'Histï¿½rico' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -259,8 +259,8 @@ export default function MercadoLivreIntegracao({ fts }) {
           {listings.length === 0 ? (
             <div className="p-12 text-center text-gray-400">
               <Package size={40} className="mx-auto mb-3 opacity-40" />
-              <p>Nenhum anúncio importado.</p>
-              <p className="text-sm mt-1">Clique em "Sincronizar" para importar seus anúncios do ML.</p>
+              <p>Nenhum anï¿½ncio importado.</p>
+              <p className="text-sm mt-1">Clique em "Sincronizar" para importar seus anï¿½ncios do ML.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -271,9 +271,10 @@ export default function MercadoLivreIntegracao({ fts }) {
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">FT</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estoque ML</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Físico</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Preço</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ações</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Fï¿½sico</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Preï¿½o Orig.</th>
+   <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Promoï¿½ï¿½o</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aï¿½ï¿½es</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -323,8 +324,8 @@ export default function MercadoLivreIntegracao({ fts }) {
                             <button onClick={() => setEditingStock(null)} className="text-red-400 hover:text-red-500"><X size={14} /></button>
                           </div>
                         ) : (
-                          <button onClick={() => { setEditingStock(listing.id + '_ml'); setStockValue(listing.available_quantity ?? ''); }} className="flex items-center gap-1 mx-auto font-bold text-yellow-700 hover:text-yellow-800">
-                            {listing.available_quantity ?? '—'} <Edit2 size={10} />
+                          <button onClick={() => { setEditingStock(listing.id + '_ml'); setStockValue(listing.stock_ml ?? ''); }} className="flex items-center gap-1 mx-auto font-bold text-yellow-700 hover:text-yellow-800">
+                            {listing.stock_ml ?? 'ï¿½'} <Edit2 size={10} />
                           </button>
                         )}
                       </td>
@@ -341,16 +342,19 @@ export default function MercadoLivreIntegracao({ fts }) {
                           </button>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center text-xs font-bold text-gray-700">
-                        R$ {Number(listing.price || 0).toFixed(2)}
-                      </td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-gray-500 line-through">
+     R$ {Number(listing.price || 0).toFixed(2)}
+   </td>
+   <td className="px-4 py-3 text-center text-xs font-bold text-green-700">
+     {listing.price_promo ? `R$ ${Number(listing.price_promo).toFixed(2)}` : 'ï¿½'}
+   </td>
                       <td className="px-4 py-3 text-center">
                         {listing.status === 'active' ? (
-                          <button onClick={() => handlePauseItem(listing)} title="Pausar anúncio" className="p-1.5 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors">
+                          <button onClick={() => handlePauseItem(listing)} title="Pausar anï¿½ncio" className="p-1.5 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors">
                             <Pause size={14} />
                           </button>
                         ) : listing.status === 'paused' ? (
-                          <button onClick={() => handleReactivateItem(listing)} title="Reativar anúncio" className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                          <button onClick={() => handleReactivateItem(listing)} title="Reativar anï¿½ncio" className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
                             <Play size={14} />
                           </button>
                         ) : null}
@@ -389,9 +393,9 @@ export default function MercadoLivreIntegracao({ fts }) {
                   {orders.map(order => (
                     <tr key={order.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3 text-xs font-mono text-gray-600">#{order.id}</td>
-                      <td className="px-4 py-3 text-xs font-medium text-gray-800">{order.buyer?.nickname || '—'}</td>
+                      <td className="px-4 py-3 text-xs font-medium text-gray-800">{order.buyer?.nickname || 'ï¿½'}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px]">
-                        {order.order_items?.map(i => i.item?.title).join(', ') || '—'}
+                        {order.order_items?.map(i => i.item?.title).join(', ') || 'ï¿½'}
                       </td>
                       <td className="px-4 py-3 text-center text-xs font-bold">
                         {order.order_items?.reduce((s, i) => s + (i.quantity || 0), 0)}
@@ -420,7 +424,7 @@ export default function MercadoLivreIntegracao({ fts }) {
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Até</label>
+              <label className="text-xs text-gray-500 block mb-1">Atï¿½</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5" />
             </div>
             <button onClick={handleLoadHistory} className="mt-4 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold rounded-xl text-sm">Buscar</button>
@@ -436,7 +440,7 @@ export default function MercadoLivreIntegracao({ fts }) {
             {salesHistory.length === 0 ? (
               <div className="p-12 text-center text-gray-400">
                 <BarChart2 size={40} className="mx-auto mb-3 opacity-40" />
-                <p>Selecione um período e clique em Buscar.</p>
+                <p>Selecione um perï¿½odo e clique em Buscar.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -454,9 +458,9 @@ export default function MercadoLivreIntegracao({ fts }) {
                     {salesHistory.map(order => (
                       <tr key={order.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-3 text-xs text-gray-500">{new Date(order.date_created).toLocaleDateString('pt-BR')}</td>
-                        <td className="px-4 py-3 text-xs font-medium text-gray-800">{order.buyer?.nickname || '—'}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-gray-800">{order.buyer?.nickname || 'ï¿½'}</td>
                         <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px]">
-                          {order.order_items?.map(i => i.item?.title).join(', ') || '—'}
+                          {order.order_items?.map(i => i.item?.title).join(', ') || 'ï¿½'}
                         </td>
                         <td className="px-4 py-3 text-center text-xs font-bold">
                           {order.order_items?.reduce((s, i) => s + (i.quantity || 0), 0)}
@@ -476,6 +480,7 @@ export default function MercadoLivreIntegracao({ fts }) {
     </div>
   );
 }
+
 
 
 

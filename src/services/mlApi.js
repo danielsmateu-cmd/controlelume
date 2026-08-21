@@ -158,7 +158,7 @@ export const mlApi = {
     async getItemsDetails(itemIds) {
         if (!itemIds || itemIds.length === 0) return [];
         const ids = itemIds.slice(0, 20).join(',');
-        const data = await mlFetch(`/items?ids=${ids}&attributes=id,title,price,available_quantity,thumbnail,status,seller_sku`);
+        const data = await mlFetch(`/items?ids=${ids}&attributes=id,title,price,original_price,available_quantity,thumbnail,status,seller_sku`);
         return data.map(r => r.body).filter(Boolean);
     },
 
@@ -213,7 +213,8 @@ export const mlListings = {
             sku: item.seller_sku || '',
             thumbnail_url: item.thumbnail?.replace('http://', 'https://') || '',
             status: item.status,
-            price: item.price || 0,
+            price: item.original_price || item.price || 0,
+            price_promo: item.original_price ? item.price : null,
             stock_ml: item.available_quantity || 0,
             updated_at: new Date().toISOString(),
         }));
@@ -247,6 +248,7 @@ export const mlListings = {
         return !error;
     },
 };
+
 
 
 
