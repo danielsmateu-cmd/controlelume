@@ -294,8 +294,31 @@ function AppContent() {
     const renderContent = () => {
         if (activeTab === 'home') {
             return (
-                <div className="flex h-full w-full items-center justify-center">
+                <div className="flex flex-col h-full w-full items-center justify-center gap-12">
                     <img src="/Logo LUME.png" alt="Controle Lume Logo" className="w-[400px] h-auto" />
+                    
+                    {/* Acesso R�pido */}
+                    <div className="w-full max-w-4xl px-4">
+                        <h2 className="text-gray-500 font-bold mb-4 text-center">ACESSO RÁPIDO</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button onClick={() => handleSetActiveTab('ecommerce')} className="flex flex-col items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-6 px-4 rounded-2xl transition-all border border-indigo-100 shadow-sm hover:shadow-md hover:-translate-y-1">
+                                <span className="text-3xl">??</span>
+                                Integra��o ML
+                            </button>
+                            <button onClick={() => handleSetActiveTab('vendas')} className="flex flex-col items-center justify-center gap-3 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-6 px-4 rounded-2xl transition-all border border-green-100 shadow-sm hover:shadow-md hover:-translate-y-1">
+                                <span className="text-3xl">??</span>
+                                Entradas
+                            </button>
+                            <button onClick={() => handleSetActiveTab('saida')} className="flex flex-col items-center justify-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-6 px-4 rounded-2xl transition-all border border-red-100 shadow-sm hover:shadow-md hover:-translate-y-1">
+                                <span className="text-3xl">??</span>
+                                Sa�das
+                            </button>
+                            <button onClick={() => handleSetActiveTab('precificacao')} className="flex flex-col items-center justify-center gap-3 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-bold py-6 px-4 rounded-2xl transition-all border border-yellow-100 shadow-sm hover:shadow-md hover:-translate-y-1">
+                                <span className="text-3xl">???</span>
+                                Precifica��o / FTs
+                            </button>
+                        </div>
+                    </div>
                 </div>
             );
         }
