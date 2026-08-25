@@ -47,13 +47,12 @@ export const whatsappService = {
       // Formatar mensagem para incluir o nome do atendente no topo em negrito
       const formattedText = senderName ? `*${senderName}:*\n${text}` : text;
 
-      // 1. Tentar envio direto (funciona em localhost)
+      // 1. Enviar mensagem via Vercel Backend (Proxy) para evitar Mixed Content
       let sentDirectly = false;
       try {
-        const response = await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
+        const response = await fetch(`/api/whatsapp-send`, {
           method: 'POST',
           headers: {
-            'apikey': API_KEY,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -61,12 +60,17 @@ export const whatsappService = {
             text: formattedText
           })
         });
-        if (response.ok) sentDirectly = true;
+        if (response.ok) {
+          sentDirectly = true;
+          console.log('Mensagem enviada com sucesso via proxy Vercel.');
+        } else {
+          console.error('Falha no envio via proxy:', await response.text());
+        }
       } catch (directErr) {
-        console.warn('Envio direto bloqueado pelo navegador (Mixed Content). Gravando no Supabase...');
+        console.error('Erro na requisição de envio:', directErr);
       }
 
-      // 2. Registrar no Supabase (HTTPS - sempre funciona no Vercel)
+      // 2. Registrar no Supabase (O frontend cadastra a mensagem para histórico)
       const { data: newMsg, error: msgErr } = await supabase
         .from('whatsapp_messages')
         .insert([{
@@ -75,7 +79,8 @@ export const whatsappService = {
           from_me: true,
           sender_name: senderName,
           text: formattedText,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          sent_to_evolution: sentDirectly // Marca se o envio real funcionou
         }])
         .select()
         .single();
