@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight
+  AlertCircle, Building, Phone, ChevronRight, Download
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
@@ -560,16 +560,35 @@ export default function WhatsAppChat() {
                 const msgType = msg.message_type || 'text';
                 const hasText = msg.text && msg.text.trim() !== '';
 
+                const handleDownload = (base64Url, defaultName) => {
+                  const link = document.createElement('a');
+                  link.href = base64Url;
+                  link.download = defaultName;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                };
+
                 const renderContent = () => {
                   if (msgType === 'image' && msg.media_url) {
                     return (
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 relative group">
                         <img
                           src={msg.media_url}
                           alt="Imagem"
-                          className="max-w-[240px] rounded-xl cursor-pointer object-cover"
+                          className="max-w-[240px] rounded-xl object-cover cursor-pointer"
                           onClick={() => window.open(msg.media_url, '_blank')}
                         />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(msg.media_url, `imagem_${msg.id || Date.now()}.jpeg`);
+                          }}
+                          className="absolute top-2 right-2 bg-gray-900/60 hover:bg-gray-900/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Baixar imagem"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
                         {msg.media_caption && (
                           <p className="text-xs mt-1 whitespace-pre-wrap leading-relaxed">{msg.media_caption}</p>
                         )}
