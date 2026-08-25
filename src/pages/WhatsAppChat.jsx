@@ -557,6 +557,64 @@ export default function WhatsAppChat() {
             ) : (
               messages.map((msg) => {
                 const isMe = msg.from_me;
+                const msgType = msg.message_type || 'text';
+                const hasText = msg.text && msg.text.trim() !== '';
+
+                const renderContent = () => {
+                  if (msgType === 'image' && msg.media_url) {
+                    return (
+                      <div className="space-y-1.5">
+                        <img
+                          src={msg.media_url}
+                          alt="Imagem"
+                          className="max-w-[240px] rounded-xl cursor-pointer object-cover"
+                          onClick={() => window.open(msg.media_url, '_blank')}
+                        />
+                        {msg.media_caption && (
+                          <p className="text-xs mt-1 whitespace-pre-wrap leading-relaxed">{msg.media_caption}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (msgType === 'image' && !msg.media_url) {
+                    return (
+                      <div className="flex items-center gap-2 text-xs opacity-70 italic">
+                        <span>🖼️</span>
+                        <span>{msg.media_caption || 'Imagem recebida'}</span>
+                      </div>
+                    );
+                  }
+                  if (msgType === 'audio') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span>🎤</span>
+                        <span className="text-xs italic opacity-80">Mensagem de voz</span>
+                      </div>
+                    );
+                  }
+                  if (msgType === 'video') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span>🎬</span>
+                        <span className="text-xs">{msg.media_caption || 'Vídeo'}</span>
+                      </div>
+                    );
+                  }
+                  if (msgType === 'document') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span>📄</span>
+                        <span className="text-xs">{msg.text || 'Documento'}</span>
+                      </div>
+                    );
+                  }
+                  if (msgType === 'sticker') {
+                    return <span className="text-2xl">🏷️ Figurinha</span>;
+                  }
+                  // Default: text
+                  return <span className="whitespace-pre-wrap leading-relaxed">{msg.text || '—'}</span>;
+                };
+
                 return (
                   <div
                     key={msg.id}
@@ -567,13 +625,13 @@ export default function WhatsAppChat() {
                   >
                     <div
                       className={clsx(
-                        'p-3 rounded-2xl text-xs shadow-sm whitespace-pre-wrap leading-relaxed',
+                        'p-3 rounded-2xl text-xs shadow-sm',
                         isMe
                           ? 'bg-emerald-600 text-white rounded-tr-none'
                           : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
                       )}
                     >
-                      {msg.text}
+                      {renderContent()}
                     </div>
 
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">
