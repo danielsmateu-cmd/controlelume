@@ -40,7 +40,7 @@ export const whatsappService = {
   },
 
   // Enviar mensagem para o cliente
-  async sendMessage(chat, text, senderName = 'Atendente') {
+  async sendMessage(chat, text, senderName = 'Atendente', mediaBase64 = null, mediaName = null, mediaType = null) {
     try {
       const cleanNumber = chat.phone_number || chat.remote_jid.replace('@s.whatsapp.net', '');
 
@@ -50,15 +50,20 @@ export const whatsappService = {
       // 1. Enviar mensagem via Vercel Backend (Proxy) para evitar Mixed Content
       let sentDirectly = false;
       try {
+        const payload = {
+          number: cleanNumber,
+          text: formattedText
+        };
+        if (mediaBase64) {
+          payload.mediaBase64 = mediaBase64;
+          payload.mediaName = mediaName;
+          payload.mediaType = mediaType;
+        }
+
         const response = await fetch(`/api/whatsapp-send`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            number: cleanNumber,
-            text: formattedText
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
         if (response.ok) {
           sentDirectly = true;
@@ -71,17 +76,26 @@ export const whatsappService = {
       }
 
       // 2. Registrar no Supabase (O frontend cadastra a mensagem para histórico)
+      const newMsgObj = {
+        chat_id: chat.id,
+        remote_jid: chat.remote_jid,
+        from_me: true,
+        sender_name: senderName,
+        text: formattedText,
+        timestamp: Date.now(),
+        sent_to_evolution: sentDirectly // Marca se o envio real funcionou
+      };
+
+      if (mediaBase64) {
+        newMsgObj.message_type = mediaType === 'document' ? 'document' : 'image';
+        newMsgObj.media_url = mediaBase64;
+        newMsgObj.media_caption = formattedText;
+        newMsgObj.text = formattedText;
+      }
+
       const { data: newMsg, error: msgErr } = await supabase
         .from('whatsapp_messages')
-        .insert([{
-          chat_id: chat.id,
-          remote_jid: chat.remote_jid,
-          from_me: true,
-          sender_name: senderName,
-          text: formattedText,
-          timestamp: Date.now(),
-          sent_to_evolution: sentDirectly // Marca se o envio real funcionou
-        }])
+        .insert([newMsgObj])
         .select()
         .single();
 

@@ -9,20 +9,33 @@ export default async function handler(req, res) {
   const INSTANCE = 'whatsapp-vendas';
 
   try {
-    const { number, text } = req.body;
+    const { number, text, mediaBase64, mediaName, mediaType } = req.body;
     
-    if (!number || !text) {
-      return res.status(400).json({ error: 'Missing number or text' });
+    if (!number) {
+      return res.status(400).json({ error: 'Missing number' });
     }
 
-    // O backend do Vercel faz a requisição HTTP (não sofre bloqueio de Mixed Content)
-    const response = await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
+    let endpoint = `/message/sendText/${INSTANCE};
+    let payload = { number, text: text || '' };
+
+    if (mediaBase64) {
+      endpoint = `/message/sendMedia/${INSTANCE};
+      payload = {
+        number,
+        mediatype: mediaType || 'document',
+        caption: text || '',
+        media: mediaBase64,
+        fileName: mediaName || 'arquivo'
+      };
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'apikey': API_KEY,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ number, text })
+      body: JSON.stringify(payload)
     });
     
     if (!response.ok) {

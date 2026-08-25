@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
@@ -23,6 +23,8 @@ export default function WhatsAppChat() {
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState('aguardando'); // 'aguardando', 'minhas', 'todas', 'finalizados'
   const [subFilter, setSubFilter] = useState('todos'); // 'todos', 'em_atendimento', 'aguardando_retorno', 'finalizado'
@@ -115,18 +117,45 @@ export default function WhatsAppChat() {
     scrollToBottom();
   }, [messages]);
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) setSelectedFile(file);
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // Enviar Mensagem
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !activeChat || sending) return;
+    if ((!inputMessage.trim() && !selectedFile) || !activeChat || sending) return;
 
     const textToSend = inputMessage.trim();
     setInputMessage('');
     setSending(true);
 
     try {
-      await whatsappService.sendMessage(activeChat, textToSend, currentUser?.name || 'Atendente');
-      // Atualizar lista local de mensagens caso o realtime demore
+      let mediaBase64 = null;
+      let mediaName = null;
+      let mediaType = null;
+
+      if (selectedFile) {
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result);
+        });
+        reader.readAsDataURL(selectedFile);
+        const fullBase64 = await base64Promise;
+        mediaBase64 = fullBase64.split(',')[1];
+        mediaName = selectedFile.name;
+        mediaType = selectedFile.type.startsWith('image') ? 'image' : 'document';
+      }
+
+      await whatsappService.sendMessage(activeChat, textToSend, currentUser?.name || 'Atendente', mediaBase64, mediaName, mediaType);
+      
+      removeFile();
       const refreshed = await whatsappService.getMessages(activeChat);
       setMessages(refreshed);
       scrollToBottom();
@@ -499,54 +528,65 @@ export default function WhatsAppChat() {
 
             {/* Ações do Header */}
             <div className="flex items-center gap-2">
-              {activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno' && (
-                <button
-                  onClick={handleAssign}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  {activeChat.status === 'finalizado' ? 'Reabrir Atendimento' : 'Assumir Chat'}
-                </button>
-              )}
+              {(() => {
+                const currentUserLogin = currentUser?.name || currentUser?.login || '';
+                const isOwnedByOther = activeChat.assigned_to && activeChat.assigned_to !== currentUserLogin;
+                const canAssign = isOwnedByOther || (activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno');
+                const canInteract = !isOwnedByOther && activeChat.status !== 'finalizado';
 
-              {activeChat.status !== 'finalizado' && (
-                <>
-                  {activeChat.status === 'em_atendimento' ? (
-                    <button
-                      onClick={() => handleSetStatus('aguardando_retorno')}
-                      title="Marcar que enviou orçamento/resposta e aguarda cliente"
-                      className="px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      Aguardando Retorno
-                    </button>
-                  ) : activeChat.status === 'aguardando_retorno' ? (
-                    <button
-                      onClick={() => handleSetStatus('em_atendimento')}
-                      className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      Em Atendimento
-                    </button>
-                  ) : null}
+                return (
+                  <>
+                    {canAssign && (
+                      <button
+                        onClick={handleAssign}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        {activeChat.status === 'finalizado' ? 'Reabrir Atendimento' : 'Puxar Atendimento'}
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => setTransferModalOpen(true)}
-                    className="px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
-                    Transferir
-                  </button>
+                    {canInteract && (
+                      <>
+                        {activeChat.status === 'em_atendimento' ? (
+                          <button
+                            onClick={() => handleSetStatus('aguardando_retorno')}
+                            title="Marcar que enviou orçamento/resposta e aguarda cliente"
+                            className="px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            Aguardando Retorno
+                          </button>
+                        ) : activeChat.status === 'aguardando_retorno' ? (
+                          <button
+                            onClick={() => handleSetStatus('em_atendimento')}
+                            className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                          >
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            Em Atendimento
+                          </button>
+                        ) : null}
 
-                  <button
-                    onClick={handleClose}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-700 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-red-500" />
-                    Finalizar
-                  </button>
-                </>
-              )}
+                        <button
+                          onClick={() => setTransferModalOpen(true)}
+                          className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                          Transferir
+                        </button>
+
+                        <button
+                          onClick={handleClose}
+                          className="px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-red-600" />
+                          Finalizar
+                        </button>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -682,39 +722,81 @@ export default function WhatsAppChat() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Banner se Finalizado */}
-          {activeChat.status === 'finalizado' ? (
-            <div className="p-3 bg-gray-100 text-center text-xs text-gray-500 font-medium border-t border-gray-200">
-              Esta conversa foi finalizada. Para enviar uma mensagem, assuma o atendimento novamente.
-            </div>
-          ) : (
-            /* Input de Mensagem */
-            <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Digite sua resposta..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                disabled={sending}
-                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-              />
+          {/* Banner se Finalizado ou de Outro Atendente */}
+          {(() => {
+            const currentUserLogin = currentUser?.name || currentUser?.login || '';
+            const isOwnedByOther = activeChat.assigned_to && activeChat.assigned_to !== currentUserLogin;
 
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || sending}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-emerald-600/20"
-              >
-                {sending ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Enviar</span>
-                    <Send className="w-3.5 h-3.5" />
-                  </>
+            if (activeChat.status === 'finalizado') {
+              return (
+                <div className="p-3 bg-gray-100 text-center text-xs text-gray-500 font-medium border-t border-gray-200">
+                  Esta conversa foi finalizada. Para enviar uma mensagem, reabra o atendimento (botão acima).
+                </div>
+              );
+            }
+            
+            if (isOwnedByOther) {
+              return (
+                <div className="p-3 bg-amber-50 text-center text-xs text-amber-700 font-medium border-t border-amber-200">
+                  Este chat está sendo atendido por {activeChat.assigned_to}. Assuma o atendimento (botão acima) para enviar mensagens.
+                </div>
+              );
+            }
+
+            return (
+              <form onSubmit={handleSendMessage} className="flex flex-col bg-white border-t border-gray-200 relative">
+                {selectedFile && (
+                  <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between text-xs text-indigo-700">
+                    <span className="font-semibold truncate max-w-[80%]">Anexo: {selectedFile.name}</span>
+                    <button type="button" onClick={removeFile} className="text-indigo-400 hover:text-indigo-800 p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
-              </button>
-            </form>
-          )}
+                <div className="p-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors"
+                    title="Anexar Imagem ou PDF"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileSelect} 
+                    accept="image/*,application/pdf"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Digite sua resposta..."
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    disabled={sending}
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  />
+    
+                  <button
+                    type="submit"
+                    disabled={(!inputMessage.trim() && !selectedFile) || sending}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-emerald-600/20"
+                  >
+                    {sending ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <span>Enviar</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            );
+          })()}
         </div>
       ) : (
         /* Estado Vazio */
