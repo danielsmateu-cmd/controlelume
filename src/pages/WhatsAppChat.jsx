@@ -499,13 +499,13 @@ export default function WhatsAppChat() {
 
             {/* Ações do Header */}
             <div className="flex items-center gap-2">
-              {activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno' && activeChat.status !== 'finalizado' && (
+              {activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno' && (
                 <button
                   onClick={handleAssign}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   <UserCheck className="w-3.5 h-3.5" />
-                  Assumir Chat
+                  {activeChat.status === 'finalizado' ? 'Reabrir Atendimento' : 'Assumir Chat'}
                 </button>
               )}
 
