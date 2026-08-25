@@ -75,6 +75,18 @@ export default function WhatsAppChat() {
     };
   }, []);
 
+  // Lazy fetch profile pic if missing
+  useEffect(() => {
+    if (activeChat && !activeChat.profile_pic_url) {
+      const cleanPhone = activeChat.phone_number || activeChat.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      fetch('/api/whatsapp-profile-pic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: activeChat.id, phone_number: cleanPhone })
+      }).catch(err => console.error('Erro ao buscar foto:', err));
+    }
+  }, [activeChat?.id, activeChat?.profile_pic_url]);
+
   // 3. Carregar e Inscrever em Mensagens do Chat Ativo
   useEffect(() => {
     if (!activeChat) {
@@ -503,10 +515,21 @@ export default function WhatsAppChat() {
                         : 'hover:bg-gray-50/80 border-transparent'
                   )}
                 >
-                  {/* Avatar com Inicial */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white font-bold flex items-center justify-center text-sm flex-shrink-0 shadow-sm">
-                    {(chat.push_name || chat.phone_number || 'C').charAt(0).toUpperCase()}
-                  </div>
+                    {/* Avatar (Foto ou Inicial) */}
+                    {chat.profile_pic_url ? (
+                      <img 
+                        src={chat.profile_pic_url} 
+                        alt="Avatar" 
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow-sm border border-gray-100"
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                      />
+                    ) : null}
+                    <div className={clsx(
+                      "w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white font-bold flex items-center justify-center text-sm flex-shrink-0 shadow-sm",
+                      chat.profile_pic_url ? "hidden" : "flex"
+                    )}>
+                      {(chat.push_name || chat.phone_number || 'C').charAt(0).toUpperCase()}
+                    </div>
 
                   {/* Conteúdo */}
                   <div className="flex-1 min-w-0">
@@ -559,7 +582,18 @@ export default function WhatsAppChat() {
           {/* Header do Chat */}
           <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+              {activeChat.profile_pic_url ? (
+                <img 
+                  src={activeChat.profile_pic_url} 
+                  alt="Avatar" 
+                  className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100"
+                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                />
+              ) : null}
+              <div className={clsx(
+                "w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold flex items-center justify-center text-sm shadow-sm",
+                activeChat.profile_pic_url ? "hidden" : "flex"
+              )}>
                 {(activeChat.push_name || activeChat.phone_number || 'C').charAt(0).toUpperCase()}
               </div>
               <div>
@@ -980,6 +1014,8 @@ export default function WhatsAppChat() {
     </div>
   );
 }
+
+
 
 
 
