@@ -15,11 +15,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing number' });
     }
 
-    let endpoint = `/message/sendText/${INSTANCE};
+    let endpoint = `${EVOLUTION_URL}/message/sendText/${INSTANCE}`;
     let payload = { number, text: text || '' };
 
     if (mediaBase64) {
-      endpoint = `/message/sendMedia/${INSTANCE};
+      endpoint = `${EVOLUTION_URL}/message/sendMedia/${INSTANCE}`;
       payload = {
         number,
         mediatype: mediaType || 'document',
@@ -51,3 +51,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+
