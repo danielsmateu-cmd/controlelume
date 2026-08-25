@@ -249,14 +249,14 @@ export default function WhatsAppChat() {
     if (!matchesTab) return false;
 
     // 2ª Linha: Sub-Filtros de Atendimento (Em Atendimento / Aguardando Retorno / Finalizadas)
-    if (subFilter === 'em_atendimento') {
-      return chat.status === 'em_atendimento';
+    if (subFilter === 'em_atendimento' && chat.status !== 'em_atendimento') {
+      return false;
     }
-    if (subFilter === 'aguardando_retorno') {
-      return chat.status === 'aguardando_retorno';
+    if (subFilter === 'aguardando_retorno' && chat.status !== 'aguardando_retorno') {
+      return false;
     }
-    if (subFilter === 'finalizado') {
-      return chat.status === 'finalizado';
+    if (subFilter === 'finalizado' && chat.status !== 'finalizado') {
+      return false;
     }
 
     // 3ª Linha: Atendentes
@@ -980,6 +980,7 @@ export default function WhatsAppChat() {
     </div>
   );
 }
+
 
 
 
