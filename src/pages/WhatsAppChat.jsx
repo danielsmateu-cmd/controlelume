@@ -27,9 +27,10 @@ export default function WhatsAppChat() {
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState('aguardando'); // 'aguardando', 'todas', 'finalizados'
-  const [attendantFilter, setAttendantFilter] = useState('todos');
-  const [subFilter, setSubFilter] = useState('todos'); // 'todos', 'em_atendimento', 'aguardando_retorno', 'finalizado'
+  const userDisplayName = currentUser?.name || currentUser?.login || '';
+  const [filterTab, setFilterTab] = useState('todas'); // 'aguardando', 'todas', 'finalizados'
+  const [attendantFilter, setAttendantFilter] = useState(userDisplayName || 'todos');
+  const [subFilter, setSubFilter] = useState('em_atendimento'); // 'em_atendimento', 'aguardando_retorno', 'finalizado'
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -266,6 +267,27 @@ export default function WhatsAppChat() {
     return true;
   });
 
+  const unreadCounts = {
+    aguardando: 0,
+    todas: 0,
+    attendants: {}
+  };
+
+  chats.forEach(chat => {
+    const unread = chat.unread_count || 0;
+    if (unread > 0 && chat.status !== 'finalizado') {
+      unreadCounts.todas += unread;
+      
+      if (chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status) {
+        unreadCounts.aguardando += unread;
+      }
+      
+      if (chat.assigned_to) {
+        unreadCounts.attendants[chat.assigned_to] = (unreadCounts.attendants[chat.assigned_to] || 0) + unread;
+      }
+    }
+  });
+
   const getSetorBadge = (setorId) => {
     const setor = SETORES.find((s) => s.id === setorId);
     return setor ? setor : { label: setorId || 'Geral', color: 'bg-gray-100 text-gray-700' };
@@ -328,29 +350,39 @@ export default function WhatsAppChat() {
           {/* 1ª LINHA DE ABAS (Filtros Principais) */}
           <div className="flex p-1 bg-gray-100/80 rounded-xl text-xs font-medium text-gray-600 gap-1">
             <button
-              onClick={() => { setFilterTab('aguardando'); setSubFilter('todos'); setAttendantFilter('todos'); }}
+              onClick={() => { setFilterTab('aguardando'); setSubFilter('em_atendimento'); setAttendantFilter('todos'); }}
               className={clsx(
-                'flex-1 py-1.5 rounded-lg transition-all text-center',
+                'flex-1 py-1.5 rounded-lg transition-all text-center relative',
                 filterTab === 'aguardando'
                   ? 'bg-white text-red-600 font-bold shadow-sm'
                   : 'hover:text-gray-900'
               )}
             >
               Aguardando
+              {unreadCounts.aguardando > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                  {unreadCounts.aguardando}
+                </span>
+              )}
             </button>
             <button
-              onClick={() => { setFilterTab('todas'); setSubFilter('todos'); }}
+              onClick={() => { setFilterTab('todas'); setSubFilter('em_atendimento'); }}
               className={clsx(
-                'flex-1 py-1.5 rounded-lg transition-all text-center',
+                'flex-1 py-1.5 rounded-lg transition-all text-center relative',
                 filterTab === 'todas'
                   ? 'bg-white text-gray-900 font-bold shadow-sm'
                   : 'hover:text-gray-900'
               )}
             >
               Todas
+              {unreadCounts.todas > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                  {unreadCounts.todas}
+                </span>
+              )}
             </button>
             <button
-              onClick={() => { setFilterTab('finalizados'); setSubFilter('todos'); }}
+              onClick={() => { setFilterTab('finalizados'); setSubFilter('finalizado'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'finalizados'
@@ -364,17 +396,6 @@ export default function WhatsAppChat() {
 
           {/* 2ª LINHA DE ABAS (Sub-Status de Atendimento) */}
           <div className="flex p-0.5 bg-slate-100/90 rounded-lg text-[11px] font-medium text-gray-500 gap-0.5 border border-slate-200/60">
-            <button
-              onClick={() => setSubFilter('todos')}
-              className={clsx(
-                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
-                subFilter === 'todos'
-                  ? 'bg-white text-gray-900 font-bold shadow-xs border border-gray-200'
-                  : 'hover:text-gray-900'
-              )}
-            >
-              Todos
-            </button>
             <button
               onClick={() => setSubFilter('em_atendimento')}
               className={clsx(
@@ -426,18 +447,24 @@ export default function WhatsAppChat() {
             {whatsappUsers.map((u) => {
               const displayName = u.name || u.login;
               const isActive = attendantFilter === displayName;
+              const hasUnread = unreadCounts.attendants[displayName] > 0;
               return (
                 <button
                   key={u.id || u.login}
                   onClick={() => setAttendantFilter(displayName)}
                   className={clsx(
-                    'px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border',
+                    'px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 relative',
                     isActive
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   )}
                 >
                   {displayName}
+                  {hasUnread && (
+                    <span className="bg-red-500 text-white text-[9px] px-1.5 rounded-full shadow-sm animate-pulse">
+                      {unreadCounts.attendants[displayName]}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -953,4 +980,9 @@ export default function WhatsAppChat() {
     </div>
   );
 }
+
+
+
+
+
 
