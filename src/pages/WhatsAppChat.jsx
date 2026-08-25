@@ -18,7 +18,7 @@ const SETORES = [
 ];
 
 export default function WhatsAppChat() {
-  const { currentUser } = useAuth();
+  const { currentUser, usersList } = useAuth();
   const [chats, setChats] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -30,6 +30,8 @@ export default function WhatsAppChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferTab, setTransferTab] = useState('setor'); // 'setor' or 'usuario'
+
 
   const messagesEndRef = useRef(null);
 
@@ -178,6 +180,18 @@ export default function WhatsAppChat() {
       fetchChats();
     }
   };
+
+  // Transferir para Atendente específico
+  const handleTransferToUser = async (userName) => {
+    if (!activeChat) return;
+    const success = await whatsappService.transferToUser(activeChat.id, userName);
+    if (success) {
+      setActiveChat({ ...activeChat, assigned_to: userName, status: 'em_atendimento' });
+      setTransferModalOpen(false);
+      fetchChats();
+    }
+  };
+
 
   // Filtragem de Conversas
   const filteredChats = chats.filter((chat) => {
@@ -621,39 +635,112 @@ export default function WhatsAppChat() {
         </div>
       )}
 
-      {/* MODAL DE TRANSFERÊNCIA DE SETOR */}
+      {/* MODAL DE TRANSFERÊNCIA */}
       {transferModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                 <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
-                Transferir Setor
+                Transferir Atendimento
               </h3>
               <button
-                onClick={() => setTransferModalOpen(false)}
+                onClick={() => { setTransferModalOpen(false); setTransferTab('setor'); }}
                 className="text-gray-400 hover:text-gray-600 text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-gray-500">
-              Selecione o setor para onde deseja encaminhar este atendimento:
-            </p>
-
-            <div className="space-y-2">
-              {SETORES.map((setor) => (
-                <button
-                  key={setor.id}
-                  onClick={() => handleTransfer(setor.id)}
-                  className="w-full text-left px-3.5 py-2.5 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-xs font-semibold text-gray-800 transition-all flex items-center justify-between"
-                >
-                  <span>{setor.label}</span>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </button>
-              ))}
+            {/* Tabs */}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+              <button
+                onClick={() => setTransferTab('setor')}
+                className={clsx(
+                  'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
+                  transferTab === 'setor'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                <Building className="w-3.5 h-3.5" />
+                Por Setor
+              </button>
+              <button
+                onClick={() => setTransferTab('usuario')}
+                className={clsx(
+                  'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
+                  transferTab === 'usuario'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                <User className="w-3.5 h-3.5" />
+                Por Atendente
+              </button>
             </div>
+
+            {/* Tab: Setor */}
+            {transferTab === 'setor' && (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500">Encaminhe para um setor — o chat ficará aguardando um atendente do setor assumir:</p>
+                {SETORES.map((setor) => (
+                  <button
+                    key={setor.id}
+                    onClick={() => handleTransfer(setor.id)}
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-xs font-semibold text-gray-800 transition-all flex items-center justify-between"
+                  >
+                    <span className={clsx('px-2 py-0.5 rounded-md text-[11px] font-semibold border', setor.color)}>{setor.label}</span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Tab: Atendente */}
+            {transferTab === 'usuario' && (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500">Passe o chat diretamente para um atendente — ele assumirá imediatamente:</p>
+                {(usersList || [])
+                  .filter(u => u.name || u.login)
+                  .map((user) => {
+                    const displayName = user.name || user.login;
+                    const isCurrentAttendant = activeChat?.assigned_to === displayName;
+                    return (
+                      <button
+                        key={user.id || user.login}
+                        onClick={() => handleTransferToUser(displayName)}
+                        disabled={isCurrentAttendant}
+                        className={clsx(
+                          'w-full text-left px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between gap-2',
+                          isCurrentAttendant
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
+                            : 'border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-gray-800'
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
+                            {displayName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div>{displayName}</div>
+                            {user.login && user.name && <div className="text-[10px] text-gray-400 font-normal">@{user.login}</div>}
+                          </div>
+                        </div>
+                        {isCurrentAttendant ? (
+                          <span className="text-[10px] text-emerald-600 font-bold">Atual</span>
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                {(!usersList || usersList.length === 0) && (
+                  <p className="text-xs text-gray-400 text-center py-4">Nenhum usuário cadastrado no sistema.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

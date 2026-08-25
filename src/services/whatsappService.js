@@ -157,6 +157,26 @@ export const whatsappService = {
     }
   },
 
+  // Transferir conversa diretamente para um atendente específico
+  async transferToUser(chatId, userName) {
+    try {
+      const { error } = await supabase
+        .from('whatsapp_chats')
+        .update({
+          assigned_to: userName,
+          status: 'em_atendimento',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chatId);
+
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error transferring chat to user:', err);
+      return false;
+    }
+  },
+
   // Transferir conversa para outro setor
   async transferChat(chatId, newSetor) {
     try {
