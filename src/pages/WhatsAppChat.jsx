@@ -635,7 +635,17 @@ export default function WhatsAppChat() {
                     );
                   }
                   if (msgType === 'sticker') {
-                    return <span className="text-2xl">🏷️ Figurinha</span>;
+                    if (msg.media_url) {
+                      return (
+                        <img
+                          src={msg.media_url}
+                          alt="Figurinha"
+                          className="w-32 h-32 object-contain drop-shadow-md cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => window.open(msg.media_url, '_blank')}
+                        />
+                      );
+                    }
+                    return <span className="text-2xl text-gray-400 italic">🧸 Figurinha (Sem imagem)</span>;
                   }
                   // Default: text
                   return <span className="whitespace-pre-wrap leading-relaxed">{msg.text || '—'}</span>;
