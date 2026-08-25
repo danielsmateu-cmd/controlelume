@@ -82,7 +82,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [matrixRankValues, setMatrixRankValues] = useState({});
     const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
     const [ftSearchTerm, setFtSearchTerm] = useState('');
-    const [matrixPlatformFilter, setMatrixPlatformFilter] = useState('todos');
+    const ALL_MKT_PLATFORMS = ['meli', 'tiktok', 'amazon', 'shopee', 'site'];
+    const [matrixPlatformFilter, setMatrixPlatformFilter] = useState(ALL_MKT_PLATFORMS);
 
     const getNewFtCode = (currentFts = fts) => {
         for (let i = 0; i <= 999; i++) {
@@ -2024,18 +2025,38 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </button>
                                 )}
                             </div>
-                            <select
-                                value={matrixPlatformFilter}
-                                onChange={(e) => setMatrixPlatformFilter(e.target.value)}
-                                className="pl-3 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-gray-700 font-medium appearance-none"
-                            >
-                                <option value="todos">Todos Marketplaces</option>
-                                <option value="meli">Mercado Livre</option>
-                                <option value="tiktok">TikTok</option>
-                                <option value="amazon">Amazon</option>
-                                <option value="shopee">Shopee</option>
-                                <option value="site">Site</option>
-                            </select>
+                            <div className="flex gap-2 flex-wrap items-center">
+                                <button 
+                                    onClick={() => setMatrixPlatformFilter(ALL_MKT_PLATFORMS)}
+                                    className={clsx('px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors', matrixPlatformFilter.length === 5 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+                                >
+                                    Todos
+                                </button>
+                                {[
+                                    { id: 'meli', label: 'Mercado Livre', activeClass: 'bg-yellow-400 text-yellow-900 border-yellow-400' },
+                                    { id: 'tiktok', label: 'TikTok', activeClass: 'bg-slate-800 text-white border-slate-800' },
+                                    { id: 'amazon', label: 'Amazon', activeClass: 'bg-amber-500 text-white border-amber-500' },
+                                    { id: 'shopee', label: 'Shopee', activeClass: 'bg-orange-500 text-white border-orange-500' },
+                                    { id: 'site', label: 'Site', activeClass: 'bg-indigo-500 text-white border-indigo-500' },
+                                ].map(p => {
+                                    const isActive = matrixPlatformFilter.includes(p.id);
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => {
+                                                if (isActive) {
+                                                    setMatrixPlatformFilter(matrixPlatformFilter.filter(x => x !== p.id));
+                                                } else {
+                                                    setMatrixPlatformFilter([...matrixPlatformFilter, p.id]);
+                                                }
+                                            }}
+                                            className={clsx('px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors', isActive ? p.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                             <button onClick={() => setIsMatrixOpen(false)} className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap">
                                 Voltar para FTs
                             </button>
@@ -2048,25 +2069,25 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <thead className="text-[10px] text-gray-500 bg-gray-50 uppercase sticky top-0 z-20 border-b border-gray-200 shadow-sm">
                                     <tr>
                                         <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'meli') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <th colSpan={3} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
                                         )}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'tiktok') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <th colSpan={3} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
                                         )}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'amazon') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <th colSpan={3} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
                                         )}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'shopee') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <th colSpan={3} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
                                         )}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'site') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <th colSpan={3} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
                                         )}
                                     </tr>
                                     <tr className="bg-gray-50">
                                         {/* ML */}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'meli') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
@@ -2074,7 +2095,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             </React.Fragment>
                                         )}
                                         {/* TikTok */}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'tiktok') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
@@ -2082,7 +2103,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             </React.Fragment>
                                         )}
                                         {/* Amazon */}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'amazon') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
@@ -2090,7 +2111,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             </React.Fragment>
                                         )}
                                         {/* Shopee */}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'shopee') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
@@ -2098,7 +2119,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             </React.Fragment>
                                         )}
                                         {/* Site */}
-                                        {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'site') && (
+                                        {(matrixPlatformFilter.includes('')) && (
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
@@ -2269,7 +2290,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 </td>
                                                 
                                                 {/* Mercado Livre */}
-                                                {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'meli') && (
+                                                {(matrixPlatformFilter.includes('')) && (
                                                     <React.Fragment>
                                                         {vendaCell(ml, 'meli', 'bg-yellow-50/40')}
                                                         {rankCells(ml, 'meli', 'bg-yellow-50/20', true)}
@@ -2277,7 +2298,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 )}
 
                                                 {/* TikTok */}
-                                                {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'tiktok') && (
+                                                {(matrixPlatformFilter.includes('')) && (
                                                     <React.Fragment>
                                                         {vendaCell(tiktok, 'tiktok', 'bg-slate-100/50')}
                                                         {rankCells(tiktok, 'tiktok', 'bg-slate-100/30', true)}
@@ -2285,7 +2306,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 )}
 
                                                 {/* Amazon */}
-                                                {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'amazon') && (
+                                                {(matrixPlatformFilter.includes('')) && (
                                                     <React.Fragment>
                                                         {vendaCell(amazon, 'amazon', 'bg-amber-50/40')}
                                                         {rankCells(amazon, 'amazon', 'bg-amber-50/20', true)}
@@ -2293,7 +2314,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 )}
 
                                                 {/* Shopee */}
-                                                {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'shopee') && (
+                                                {(matrixPlatformFilter.includes('')) && (
                                                     <React.Fragment>
                                                         {vendaCell(shopee, 'shopee', 'bg-orange-50/40')}
                                                         {rankCells(shopee, 'shopee', 'bg-orange-50/20', true)}
@@ -2301,7 +2322,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 )}
 
                                                 {/* Site */}
-                                                {(matrixPlatformFilter === 'todos' || matrixPlatformFilter === 'site') && (
+                                                {(matrixPlatformFilter.includes('')) && (
                                                     <React.Fragment>
                                                         {vendaCell(site, 'site', 'bg-indigo-50/40')}
                                                         {rankCells(site, 'site', 'bg-indigo-50/20', false)}
@@ -2349,3 +2370,4 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 };
 
 export default CadastrosFTs;
+
