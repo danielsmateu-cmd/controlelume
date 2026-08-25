@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
 import { whatsappService } from '../services/whatsappService';
 import { useAuth } from '../context/AuthContext';
+import { ROLE_PERMISSIONS } from '../data/users';
 
 const SETORES = [
   { id: 'vendas', label: 'Vendas / Orçamentos', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
@@ -26,7 +27,8 @@ export default function WhatsAppChat() {
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState('aguardando'); // 'aguardando', 'minhas', 'todas', 'finalizados'
+  const [filterTab, setFilterTab] = useState('aguardando'); // 'aguardando', 'todas', 'finalizados'
+  const [attendantFilter, setAttendantFilter] = useState('todos');
   const [subFilter, setSubFilter] = useState('todos'); // 'todos', 'em_atendimento', 'aguardando_retorno', 'finalizado'
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -222,6 +224,11 @@ export default function WhatsAppChat() {
   };
 
 
+  const whatsappUsers = (usersList || []).filter(u => {
+    const permissions = u.customPermissions || ROLE_PERMISSIONS[u.role] || {};
+    return permissions.visibleTabs?.includes('whatsapp');
+  });
+
   // Filtragem de Conversas
   const filteredChats = chats.filter((chat) => {
     const matchesSearch = 
@@ -230,14 +237,10 @@ export default function WhatsAppChat() {
 
     if (!matchesSearch) return false;
 
-    const userLogin = currentUser?.name || currentUser?.login || '';
-
-    // 1ª Linha: Filtros de Categoria (Aguardando / Minhas / Todas / Fim)
+    // 1ª Linha: Filtros de Categoria (Aguardando / Todas / Fim)
     let matchesTab = true;
     if (filterTab === 'aguardando') {
       matchesTab = chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status;
-    } else if (filterTab === 'minhas') {
-      matchesTab = chat.assigned_to === userLogin;
     } else if (filterTab === 'finalizados') {
       matchesTab = chat.status === 'finalizado';
     }
@@ -253,6 +256,11 @@ export default function WhatsAppChat() {
     }
     if (subFilter === 'finalizado') {
       return chat.status === 'finalizado';
+    }
+
+    // 3ª Linha: Atendentes
+    if (attendantFilter !== 'todos') {
+      if (chat.assigned_to !== attendantFilter) return false;
     }
 
     return true;
@@ -320,7 +328,7 @@ export default function WhatsAppChat() {
           {/* 1ª LINHA DE ABAS (Filtros Principais) */}
           <div className="flex p-1 bg-gray-100/80 rounded-xl text-xs font-medium text-gray-600 gap-1">
             <button
-              onClick={() => { setFilterTab('aguardando'); setSubFilter('todos'); }}
+              onClick={() => { setFilterTab('aguardando'); setSubFilter('todos'); setAttendantFilter('todos'); }}
               className={clsx(
                 'flex-1 py-1.5 rounded-lg transition-all text-center',
                 filterTab === 'aguardando'
@@ -329,17 +337,6 @@ export default function WhatsAppChat() {
               )}
             >
               Aguardando
-            </button>
-            <button
-              onClick={() => { setFilterTab('minhas'); setSubFilter('todos'); }}
-              className={clsx(
-                'flex-1 py-1.5 rounded-lg transition-all text-center',
-                filterTab === 'minhas'
-                  ? 'bg-white text-indigo-600 font-bold shadow-sm'
-                  : 'hover:text-gray-900'
-              )}
-            >
-              Minhas
             </button>
             <button
               onClick={() => { setFilterTab('todas'); setSubFilter('todos'); }}
@@ -411,6 +408,39 @@ export default function WhatsAppChat() {
             >
               Finalizadas
             </button>
+          </div>
+
+          {/* 3ª LINHA DE ABAS (Atendentes) */}
+          <div className="flex px-1 pb-1 gap-1 overflow-x-auto no-scrollbar items-center">
+            <button
+              onClick={() => setAttendantFilter('todos')}
+              className={clsx(
+                'px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border',
+                attendantFilter === 'todos'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              )}
+            >
+              Todos Atendentes
+            </button>
+            {whatsappUsers.map((u) => {
+              const displayName = u.name || u.login;
+              const isActive = attendantFilter === displayName;
+              return (
+                <button
+                  key={u.id || u.login}
+                  onClick={() => setAttendantFilter(displayName)}
+                  className={clsx(
+                    'px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border',
+                    isActive
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  )}
+                >
+                  {displayName}
+                </button>
+              );
+            })}
           </div>
         </div>
 
