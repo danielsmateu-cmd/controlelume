@@ -251,29 +251,22 @@ export default function WhatsAppChat() {
     if (!matchesSearch) return false;
 
     // 1ª Linha: Filtros de Categoria (Aguardando / Todas / Fim)
-    let matchesTab = true;
     if (filterTab === 'aguardando') {
-      matchesTab = chat.status === 'aguardando_atendente' || chat.status === 'triagem' || !chat.status;
+      // Ignora sub-filtros de status, pois devem estar obrigatoriamente aguardando
+      if (chat.status !== 'aguardando_atendente' && chat.status !== 'triagem' && chat.status) return false;
     } else if (filterTab === 'finalizados') {
-      matchesTab = chat.status === 'finalizado';
-    }
+      if (chat.status !== 'finalizado') return false;
+      // 3ª Linha: Atendentes (aplica em Fim)
+      if (attendantFilter !== 'todos' && chat.assigned_to !== attendantFilter) return false;
+    } else {
+      // filterTab === 'todas'
+      // 2ª Linha: Sub-Filtros de Atendimento
+      if (subFilter === 'em_atendimento' && chat.status !== 'em_atendimento') return false;
+      if (subFilter === 'aguardando_retorno' && chat.status !== 'aguardando_retorno') return false;
+      if (subFilter === 'finalizado' && chat.status !== 'finalizado') return false;
 
-    if (!matchesTab) return false;
-
-    // 2ª Linha: Sub-Filtros de Atendimento (Em Atendimento / Aguardando Retorno / Finalizadas)
-    if (subFilter === 'em_atendimento' && chat.status !== 'em_atendimento') {
-      return false;
-    }
-    if (subFilter === 'aguardando_retorno' && chat.status !== 'aguardando_retorno') {
-      return false;
-    }
-    if (subFilter === 'finalizado' && chat.status !== 'finalizado') {
-      return false;
-    }
-
-    // 3ª Linha: Atendentes
-    if (attendantFilter !== 'todos') {
-      if (chat.assigned_to !== attendantFilter) return false;
+      // 3ª Linha: Atendentes
+      if (attendantFilter !== 'todos' && chat.assigned_to !== attendantFilter) return false;
     }
 
     return true;
@@ -908,61 +901,15 @@ export default function WhatsAppChat() {
                 Transferir Atendimento
               </h3>
               <button
-                onClick={() => { setTransferModalOpen(false); setTransferTab('setor'); }}
+                onClick={() => setTransferModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-              <button
-                onClick={() => setTransferTab('setor')}
-                className={clsx(
-                  'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
-                  transferTab === 'setor'
-                    ? 'bg-white text-indigo-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <Building className="w-3.5 h-3.5" />
-                Por Setor
-              </button>
-              <button
-                onClick={() => setTransferTab('usuario')}
-                className={clsx(
-                  'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
-                  transferTab === 'usuario'
-                    ? 'bg-white text-indigo-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <User className="w-3.5 h-3.5" />
-                Por Atendente
-              </button>
-            </div>
-
-            {/* Tab: Setor */}
-            {transferTab === 'setor' && (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-500">Encaminhe para um setor — o chat ficará aguardando um atendente do setor assumir:</p>
-                {SETORES.map((setor) => (
-                  <button
-                    key={setor.id}
-                    onClick={() => handleTransfer(setor.id)}
-                    className="w-full text-left px-3.5 py-2.5 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-xs font-semibold text-gray-800 transition-all flex items-center justify-between"
-                  >
-                    <span className={clsx('px-2 py-0.5 rounded-md text-[11px] font-semibold border', setor.color)}>{setor.label}</span>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Tab: Atendente */}
-            {transferTab === 'usuario' && (
-              <div className="space-y-2">
+            {/* Listagem de Usuários */}
+            <div className="space-y-2">
                 <p className="text-xs text-gray-500">Passe o chat diretamente para um atendente — ele assumirá imediatamente:</p>
                 {(usersList || [])
                   .filter(u => u.name || u.login)
@@ -999,10 +946,9 @@ export default function WhatsAppChat() {
                     );
                   })}
                 {(!usersList || usersList.length === 0) && (
-                  <p className="text-xs text-gray-400 text-center py-4">Nenhum usuário cadastrado no sistema.</p>
-                )}
-              </div>
-            )}
+                <p className="text-xs text-gray-400 text-center py-4">Nenhum usuário cadastrado no sistema.</p>
+              )}
+            </div>
           </div>
         </div>
       )}
