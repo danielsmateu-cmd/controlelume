@@ -412,7 +412,9 @@ export default function WhatsAppChat() {
                     'p-3.5 cursor-pointer transition-all flex items-start gap-3 relative border-l-4',
                     isSelected
                       ? 'bg-emerald-50/60 border-emerald-500'
-                      : 'hover:bg-gray-50/80 border-transparent'
+                      : chat.unread_count > 0
+                        ? 'bg-yellow-50 hover:bg-yellow-100 border-yellow-400'
+                        : 'hover:bg-gray-50/80 border-transparent'
                   )}
                 >
                   {/* Avatar com Inicial */}
@@ -431,12 +433,17 @@ export default function WhatsAppChat() {
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-gray-500 truncate mb-1.5">
+                    <p className={clsx("text-[11px] truncate mb-1.5", chat.unread_count > 0 ? "text-gray-800 font-bold" : "text-gray-500")}>
                       {chat.last_message || 'Sem mensagens'}
                     </p>
 
                     {/* Badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      {chat.unread_count > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold border border-yellow-400 bg-yellow-200 text-yellow-900 shadow-sm animate-pulse">
+                          Nova Mensagem
+                        </span>
+                      )}
                       <span className={clsx('px-1.5 py-0.5 rounded-md text-[9px] font-semibold border', statusBadge.color)}>
                         {statusBadge.label}
                       </span>
