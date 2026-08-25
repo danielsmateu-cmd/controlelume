@@ -556,11 +556,6 @@ export default function WhatsAppChat() {
                       <span className={clsx('px-1.5 py-0.5 rounded-md text-[9px] font-semibold border', statusBadge.color)}>
                         {statusBadge.label}
                       </span>
-                      {chat.setor && (
-                        <span className={clsx('px-1.5 py-0.5 rounded-md text-[9px] font-medium border', setorBadge.color)}>
-                          {setorBadge.label}
-                        </span>
-                      )}
                       {chat.assigned_to && (
                         <span className="text-[9px] text-gray-400 flex items-center gap-0.5 ml-auto">
                           <User className="w-2.5 h-2.5" />
@@ -1014,6 +1009,9 @@ export default function WhatsAppChat() {
     </div>
   );
 }
+
+
+
 
 
 
