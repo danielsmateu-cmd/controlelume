@@ -44,7 +44,37 @@ export default function WhatsAppChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // 1. Carregar Chats Iniciais
+
+  const openMediaInNewTab = (dataUrl) => {
+    if (!dataUrl) return;
+    if (dataUrl.startsWith('http')) {
+      window.open(dataUrl, '_blank');
+      return;
+    }
+    try {
+      const arr = dataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (err) {
+      console.error('Error opening media:', err);
+      // Fallback
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(`<img src="${dataUrl}" style="max-width: 100%;" />`);
+      }
+    }
+  };
+
+  // 1. Carregar Chats
+ Iniciais
   const fetchChats = async () => {
     setLoadingChats(true);
     const data = await whatsappService.getChats();
@@ -712,7 +742,7 @@ export default function WhatsAppChat() {
                           src={msg.media_url}
                           alt="Imagem"
                           className="max-w-[240px] rounded-xl object-cover cursor-pointer"
-                          onClick={() => window.open(msg.media_url, '_blank')}
+                          onClick={() => openMediaInNewTab(msg.media_url)}
                         />
                         <button
                           onClick={(e) => {
@@ -792,7 +822,7 @@ export default function WhatsAppChat() {
                           src={msg.media_url}
                           alt="Figurinha"
                           className="w-32 h-32 object-contain drop-shadow-md cursor-pointer hover:scale-105 transition-transform"
-                          onClick={() => window.open(msg.media_url, '_blank')}
+                          onClick={() => openMediaInNewTab(msg.media_url)}
                         />
                       );
                     }
