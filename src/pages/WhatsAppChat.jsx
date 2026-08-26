@@ -730,29 +730,52 @@ export default function WhatsAppChat() {
                     );
                   }
                   if (msgType === 'audio') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <span>🎤</span>
-                        <span className="text-xs italic opacity-80">Mensagem de voz</span>
-                      </div>
-                    );
-                  }
+                      return (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span>??</span>
+                            <span className="text-xs italic opacity-80">Mensagem de voz</span>
+                          </div>
+                          {msg.media_url && (
+                            <audio src={msg.media_url} controls className="h-8 max-w-[200px]" />
+                          )}
+                        </div>
+                      );
+                    }
                   if (msgType === 'video') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <span>🎬</span>
-                        <span className="text-xs">{msg.media_caption || 'Vídeo'}</span>
-                      </div>
-                    );
-                  }
+                      return (
+                        <div className="flex flex-col gap-2">
+                          {msg.media_url ? (
+                            <video src={msg.media_url} controls className="max-w-[240px] rounded-lg" />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>??</span>
+                              <span className="text-xs">{msg.media_caption || 'Video'}</span>
+                            </div>
+                          )}
+                          {msg.media_caption && <span className="text-xs">{msg.media_caption}</span>}
+                        </div>
+                      );
+                    }
                   if (msgType === 'document') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <span>📄</span>
-                        <span className="text-xs">{msg.text || 'Documento'}</span>
-                      </div>
-                    );
-                  }
+                      return (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span>??</span>
+                            <span className="text-xs font-semibold break-all">{msg.text || 'Documento'}</span>
+                          </div>
+                          {msg.media_url && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDownload(msg.media_url, msg.text || 'documento'); }}
+                              className="self-start text-[10px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 flex items-center gap-1 transition-colors"
+                            >
+                              <Download className="w-3 h-3" />
+                              Baixar
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
                   if (msgType === 'sticker') {
                     if (msg.media_url) {
                       return (

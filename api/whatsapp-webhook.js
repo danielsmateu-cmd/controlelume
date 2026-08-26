@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       let mediaUrl = null;
       let mediaCaption = null;
       let mediaMimeType = null;
+      let shouldFetchMedia = false;
 
       if (msgContent?.conversation) {
         text = msgContent.conversation;
@@ -57,13 +58,47 @@ export default async function handler(req, res) {
         mediaCaption = msgContent.imageMessage.caption || '';
         mediaMimeType = msgContent.imageMessage.mimetype || 'image/jpeg';
         text = mediaCaption || '';
+        shouldFetchMedia = true;
+      } else if (msgContent?.videoMessage) {
+        messageType = 'video';
+        mediaCaption = msgContent.videoMessage.caption || '';
+        mediaMimeType = msgContent.videoMessage.mimetype || 'video/mp4';
+        text = mediaCaption || '[Video]';
+        shouldFetchMedia = true;
+      } else if (msgContent?.audioMessage || msgContent?.pttMessage) {
+        messageType = 'audio';
+        const am = msgContent.audioMessage || msgContent.pttMessage;
+        mediaMimeType = am?.mimetype || 'audio/ogg';
+        text = '[Audio]';
+        shouldFetchMedia = true;
+      } else if (msgContent?.documentMessage) {
+        messageType = 'document';
+        text = msgContent.documentMessage.title || msgContent.documentMessage.fileName || '[Documento]';
+        mediaMimeType = msgContent.documentMessage.mimetype;
+        shouldFetchMedia = true;
+      } else if (msgContent?.stickerMessage) {
+        messageType = 'sticker';
+        text = '[Figurinha]';
+        mediaMimeType = msgContent.stickerMessage?.mimetype || 'image/webp';
+        shouldFetchMedia = true;
+      } else if (msgContent?.locationMessage) {
+        messageType = 'location';
+        const { degreesLatitude, degreesLongitude } = msgContent.locationMessage;
+        text = [Localizacao: , ];
+      } else if (msgContent?.contactMessage) {
+        messageType = 'contact';
+        text = [Contato: ];
+      } else {
+        // Unknown type - skip silently
+        return res.status(200).json({ ok: true, skipped: 'unknown message type' });
+      }
 
-        // Try to download media from Evolution API
+      if (shouldFetchMedia) {
         try {
           const messageId = key?.id;
           if (messageId) {
             const mediaResp = await fetch(
-              `${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${INSTANCE}`,
+              ${EVOLUTION_URL}/chat/getBase64FromMediaMessage/,
               {
                 method: 'POST',
                 headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
@@ -73,41 +108,14 @@ export default async function handler(req, res) {
             if (mediaResp.ok) {
               const mediaData = await mediaResp.json();
               if (mediaData?.base64) {
-                // Store as data URL so we can display directly in the browser
                 const mimeType = mediaData.mimetype || mediaMimeType;
-                mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
+                mediaUrl = data:;base64,;
               }
             }
           }
         } catch (mediaErr) {
           console.warn('Could not fetch media:', mediaErr.message);
         }
-      } else if (msgContent?.videoMessage) {
-        messageType = 'video';
-        mediaCaption = msgContent.videoMessage.caption || '';
-        mediaMimeType = msgContent.videoMessage.mimetype || 'video/mp4';
-        text = mediaCaption || '[Vídeo]';
-      } else if (msgContent?.audioMessage || msgContent?.pttMessage) {
-        messageType = 'audio';
-        mediaMimeType = msgContent.audioMessage?.mimetype || 'audio/ogg';
-        text = '[Áudio]';
-      } else if (msgContent?.documentMessage) {
-        messageType = 'document';
-        text = msgContent.documentMessage.title || '[Documento]';
-        mediaMimeType = msgContent.documentMessage.mimetype;
-      } else if (msgContent?.stickerMessage) {
-        messageType = 'sticker';
-        text = '[Figurinha]';
-      } else if (msgContent?.locationMessage) {
-        messageType = 'location';
-        const { degreesLatitude, degreesLongitude } = msgContent.locationMessage;
-        text = `[Localização: ${degreesLatitude}, ${degreesLongitude}]`;
-      } else if (msgContent?.contactMessage) {
-        messageType = 'contact';
-        text = `[Contato: ${msgContent.contactMessage.displayName}]`;
-      } else {
-        // Unknown type — skip silently
-        return res.status(200).json({ ok: true, skipped: 'unknown message type' });
       }
 
       const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
