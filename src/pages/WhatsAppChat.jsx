@@ -18,6 +18,38 @@ const SETORES = [
   { id: 'outros', label: 'Outros', color: 'bg-gray-100 text-gray-800 border-gray-200' }
 ];
 
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', background: '#fee', color: '#900', height: '100vh', overflow: 'auto' }}>
+          <h2>Algo deu errado na tela do WhatsApp.</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }} open>
+            <summary>Por favor, tire um print desta tela inteira e me envie!</summary>
+            <br />
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </details>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function WhatsAppChat() {
   const { currentUser, usersList } = useAuth();
   const [chats, setChats] = useState([]);
@@ -355,6 +387,7 @@ export default function WhatsAppChat() {
   };
 
   return (
+    <ErrorBoundary>
     <div className="flex h-[calc(100vh-2rem)] bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm m-4">
       {/* ================= COLUNA ESQUERDA: LISTA DE CONVERSAS ================= */}
       <div className="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
@@ -1016,6 +1049,7 @@ export default function WhatsAppChat() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
 
