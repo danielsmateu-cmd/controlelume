@@ -106,7 +106,6 @@ function WhatsAppChatInner() {
   };
 
   // 1. Carregar Chats
- Iniciais
   const fetchChats = async () => {
     setLoadingChats(true);
     const data = await whatsappService.getChats();
