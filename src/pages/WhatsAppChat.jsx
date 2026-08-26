@@ -50,7 +50,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default function WhatsAppChat() {
+function WhatsAppChatInner() {
   const { currentUser, usersList } = useAuth();
   const [chats, setChats] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
@@ -387,7 +387,6 @@ export default function WhatsAppChat() {
   };
 
   return (
-    <ErrorBoundary>
     <div className="flex h-[calc(100vh-2rem)] bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm m-4">
       {/* ================= COLUNA ESQUERDA: LISTA DE CONVERSAS ================= */}
       <div className="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
@@ -1049,7 +1048,6 @@ export default function WhatsAppChat() {
         </div>
       )}
     </div>
-    </ErrorBoundary>
   );
 }
 
@@ -1064,3 +1062,12 @@ export default function WhatsAppChat() {
 
 
 
+
+
+export default function WhatsAppChat(props) {
+  return (
+    <ErrorBoundary>
+      <WhatsAppChatInner {...props} />
+    </ErrorBoundary>
+  );
+}
