@@ -134,8 +134,25 @@ export default async function handler(req, res) {
           onConflict: 'remote_jid',
           ignoreDuplicates: false
         })
-        .select('id')
+        .select('id, profile_pic_url')
         .single();
+
+      // Async fetch profile pic if missing
+      if (chatData && !chatData.profile_pic_url) {
+        fetch(${EVOLUTION_URL}/chat/fetchProfilePictureUrl/, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': API_KEY },
+          body: JSON.stringify({ number: phone })
+        })
+        .then(res => res.json())
+        .then(async picData => {
+          const pic = picData?.profilePictureUrl || picData?.picture;
+          if (pic) {
+            await supabase.from('whatsapp_chats').update({ profile_pic_url: pic }).eq('id', chatData.id);
+          }
+        })
+        .catch(err => console.error('Webhook pic fetch error:', err));
+      }
 
       if (!chatData) {
         console.error('Failed to upsert chat');

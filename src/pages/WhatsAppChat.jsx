@@ -137,6 +137,15 @@ export default function WhatsAppChat() {
     if (file) setSelectedFile(file);
   };
 
+  const handlePaste = (e) => {
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      const file = e.clipboardData.files[0];
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        setSelectedFile(file);
+      }
+    }
+  };
+
   const removeFile = () => {
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -877,6 +886,7 @@ export default function WhatsAppChat() {
                     placeholder="Digite sua resposta..."
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
+                    onPaste={handlePaste}
                     disabled={sending}
                     className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   />
