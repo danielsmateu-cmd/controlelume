@@ -295,6 +295,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
                     setOverrides(nextOverrides);
+                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                     const updatedFts = fts.map(ft => ft.ftCode === form.ftCode ? { ...formData, isOverride: true } : ft);
                     updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
                     setFts(updatedFts);
@@ -345,6 +346,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
                     setOverrides(nextOverrides);
+                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                     // Recarregar os dados para pegar a versão original
                     loadData();
                     if (isEditing && form.id === id) {
@@ -399,6 +401,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
                     setOverrides(nextOverrides);
+                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 } else {
                     alert("Erro ao salvar alteração de tempo no marketplace.");
                     loadData();
@@ -446,6 +449,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
                     setOverrides(nextOverrides);
+                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 } else {
                     alert("Erro ao salvar alteração de preço no marketplace.");
                     loadData();
@@ -484,6 +488,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
             if (success) {
                 setOverrides(nextOverrides);
+                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 setFts(prev => prev.map(item => item.id === ft.id ? { ...item, isOverride: true, notForSale: isChecked, updatedAt: new Date().toISOString() } : item));
             } else {
                 alert("Erro ao salvar status de venda no marketplace.");
