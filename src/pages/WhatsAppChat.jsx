@@ -108,7 +108,7 @@ export default function WhatsAppChat() {
   // Lazy fetch profile pic if missing
   useEffect(() => {
     if (activeChat && !activeChat.profile_pic_url) {
-      const cleanPhone = activeChat.phone_number || activeChat.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      const cleanPhone = activeChat.phone_number || (activeChat.remote_jid ? activeChat.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '') : '');
       fetch('/api/whatsapp-profile-pic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -853,7 +853,7 @@ export default function WhatsAppChat() {
 
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">
                       {isMe && <span className="font-semibold text-emerald-700">{msg.sender_name || 'Atendente'} • </span>}
-                      <span>{new Date(msg.created_at || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{msg.created_at || msg.timestamp ? new Date(msg.created_at || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                       {isMe && <CheckCheck className="w-3 h-3 text-emerald-600" />}
                     </div>
                   </div>
