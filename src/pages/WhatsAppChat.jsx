@@ -560,7 +560,7 @@ export default function WhatsAppChat() {
                       "w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white font-bold flex items-center justify-center text-sm flex-shrink-0 shadow-sm",
                       chat.profile_pic_url ? "hidden" : "flex"
                     )}>
-                      {(chat.push_name || chat.phone_number || 'C').charAt(0).toUpperCase()}
+                      {String(chat.push_name || chat.phone_number || 'C').charAt(0).toUpperCase()}
                     </div>
 
                   {/* Conteúdo */}
@@ -570,7 +570,7 @@ export default function WhatsAppChat() {
                         {chat.push_name || chat.phone_number}
                       </h3>
                       <span className="text-[10px] text-gray-400 flex-shrink-0">
-                        {new Date(chat.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {(() => { try { const d = new Date(chat.updated_at); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; } })()}
                       </span>
                     </div>
 
@@ -621,7 +621,7 @@ export default function WhatsAppChat() {
                 "w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold flex items-center justify-center text-sm shadow-sm",
                 activeChat.profile_pic_url ? "hidden" : "flex"
               )}>
-                {(activeChat.push_name || activeChat.phone_number || 'C').charAt(0).toUpperCase()}
+                {String(activeChat.push_name || activeChat.phone_number || 'C').charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -853,7 +853,7 @@ export default function WhatsAppChat() {
 
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">
                       {isMe && <span className="font-semibold text-emerald-700">{msg.sender_name || 'Atendente'} • </span>}
-                      <span>{msg.created_at || msg.timestamp ? new Date(msg.created_at || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      <span>{(() => { try { const d = new Date(msg.created_at || msg.timestamp); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } })()}</span>
                       {isMe && <CheckCheck className="w-3 h-3 text-emerald-600" />}
                     </div>
                   </div>
