@@ -10,7 +10,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
     const [tally, setTally] = useState({});
     const [listings, setListings] = useState([]);
     
-    if (window.location.hostname !== "localhost") return null;
+    
 
     const fetchMonthlyOrders = async () => {
         setLoading(true);
@@ -151,9 +151,9 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                 <div>
                     <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
                         <Download className="w-4 h-4 text-indigo-500" />
-                        Integracao Automatica Mercado Livre (Localhost)
+                        Integração Automática Mercado Livre
                     </h3>
-                    <p className="text-xs text-indigo-600 mt-1">Busque as vendas do mes e preencha automaticamente a planilha.</p>
+                    <p className="text-xs text-indigo-600 mt-1">Busque as vendas do mês e preencha automaticamente a planilha.</p>
                 </div>
                 
                 {step === 0 && (
@@ -181,7 +181,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                             <h4 className="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-2">
                                 <AlertTriangle className="w-4 h-4" />
-                                {unmappedItems.length} produto(s) ou variacoes precisam ser mapeados para uma FT
+                                {unmappedItems.length} produto(s) ou variações precisam ser mapeados para uma FT
                             </h4>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                 {unmappedItems.map(item => (
@@ -209,7 +209,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                     ) : (
                         <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
                             <CheckCircle className="w-4 h-4" />
-                            Todos os itens vendidos ja estao mapeados corretamente!
+                            Todos os itens vendidos já estão mapeados corretamente!
                         </div>
                     )}
                     
