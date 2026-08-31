@@ -44,6 +44,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                         if (!currentTally[tallyKey]) {
                             currentTally[tallyKey] = { 
                                 total: 0, 
+                                revenue: 0,
                                 title: title + (variationId ? ` (Var: ${variationId})` : ''), 
                                 mlId, 
                                 variationId,
@@ -51,6 +52,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                             };
                         }
                         currentTally[tallyKey].total += qty;
+                        currentTally[tallyKey].revenue += (qty * (item.unit_price || 0));
                     }
                 }
             }
@@ -125,17 +127,18 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
     };
 
     const handleApply = () => {
-        const ftQuantities = {};
+        const ftData = {};
         
         Object.values(tally).forEach(item => {
             const ftId = getMappedFtId(item);
             if (ftId) {
-                if (!ftQuantities[ftId]) ftQuantities[ftId] = 0;
-                ftQuantities[ftId] += item.total;
+                if (!ftData[ftId]) ftData[ftId] = { qty: 0, revenue: 0 };
+                ftData[ftId].qty += item.total;
+                ftData[ftId].revenue += item.revenue;
             }
         });
         
-        onImported(ftQuantities);
+        onImported(ftData);
         setStep(3);
         setTimeout(() => setStep(0), 3000);
     };

@@ -120,13 +120,25 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     const isCurrentMonthLocked = lockedMonths.includes(`${marketplace}_${currentMonth}`);
 
     
-    const handleMLImport = (ftQuantities) => {
+    const handleMLImport = (ftData) => {
         if (isCurrentMonthLocked || readOnly) return;
         setRows(prevRows => {
             const nextRows = prevRows.map(r => {
-                const importedQty = ftQuantities[r.ftId];
-                if (importedQty !== undefined) {
-                    return { ...r, quantity: importedQty };
+                const imported = ftData[r.ftId];
+                if (imported !== undefined) {
+                    const qty = imported.qty;
+                    let discountPercent = r.discountPercent;
+                    
+                    const ft = fts.find(f => f.id === r.ftId);
+                    const basePrice = parseFloat(ft?.salePrice) || 0;
+                    
+                    if (qty > 0 && basePrice > 0) {
+                        const avgPrice = imported.revenue / qty;
+                        let calcDiscount = (1 - (avgPrice / basePrice)) * 100;
+                        discountPercent = parseFloat(calcDiscount.toFixed(2));
+                    }
+                    
+                    return { ...r, quantity: qty, discountPercent };
                 }
                 return r;
             });
