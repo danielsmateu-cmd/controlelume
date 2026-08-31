@@ -3,6 +3,8 @@ import { Trash2, Save, ShoppingCart, Loader2, Plus, Search } from 'lucide-react'
 import clsx from 'clsx';
 import { api } from '../../services/api';
 
+import ImportacaoVendasML from './ImportacaoVendasML';
+
 const Vendas = ({ marketplace = 'geral', readOnly }) => {
     // Carregar opções de FTs
     const [fts, setFts] = useState([]);
@@ -116,6 +118,27 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
     };
 
     const isCurrentMonthLocked = lockedMonths.includes(`${marketplace}_${currentMonth}`);
+
+    
+    const handleMLImport = (ftQuantities) => {
+        if (isCurrentMonthLocked || readOnly) return;
+        setRows(prevRows => {
+            const nextRows = prevRows.map(r => {
+                const importedQty = ftQuantities[r.ftId];
+                if (importedQty !== undefined) {
+                    return { ...r, quantity: importedQty };
+                }
+                return r;
+            });
+            const monthKey = `${marketplace}_${currentMonth}`;
+
+            // Auto-save no estado e na API
+            setMonthlySales(prevSales => ({ ...prevSales, [monthKey]: nextRows }));
+            api.saveMonthlySales(monthKey, nextRows).catch(err => console.error("Auto-save error:", err));
+
+            return nextRows;
+        });
+    };
 
     const updateRow = (id, field, value) => {
         if (isCurrentMonthLocked || readOnly) return;
@@ -338,6 +361,14 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
 
     return (
         <div className="space-y-6">
+            {marketplace === 'meli' && (
+                <ImportacaoVendasML 
+                    currentMonth={currentMonth} 
+                    fts={fts} 
+                    onImported={handleMLImport} 
+                />
+            )}
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>

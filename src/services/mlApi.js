@@ -238,6 +238,29 @@ export const mlApi = {
         return tally;
     },
 
+    async getAllOrdersByDate(dateFrom, dateTo) {
+        const tokens = await mlAuth.getTokens();
+        if (!tokens?.ml_user_id) return [];
+        
+        let allOrders = [];
+        let offset = 0;
+        const limit = 50;
+        let total = 0;
+        
+        do {
+            const data = await mlFetch(`/orders/search?seller=${tokens.ml_user_id}&order.status=paid&order.date_created.from=${dateFrom}&order.date_created.to=${dateTo}&sort=date_desc&limit=${limit}&offset=${offset}`);
+            if (!data.results || data.results.length === 0) break;
+            
+            allOrders = allOrders.concat(data.results);
+            total = data.paging?.total || 0;
+            offset += limit;
+            
+            if (offset >= 2000) break;
+        } while (offset < total);
+        
+        return allOrders;
+    },
+
     async getSalesHistory(dateFrom, dateTo) {
         const tokens = await mlAuth.getTokens();
         if (!tokens?.ml_user_id) return [];
