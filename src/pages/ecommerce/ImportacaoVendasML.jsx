@@ -16,9 +16,18 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
         setLoading(true);
         setStep(1);
         try {
-            const [year, month] = currentMonth.split("-").map(Number);
-            const from = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0)).toISOString();
-            const to = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)).toISOString();
+            const [yearStr, monthStr] = currentMonth.split("-");
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+            
+            // O Vendas.jsx exibe o mês ANTERIOR ao currentMonth (Referência)
+            const targetDate = new Date(year, month - 2, 1);
+            const targetYear = targetDate.getFullYear();
+            const targetMonth = targetDate.getMonth();
+            
+            // Usando fuso horário local do navegador para bater 00:00 do BR
+            const from = new Date(targetYear, targetMonth, 1, 0, 0, 0).toISOString();
+            const to = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999).toISOString();
 
             const allOrders = await mlApi.getAllOrdersByDate(from, to);
             
