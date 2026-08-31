@@ -248,7 +248,7 @@ export const mlApi = {
         let total = 0;
         
         do {
-            const data = await mlFetch(`/orders/search?seller=${tokens.ml_user_id}&order.status=paid&order.date_created.from=${dateFrom}&order.date_created.to=${dateTo}&sort=date_desc&limit=${limit}&offset=${offset}`);
+            const data = await mlFetch(`/orders/search?seller=${tokens.ml_user_id}&order.date_created.from=${dateFrom}&order.date_created.to=${dateTo}&sort=date_desc&limit=${limit}&offset=${offset}`);
             if (!data.results || data.results.length === 0) break;
             
             allOrders = allOrders.concat(data.results);
@@ -323,6 +323,22 @@ export const mlListings = {
         const { error } = await supabase
             .from('marketplace_listings')
             .update({ ft_id: ftId, updated_at: new Date().toISOString() })
+            .eq('id', listingId);
+        return !error;
+    },
+
+    async linkVariationFt(listingId, variationId, ftId) {
+        // Fetch current listing to get variations array
+        const { data } = await supabase.from('marketplace_listings').select('variations').eq('id', listingId).single();
+        if (!data || !data.variations) return false;
+        
+        const updatedVariations = data.variations.map(v => 
+            String(v.id) === String(variationId) ? { ...v, ft_id: ftId } : v
+        );
+        
+        const { error } = await supabase
+            .from('marketplace_listings')
+            .update({ variations: updatedVariations, updated_at: new Date().toISOString() })
             .eq('id', listingId);
         return !error;
     },

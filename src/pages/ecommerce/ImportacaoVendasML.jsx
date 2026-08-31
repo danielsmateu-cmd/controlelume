@@ -20,12 +20,10 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             const year = parseInt(yearStr, 10);
             const month = parseInt(monthStr, 10);
             
-            // O Vendas.jsx exibe o mês ANTERIOR ao currentMonth (Referência)
             const targetDate = new Date(year, month - 2, 1);
             const targetYear = targetDate.getFullYear();
             const targetMonth = targetDate.getMonth();
             
-            // Usando fuso horário local do navegador para bater 00:00 do BR
             const from = new Date(targetYear, targetMonth, 1, 0, 0, 0).toISOString();
             const to = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999).toISOString();
 
@@ -33,16 +31,26 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             
             const currentTally = {};
             for (const order of allOrders) {
+                if (order.status === 'cancelled' || order.status === 'invalid') continue;
+                
                 for (const item of order.order_items || []) {
                     const mlId = item.item?.id;
+                    const variationId = item.item?.variation_id;
                     const qty = item.quantity || 1;
                     const title = item.item?.title || "Produto Desconhecido";
                     
                     if (mlId) {
-                        if (!currentTally[mlId]) {
-                            currentTally[mlId] = { total: 0, title, mlId };
+                        const tallyKey = variationId ? `${mlId}_${variationId}` : mlId;
+                        if (!currentTally[tallyKey]) {
+                            currentTally[tallyKey] = { 
+                                total: 0, 
+                                title: title + (variationId ? ` (Var: ${variationId})` : ''), 
+                                mlId, 
+                                variationId,
+                                tallyKey 
+                            };
                         }
-                        currentTally[mlId].total += qty;
+                        currentTally[tallyKey].total += qty;
                     }
                 }
             }
@@ -62,20 +70,33 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
         }
     };
 
-    const handleLinkFt = async (mlId, ftId) => {
+    const handleLinkFt = async (tallyKey, ftId) => {
         try {
-            let listing = listings.find(l => l.ml_item_id === mlId);
+            const item = tally[tallyKey];
+            let listing = listings.find(l => l.ml_item_id === item.mlId);
+            
             if (!listing) {
-                const itemDetails = await mlApi.getItem(mlId);
+                const itemDetails = await mlApi.getItem(item.mlId);
                 await mlListings.saveListings([itemDetails]);
                 const updatedListings = await mlListings.getListings();
                 setListings(updatedListings);
-                listing = updatedListings.find(l => l.ml_item_id === mlId);
+                listing = updatedListings.find(l => l.ml_item_id === item.mlId);
             }
             
             if (listing) {
-                await mlListings.linkFt(listing.id, ftId);
-                setListings(prev => prev.map(l => l.id === listing.id ? { ...l, ft_id: ftId } : l));
+                if (item.variationId) {
+                    await mlListings.linkVariationFt(listing.id, item.variationId, ftId);
+                    setListings(prev => prev.map(l => {
+                        if (l.id !== listing.id) return l;
+                        const newVars = (l.variations || []).map(v => 
+                            String(v.id) === String(item.variationId) ? { ...v, ft_id: ftId } : v
+                        );
+                        return { ...l, variations: newVars };
+                    }));
+                } else {
+                    await mlListings.linkFt(listing.id, ftId);
+                    setListings(prev => prev.map(l => l.id === listing.id ? { ...l, ft_id: ftId } : l));
+                }
             }
         } catch (err) {
             console.error(err);
@@ -83,14 +104,24 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
         }
     };
 
+    const getMappedFtId = (tallyItem) => {
+        const listing = listings.find(l => l.ml_item_id === tallyItem.mlId);
+        if (!listing) return null;
+        if (tallyItem.variationId && listing.variations) {
+            const v = listing.variations.find(v => String(v.id) === String(tallyItem.variationId));
+            if (v && v.ft_id) return v.ft_id;
+        }
+        return listing.ft_id; // fallback to parent
+    };
+
     const handleApply = () => {
         const ftQuantities = {};
         
         Object.values(tally).forEach(item => {
-            const listing = listings.find(l => l.ml_item_id === item.mlId);
-            if (listing && listing.ft_id) {
-                if (!ftQuantities[listing.ft_id]) ftQuantities[listing.ft_id] = 0;
-                ftQuantities[listing.ft_id] += item.total;
+            const ftId = getMappedFtId(item);
+            if (ftId) {
+                if (!ftQuantities[ftId]) ftQuantities[ftId] = 0;
+                ftQuantities[ftId] += item.total;
             }
         });
         
@@ -99,10 +130,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
         setTimeout(() => setStep(0), 3000);
     };
 
-    const unmappedItems = Object.values(tally).filter(item => {
-        const listing = listings.find(l => l.ml_item_id === item.mlId);
-        return !listing || !listing.ft_id;
-    });
+    const unmappedItems = Object.values(tally).filter(item => !getMappedFtId(item));
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-indigo-100 p-5 mb-6">
@@ -140,17 +168,19 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                             <h4 className="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-2">
                                 <AlertTriangle className="w-4 h-4" />
-                                {unmappedItems.length} produto(s) precisam ser mapeados para uma FT
+                                {unmappedItems.length} produto(s) ou variacoes precisam ser mapeados para uma FT
                             </h4>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                 {unmappedItems.map(item => (
-                                    <div key={item.mlId} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-white rounded border border-amber-100 gap-2">
+                                    <div key={item.tallyKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-white rounded border border-amber-100 gap-2">
                                         <div className="text-xs">
                                             <div className="font-semibold text-gray-800 line-clamp-1" title={item.title}>{item.title}</div>
-                                            <div className="text-gray-500 text-[10px]">ID: {item.mlId} • Vendas: <span className="font-bold text-indigo-600">{item.total}</span></div>
+                                            <div className="text-gray-500 text-[10px]">
+                                                ID: {item.mlId} {item.variationId && `• Var: ${item.variationId}`} • Vendas: <span className="font-bold text-indigo-600">{item.total}</span>
+                                            </div>
                                         </div>
                                         <select 
-                                            onChange={(e) => { if(e.target.value) handleLinkFt(item.mlId, e.target.value) }}
+                                            onChange={(e) => { if(e.target.value) handleLinkFt(item.tallyKey, e.target.value) }}
                                             className="text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-indigo-400 bg-gray-50 max-w-[200px]"
                                             defaultValue=""
                                         >
