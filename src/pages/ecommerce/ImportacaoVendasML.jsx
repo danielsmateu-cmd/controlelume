@@ -107,11 +107,21 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
     const getMappedFtId = (tallyItem) => {
         const listing = listings.find(l => l.ml_item_id === tallyItem.mlId);
         if (!listing) return null;
+        
+        let foundFtId = null;
         if (tallyItem.variationId && listing.variations) {
             const v = listing.variations.find(v => String(v.id) === String(tallyItem.variationId));
-            if (v && v.ft_id) return v.ft_id;
+            if (v && v.ft_id) foundFtId = v.ft_id;
         }
-        return listing.ft_id; // fallback to parent
+        if (!foundFtId) foundFtId = listing.ft_id; // fallback to parent
+        
+        // IMPORTANT: Verify if the mapped ftId actually exists in the current active FTs!
+        // If the FT was deleted, we must treat it as unmapped so the user can remap it.
+        if (foundFtId && fts.some(ft => ft.id === foundFtId)) {
+            return foundFtId;
+        }
+        
+        return null;
     };
 
     const handleApply = () => {
