@@ -756,6 +756,15 @@ function WhatsAppChatInner() {
                 const msgType = msg.message_type || 'text';
                 const hasText = msg.text && msg.text.trim() !== '';
 
+                  const getSafeUrl = (url, type, mimeType) => {
+                    if (!url) return '';
+                    if (url.startsWith('data:') || url.startsWith('http')) return url;
+                    const mime = mimeType || (type === 'image' ? 'image/jpeg' : 'application/pdf');
+                    return `data:${mime};base64,${url}`;
+                  };
+                  const safeUrl = getSafeUrl(msg.media_url, msgType, msg.media_mime_type);
+
+
                 const handleDownload = (base64Url, defaultName) => {
                   const link = document.createElement('a');
                   link.href = base64Url;
