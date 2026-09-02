@@ -942,14 +942,20 @@ function WhatsAppChatInner() {
                     accept="image/*,application/pdf"
                   />
 
-                  <input
-                    type="text"
-                    placeholder="Digite sua resposta..."
+                  <textarea
+                    placeholder="Digite sua resposta... (Shift + Enter p/ quebrar linha)"
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
                     onPaste={handlePaste}
                     disabled={sending}
-                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    rows="2"
+                    className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none scrollbar-thin"
                   />
     
                   <button
