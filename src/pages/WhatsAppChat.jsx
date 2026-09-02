@@ -770,15 +770,15 @@ function WhatsAppChatInner() {
                     return (
                       <div className="space-y-1.5 relative group">
                         <img
-                          src={msg.media_url}
+                          src={safeUrl}
                           alt="Imagem"
                           className="max-w-[240px] rounded-xl object-cover cursor-pointer"
-                          onClick={() => openMediaInNewTab(msg.media_url)}
+                          onClick={() => openMediaInNewTab(safeUrl)}
                         />
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownload(msg.media_url, `imagem_${msg.id || Date.now()}.jpeg`);
+                            handleDownload(safeUrl, `imagem_${msg.id || Date.now()}.jpeg`);
                           }}
                           className="absolute top-2 right-2 bg-gray-900/60 hover:bg-gray-900/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Baixar imagem"
@@ -828,25 +828,33 @@ function WhatsAppChatInner() {
                       );
                     }
                   if (msgType === 'document') {
+                      const isPdf = msg.media_mime_type === 'application/pdf' || (msg.text && msg.text.toLowerCase().endsWith('.pdf'));
                       return (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span>??</span>
-                            <span className="text-xs font-semibold break-all">{msg.text || 'Documento'}</span>
-                          </div>
+                        <div className="flex flex-col gap-2 relative group">
+                          {isPdf && msg.media_url ? (
+                            <div className="w-full max-w-[240px] h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 cursor-pointer relative" onClick={() => openMediaInNewTab(safeUrl)}>
+                              <embed src={`${safeUrl}#toolbar=0&navpanes=0&scrollbar=0`} type="application/pdf" className="w-full h-full pointer-events-none" />
+                              <div className="absolute inset-0 bg-transparent z-10" title="Clique para abrir" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>📎</span>
+                              <span className="text-xs font-semibold break-all">{msg.text || 'Documento'}</span>
+                            </div>
+                          )}
+                          
                           {msg.media_url && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDownload(msg.media_url, msg.text || 'documento'); }}
-                              className="self-start text-[10px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 flex items-center gap-1 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handleDownload(safeUrl, msg.text || 'documento.pdf'); }}
+                              className="self-start text-[10px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 flex items-center gap-1 transition-colors z-20"
                             >
-                              <Download className="w-3 h-3" />
-                              Baixar
+                              Baixar {isPdf ? 'PDF' : 'Arquivo'}
                             </button>
                           )}
                         </div>
                       );
                     }
-                  if (msgType === 'sticker') {
+                    if (msgType === 'sticker') {
                     if (msg.media_url) {
                       return (
                         <img
