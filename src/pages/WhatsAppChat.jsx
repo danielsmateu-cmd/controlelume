@@ -601,7 +601,7 @@ function WhatsAppChatInner() {
                         {chat.push_name || chat.phone_number}
                       </h3>
                       <span className="text-[10px] text-gray-400 flex-shrink-0">
-                        {(() => { try { const d = new Date(chat.updated_at); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; } })()}
+                        {(() => { try { const d = new Date(chat.updated_at); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; } })()}
                       </span>
                     </div>
 
@@ -901,7 +901,7 @@ function WhatsAppChatInner() {
 
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">
                       {isMe && <span className="font-semibold text-emerald-700">{msg.sender_name || 'Atendente'} • </span>}
-                      <span>{(() => { try { const d = new Date(msg.created_at || msg.timestamp); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } })()}</span>
+                      <span>{(() => { try { const d = new Date(msg.created_at || msg.timestamp); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } })()}</span>
                       {isMe && <CheckCheck className="w-3 h-3 text-emerald-600" />}
                     </div>
                   </div>
