@@ -583,7 +583,7 @@ function WhatsAppChatInner() {
                       <img 
                         src={chat.profile_pic_url} 
                         alt="Avatar" 
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow-sm border border-gray-100"
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow-sm border border-gray-100" referrerPolicy="no-referrer"
                         onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                       />
                     ) : null}
@@ -644,7 +644,7 @@ function WhatsAppChatInner() {
                 <img 
                   src={activeChat.profile_pic_url} 
                   alt="Avatar" 
-                  className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100"
+                  className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100" referrerPolicy="no-referrer"
                   onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                 />
               ) : null}
@@ -867,10 +867,10 @@ function WhatsAppChatInner() {
                     if (msg.media_url) {
                       return (
                         <img
-                          src={msg.media_url}
-                          alt="Figurinha"
+                          src={safeUrl}
+                            alt="Figurinha"
                           className="w-32 h-32 object-contain drop-shadow-md cursor-pointer hover:scale-105 transition-transform"
-                          onClick={() => openMediaInNewTab(msg.media_url)}
+                          onClick={() => openMediaInNewTab(safeUrl)}
                         />
                       );
                     }
