@@ -84,10 +84,10 @@ export default async function handler(req, res) {
       } else if (msgContent?.locationMessage) {
         messageType = 'location';
         const { degreesLatitude, degreesLongitude } = msgContent.locationMessage;
-        text = [Localizacao: , ];
+        text = `[Localizacao: ${degreesLatitude}, ${degreesLongitude}]`;
       } else if (msgContent?.contactMessage) {
         messageType = 'contact';
-        text = [Contato: ];
+        text = `[Contato]`;
       } else {
         // Unknown type - skip silently
         return res.status(200).json({ ok: true, skipped: 'unknown message type' });
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
           const messageId = key?.id;
           if (messageId) {
             const mediaResp = await fetch(
-              ${EVOLUTION_URL}/chat/getBase64FromMediaMessage/,
+              `${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${INSTANCE}`,
               {
                 method: 'POST',
                 headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
               const mediaData = await mediaResp.json();
               if (mediaData?.base64) {
                 const mimeType = mediaData.mimetype || mediaMimeType;
-                mediaUrl = data:;base64,;
+                mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
               }
             }
           }
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
 
       // Async fetch profile pic if missing
       if (chatData && !chatData.profile_pic_url) {
-        fetch(${EVOLUTION_URL}/chat/fetchProfilePictureUrl/, {
+        fetch(`${EVOLUTION_URL}/chat/fetchProfilePictureUrl/${INSTANCE}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': API_KEY },
           body: JSON.stringify({ number: phone })

@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const { phone_number, chat_id } = req.body;
     if (!phone_number) return res.status(400).json({ error: 'phone_number is required' });
 
-    const response = await fetch(${EVOLUTION_URL}/chat/fetchProfilePictureUrl/ + INSTANCE, {
+    const response = await fetch(`${EVOLUTION_URL}/chat/fetchProfilePictureUrl/${INSTANCE}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
