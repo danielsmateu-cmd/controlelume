@@ -150,13 +150,9 @@ export const mlApi = {
         const tokens = await mlAuth.getTokens();
         if (!tokens?.ml_user_id) return [];
         
-        try {
-            const data = await mlFetch(`/advertising/product_ads/campaigns?user_id=${tokens.ml_user_id}`);
-            return data.results || data || [];
-        } catch (error) {
-            console.error('Erro ao buscar campanhas Ads:', error);
-            return [];
-        }
+        // Removemos o try-catch vazio para que o adsAuditService possa ler o erro 403 real do Mercado Livre
+        const data = await mlFetch(`/advertising/product_ads/campaigns/search?user_id=${tokens.ml_user_id}`);
+        return data.results || data || [];
     },
 
     async getMe() {
