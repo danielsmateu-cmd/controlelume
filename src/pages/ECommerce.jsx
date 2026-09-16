@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
 import {
     BarChart3,
@@ -81,6 +82,7 @@ const getReportMonthDisplay = (monthStr) => {
 };
 
 const ECommerce = ({ readOnly }) => {
+    const { currentUser } = useAuth();
     const [activeSubTab, setActiveSubTab] = useState('visao_geral');
     const [activePlatform, setActivePlatform] = useState('meli');
     const [activeMktTab, setActiveMktTab] = useState('vendas');
@@ -96,8 +98,12 @@ const ECommerce = ({ readOnly }) => {
         { id: 'cadastros_fts', label: 'Cadastros de FTs', icon: ListTodo },
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
-        { id: 'auditoria_ads', label: 'Auditoria Ads', icon: Activity },
+
     ];
+
+    if (currentUser?.login === 'dsmateu' || currentUser?.role === 'admin') {
+        subTabs.push({ id: 'auditoria_ads', label: 'Auditoria Ads', icon: Activity });
+    }
 
     const mktTabs = [
         { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
