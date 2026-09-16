@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { clsx } from 'clsx';
 import {
     BarChart3,
+    Activity,
     Building2,
     Handshake,
     ListTodo,
@@ -13,6 +14,8 @@ import {
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';
 import Parcerias from './ecommerce/Parcerias';
+import AuditoriaAds from './ecommerce/AuditoriaAds';
+
 import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
 import VisaoGeral from './ecommerce/VisaoGeral';
@@ -93,6 +96,7 @@ const ECommerce = ({ readOnly }) => {
         { id: 'cadastros_fts', label: 'Cadastros de FTs', icon: ListTodo },
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
+        { id: 'auditoria_ads', label: 'Auditoria Ads', icon: Activity },
     ];
 
     const mktTabs = [
@@ -162,6 +166,8 @@ const ECommerce = ({ readOnly }) => {
                 );
             case 'cadastros_fts':
                 return <CadastrosFTs readOnly={readOnly} />;
+            case 'auditoria_ads':
+                return <AuditoriaAds />;
             case 'relatorio':
                 return (
                     <div className="space-y-6">

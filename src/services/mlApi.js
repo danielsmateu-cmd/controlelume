@@ -145,6 +145,20 @@ async function mlFetch(path, options = {}) {
 }
 
 export const mlApi = {
+    // ===== MERCADO ADS =====
+    async getAdsCampaigns() {
+        const tokens = await mlAuth.getTokens();
+        if (!tokens?.ml_user_id) return [];
+        
+        try {
+            const data = await mlFetch(`/advertising/product_ads/campaigns?user_id=${tokens.ml_user_id}`);
+            return data.results || data || [];
+        } catch (error) {
+            console.error('Erro ao buscar campanhas Ads:', error);
+            return [];
+        }
+    },
+
     async getMe() {
         return mlFetch('/users/me');
     },
