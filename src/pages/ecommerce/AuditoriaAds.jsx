@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+ï»¿import React, { useState, useEffect } from "react";
 import { adsAuditService } from "../../services/adsAuditService";
 import { Activity, RefreshCw, AlertCircle, History, TrendingUp, DollarSign } from "lucide-react";
 
@@ -36,9 +36,11 @@ export default function AuditoriaAds() {
       const res = await adsAuditService.syncCampaigns();
       if (res.success) {
         if (res.changesCount > 0) {
-          alert(`Sincronização concluída! ${res.changesCount} alterações detectadas.`);
+          alert(`SincronizaÃ§Ã£o concluÃ­da! ${res.changesCount} alteraÃ§Ãµes detectadas.`);
+        } else if (res.message) {
+          alert(`Aviso: ${res.message}`);
         } else {
-          alert("Sincronização concluída! Nenhuma alteração detectada nas campanhas.");
+          alert("SincronizaÃ§Ã£o concluÃ­da! Nenhuma alteraÃ§Ã£o detectada nas campanhas.");
         }
         await loadData();
       } else {
@@ -46,7 +48,7 @@ export default function AuditoriaAds() {
       }
     } catch (err) {
       setError(err.message);
-      alert(`Erro na sincronização: ${err.message}`);
+      alert(`Erro na sincronizaÃ§Ã£o: ${err.message}`);
     } finally {
       setSyncing(false);
     }
@@ -70,10 +72,10 @@ export default function AuditoriaAds() {
 
   const translateField = (field) => {
     const map = {
-      "budget": "Orçamento Diário",
+      "budget": "OrÃ§amento DiÃ¡rio",
       "status": "Status",
       "target_acos": "Meta ACOS",
-      "campanha_criada": "Criação"
+      "campanha_criada": "CriaÃ§Ã£o"
     };
     return map[field] || field;
   };
@@ -97,7 +99,7 @@ export default function AuditoriaAds() {
             Auditoria Mercado Ads
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Acompanhe alterações feitas nas campanhas de publicidade do Mercado Livre.
+            Acompanhe alteraÃ§Ãµes feitas nas campanhas de publicidade do Mercado Livre.
           </p>
         </div>
         <button
@@ -134,7 +136,7 @@ export default function AuditoriaAds() {
             <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
               <DollarSign className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-gray-700">Orçamento Diário</h3>
+            <h3 className="font-medium text-gray-700">OrÃ§amento DiÃ¡rio</h3>
           </div>
           <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalBudget)}</p>
         </div>
@@ -144,7 +146,7 @@ export default function AuditoriaAds() {
             <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
               <History className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-gray-700">Última Alteração</h3>
+            <h3 className="font-medium text-gray-700">Ãšltima AlteraÃ§Ã£o</h3>
           </div>
           <p className="text-lg font-bold text-gray-900 truncate">
             {lastChange ? formatDate(lastChange) : "Nenhuma registrada"}
@@ -152,26 +154,26 @@ export default function AuditoriaAds() {
         </div>
       </div>
 
-      {/* Grid: Histórico e Campanhas */}
+      {/* Grid: HistÃ³rico e Campanhas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Timeline de Histórico (Ocupa 2 colunas) */}
+        {/* Timeline de HistÃ³rico (Ocupa 2 colunas) */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-gray-200 bg-gray-50/50">
-            <h2 className="font-semibold text-gray-900">Histórico de Alterações Detectadas</h2>
+            <h2 className="font-semibold text-gray-900">HistÃ³rico de AlteraÃ§Ãµes Detectadas</h2>
           </div>
           <div className="p-0 overflow-x-auto">
             {loading ? (
-              <div className="p-8 text-center text-gray-500 text-sm">Carregando histórico...</div>
+              <div className="p-8 text-center text-gray-500 text-sm">Carregando histÃ³rico...</div>
             ) : history.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">Nenhuma alteração registrada ainda.</div>
+              <div className="p-8 text-center text-gray-500 text-sm">Nenhuma alteraÃ§Ã£o registrada ainda.</div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white border-b border-gray-100 text-xs uppercase text-gray-500">
                     <th className="px-5 py-3 font-medium whitespace-nowrap">Data/Hora</th>
                     <th className="px-5 py-3 font-medium">Campanha</th>
-                    <th className="px-5 py-3 font-medium">Alteração</th>
+                    <th className="px-5 py-3 font-medium">AlteraÃ§Ã£o</th>
                     <th className="px-5 py-3 font-medium text-right">De (Antes)</th>
                     <th className="px-5 py-3 font-medium text-center"></th>
                     <th className="px-5 py-3 font-medium">Para (Depois)</th>
@@ -186,7 +188,7 @@ export default function AuditoriaAds() {
                       <td className="px-5 py-3 text-right text-gray-500 line-through decoration-red-300">
                         {formatValue(log.campo_alterado, log.valor_anterior)}
                       </td>
-                      <td className="px-2 py-3 text-center text-gray-300">?</td>
+                      <td className="px-2 py-3 text-center text-gray-300">âž”</td>
                       <td className="px-5 py-3 font-medium text-emerald-600">
                         {formatValue(log.campo_alterado, log.valor_novo)}
                       </td>
@@ -219,7 +221,7 @@ export default function AuditoriaAds() {
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 flex justify-between mt-2">
-                      <span>Orçamento: {formatCurrency(c.budget)}</span>
+                      <span>OrÃ§amento: {formatCurrency(c.budget)}</span>
                       <span>ACOS: {c.target_acos}%</span>
                     </div>
                   </li>

@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+﻿import { supabase } from "../lib/supabase";
 import { mlApi } from "./mlApi";
 
 export const adsAuditService = {
@@ -9,7 +9,7 @@ export const adsAuditService = {
       const liveCampaigns = Array.isArray(liveCampaignsRaw) ? liveCampaignsRaw : (liveCampaignsRaw.results || []);
 
       if (liveCampaigns.length === 0) {
-        return { success: true, message: "Nenhuma campanha encontrada no ML." };
+        return { success: true, message: "Nenhuma campanha encontrada no ML (ou sem permissão de Ads)." };
       }
 
       // 2. Fetch current snapshots from DB
@@ -111,6 +111,12 @@ export const adsAuditService = {
 
     } catch (error) {
       console.error("Erro no syncCampaigns:", error);
+      
+      // Checar se o erro é de permissão do Mercado Ads
+      if (error.message && error.message.includes('403')) {
+         return { success: false, error: "Acesso Negado (403): Seu App no Mercado Livre não tem permissão para a API de Advertising (Ads)." };
+      }
+      
       return { success: false, error: error.message };
     }
   },
