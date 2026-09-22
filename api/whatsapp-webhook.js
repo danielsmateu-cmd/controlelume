@@ -88,8 +88,20 @@ export default async function handler(req, res) {
       } else if (msgContent?.contactMessage) {
         messageType = 'contact';
         text = `[Contato]`;
-      } else {
-        // Unknown type - skip silently
+      } else if (msgContent?.protocolMessage && msgContent.protocolMessage.type === 'MESSAGE_EDIT') {
+          const editedKey = msgContent.protocolMessage.key;
+          const editedMsg = msgContent.protocolMessage.editedMessage;
+          const newText = editedMsg?.conversation || editedMsg?.extendedTextMessage?.text || '';
+          
+          if (editedKey?.id) {
+             await supabase
+               .from('whatsapp_messages')
+               .update({ text: newText + ' \n*(Editada)*' })
+               .eq('message_id', editedKey.id);
+          }
+          return res.status(200).json({ ok: true, skipped: 'message edit handled' });
+        } else {
+          // Unknown type - skip silently
         return res.status(200).json({ ok: true, skipped: 'unknown message type' });
       }
 

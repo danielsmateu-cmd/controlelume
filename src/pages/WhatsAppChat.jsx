@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, MessageSquareText
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
 import { whatsappService } from '../services/whatsappService';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROLE_PERMISSIONS } from '../data/users';
 
@@ -56,6 +57,9 @@ function WhatsAppChatInner() {
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [quickReplies, setQuickReplies] = useState([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [newQuickReply, setNewQuickReply] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +75,14 @@ function WhatsAppChatInner() {
 
 
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const fetchReplies = async () => {
+      const data = await api.getSettings('whatsapp_quick_replies');
+      if (data) setQuickReplies(data);
+    };
+    fetchReplies();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -213,12 +225,28 @@ function WhatsAppChatInner() {
   };
 
   // Enviar Mensagem
-  const handleSendMessage = async (e) => {
+    const handleSendMessage = async (e) => {
     e.preventDefault();
-    if ((!inputMessage.trim() && !selectedFile) || !activeChat || sending) return;
+    if ((!inputMessage.trim() && !selectedFile) || !activeChat) return;
 
     const textToSend = inputMessage.trim();
+    const fileToSend = selectedFile;
+    
     setInputMessage('');
+    removeFile(); // Limpa arquivo da UI na mesma hora
+    
+    // Adiciona na UI otimisticamente
+    const optimisticMsg = {
+        id: 'temp-' + Date.now(),
+        from_me: true,
+        text: textToSend,
+        message_type: fileToSend ? (fileToSend.type.startsWith('image') ? 'image' : 'document') : 'text',
+        sender_name: currentUser?.name || 'Atendente',
+        timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+    setTimeout(scrollToBottom, 100);
+
     setSending(true);
 
     try {
@@ -226,29 +254,48 @@ function WhatsAppChatInner() {
       let mediaName = null;
       let mediaType = null;
 
-      if (selectedFile) {
+      if (fileToSend) {
         const reader = new FileReader();
         const base64Promise = new Promise((resolve) => {
           reader.onloadend = () => resolve(reader.result);
         });
-        reader.readAsDataURL(selectedFile);
+        reader.readAsDataURL(fileToSend);
         const fullBase64 = await base64Promise;
         mediaBase64 = fullBase64.split(',')[1];
-        mediaName = selectedFile.name;
-        mediaType = selectedFile.type.startsWith('image') ? 'image' : 'document';
+        mediaName = fileToSend.name;
+        mediaType = fileToSend.type.startsWith('image') ? 'image' : 'document';
       }
 
       await whatsappService.sendMessage(activeChat, textToSend, currentUser?.name || 'Atendente', mediaBase64, mediaName, mediaType);
       
-      removeFile();
       const refreshed = await whatsappService.getMessages(activeChat);
       setMessages(refreshed);
       scrollToBottom();
     } catch (err) {
-      alert('Erro ao enviar mensagem via WhatsApp. Verifique se a API está online.');
+      console.error('Erro ao enviar mensagem:', err);
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSaveQuickReply = async () => {
+    if (!newQuickReply.trim()) return;
+    const newReplies = [...quickReplies, { id: Date.now().toString(), text: newQuickReply.trim() }];
+    setQuickReplies(newReplies);
+    setNewQuickReply('');
+    await api.saveSettings('whatsapp_quick_replies', newReplies);
+  };
+
+  const handleDeleteQuickReply = async (id, e) => {
+    e.stopPropagation();
+    const newReplies = quickReplies.filter(r => r.id !== id);
+    setQuickReplies(newReplies);
+    await api.saveSettings('whatsapp_quick_replies', newReplies);
+  };
+
+  const handleSelectQuickReply = (text) => {
+    setInputMessage(prev => prev ? prev + ' ' + text : text);
+    setShowQuickReplies(false);
   };
 
   // Assumir Atendimento
@@ -759,7 +806,7 @@ function WhatsAppChatInner() {
                   const getSafeUrl = (url, type, mimeType) => {
                     if (!url) return '';
                     if (url.startsWith('data:') || url.startsWith('http')) return url;
-                    const mime = mimeType || (type === 'image' ? 'image/jpeg' : 'application/pdf');
+                    const mime = mimeType || (type === 'image' ? 'image/jpeg' : (type === 'sticker' ? 'image/webp' : 'application/pdf'));
                     return `data:${mime};base64,${url}`;
                   };
                   const safeUrl = getSafeUrl(msg.media_url, msgType, msg.media_mime_type);
@@ -942,7 +989,45 @@ function WhatsAppChatInner() {
                     </button>
                   </div>
                 )}
-                <div className="p-3 flex items-center gap-2">
+                
+                  {/* Menu de Respostas R�pidas */}
+                  {showQuickReplies && (
+                    <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col">
+                      <div className="p-3 bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-700 flex justify-between items-center">
+                        <span>Respostas R�pidas</span>
+                        <button type="button" onClick={() => setShowQuickReplies(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                        {quickReplies.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-2">Nenhuma resposta salva.</p>
+                        ) : (
+                          quickReplies.map(qr => (
+                            <div key={qr.id} onClick={() => handleSelectQuickReply(qr.text)} className="group flex justify-between items-center p-2 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors text-xs text-gray-700">
+                              <span className="line-clamp-2 pr-2">{qr.text}</span>
+                              <button type="button" onClick={(e) => handleDeleteQuickReply(qr.id, e)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="p-2 border-t border-gray-100 flex gap-2">
+                        <input type="text" placeholder="Nova resposta..." value={newQuickReply} onChange={(e) => setNewQuickReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveQuickReply(); } }} className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded outline-none focus:border-indigo-500" />
+                        <button type="button" onClick={handleSaveQuickReply} disabled={!newQuickReply.trim()} className="bg-indigo-600 text-white p-1.5 rounded hover:bg-indigo-700 disabled:opacity-50"><Plus className="w-4 h-4"/></button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickReplies(!showQuickReplies)}
+                      className="p-2.5 bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-600 rounded-xl transition-colors relative"
+                      title="Respostas R�pidas"
+                    >
+                      <Zap className="w-5 h-5" />
+                    </button>
+
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -970,7 +1055,7 @@ function WhatsAppChatInner() {
                       }
                     }}
                     onPaste={handlePaste}
-                    disabled={sending}
+                    
                     rows="2"
                     className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none scrollbar-thin"
                   />
