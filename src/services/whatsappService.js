@@ -45,7 +45,7 @@ export const whatsappService = {
       const cleanNumber = chat.phone_number || chat.remote_jid.replace('@s.whatsapp.net', '');
 
       // Formatar mensagem para incluir o nome do atendente no topo em negrito
-      // Removida assinatura autom�tica para n�o atrapalhar envio de PIX/Links\n      const formattedText = text;
+      const formattedText = text;
 
       // 1. Enviar mensagem via Vercel Backend (Proxy) para evitar Mixed Content
       let sentDirectly = false;
