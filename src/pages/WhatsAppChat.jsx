@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, MessageSquareText
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, Copy, MessageSquareText
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
@@ -83,6 +83,10 @@ function WhatsAppChatInner() {
     };
     fetchReplies();
   }, []);
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1003,7 +1007,7 @@ function WhatsAppChatInner() {
                         ) : (
                           quickReplies.map(qr => (
                             <div key={qr.id} onClick={() => handleSelectQuickReply(qr.text)} className="group flex justify-between items-center p-2 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors text-xs text-gray-700">
-                              <span className="line-clamp-2 pr-2">{qr.text}</span>
+                              <span className="whitespace-pre-wrap pr-2">{qr.text}</span>
                               <button type="button" onClick={(e) => handleDeleteQuickReply(qr.id, e)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1012,7 +1016,7 @@ function WhatsAppChatInner() {
                         )}
                       </div>
                       <div className="p-2 border-t border-gray-100 flex gap-2">
-                        <input type="text" placeholder="Nova resposta..." value={newQuickReply} onChange={(e) => setNewQuickReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveQuickReply(); } }} className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded outline-none focus:border-indigo-500" />
+                        <textarea placeholder="Nova resposta... (Shift+Enter para quebrar linha)" value={newQuickReply} onChange={(e) => setNewQuickReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveQuickReply(); } }} className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded outline-none focus:border-indigo-500 resize-none scrollbar-thin" rows="3" />
                         <button type="button" onClick={handleSaveQuickReply} disabled={!newQuickReply.trim()} className="bg-indigo-600 text-white p-1.5 rounded hover:bg-indigo-700 disabled:opacity-50"><Plus className="w-4 h-4"/></button>
                       </div>
                     </div>
