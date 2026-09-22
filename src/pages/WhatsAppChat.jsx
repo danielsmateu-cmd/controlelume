@@ -60,6 +60,7 @@ function WhatsAppChatInner() {
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
+  const [signMessage, setSignMessage] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -243,7 +244,7 @@ function WhatsAppChatInner() {
     const optimisticMsg = {
         id: 'temp-' + Date.now(),
         from_me: true,
-        text: textToSend,
+        text: signMessage ? `*${currentUser?.name || 'Atendente'}:*\n${textToSend}` : textToSend,
         message_type: fileToSend ? (fileToSend.type.startsWith('image') ? 'image' : 'document') : 'text',
         sender_name: currentUser?.name || 'Atendente',
         timestamp: Date.now()
@@ -270,7 +271,7 @@ function WhatsAppChatInner() {
         mediaType = fileToSend.type.startsWith('image') ? 'image' : 'document';
       }
 
-      await whatsappService.sendMessage(activeChat, textToSend, currentUser?.name || 'Atendente', mediaBase64, mediaName, mediaType);
+      await whatsappService.sendMessage(activeChat, textToSend, signMessage ? (currentUser?.name || 'Atendente') : null, mediaBase64, mediaName, mediaType);
       
       const refreshed = await whatsappService.getMessages(activeChat);
       setMessages(refreshed);
@@ -1022,7 +1023,18 @@ function WhatsAppChatInner() {
                     </div>
                   )}
 
-                  <div className="p-3 flex items-center gap-2">
+                  <div className="px-4 pt-2 pb-0 flex items-center justify-between text-xs text-gray-500">
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-700 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={signMessage} 
+                        onChange={(e) => setSignMessage(e.target.checked)} 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-3 h-3"
+                      />
+                      Assinar mensagem automaticamente
+                    </label>
+                  </div>
+                  <div className="p-3 pt-2 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setShowQuickReplies(!showQuickReplies)}
