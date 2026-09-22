@@ -996,12 +996,12 @@ function WhatsAppChatInner() {
                 
                   {/* Menu de Respostas R�pidas */}
                   {showQuickReplies && (
-                    <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col">
+                    <div className="absolute bottom-full left-0 mb-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col">
                       <div className="p-3 bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-700 flex justify-between items-center">
                         <span>Respostas R�pidas</span>
                         <button type="button" onClick={() => setShowQuickReplies(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button>
                       </div>
-                      <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                      <div className="max-h-[60vh] overflow-y-auto p-2 space-y-1">
                         {quickReplies.length === 0 ? (
                           <p className="text-xs text-gray-400 text-center py-2">Nenhuma resposta salva.</p>
                         ) : (
