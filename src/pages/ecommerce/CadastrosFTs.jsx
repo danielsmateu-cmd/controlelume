@@ -2242,8 +2242,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
                                             if (mktData.notForSale) return (
                                                 <>
-                                                    <td className={`px-3 py-3.5 text-center text-gray-300 border-r border-gray-200 ${bgCls}`}>—</td>
-                                                    <td className={`px-3 py-3.5 text-center text-gray-300 ${br} ${bgCls}`}>—</td>
+                                                    <td className={`px-3 py-3.5 text-center text-gray-300 border-r border-gray-200 ${bgCls}`}>�</td>
+                                                    <td className={`px-3 py-3.5 text-center text-gray-300 border-r border-gray-200 ${bgCls}`}>�</td>
+                                                    <td className={`px-3 py-3.5 text-center text-gray-300 ${br} ${bgCls}`}>�</td>
                                                 </>
                                             );
                                             return (
@@ -2280,11 +2281,15 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         </div>
                                                     </td>
                                                     {/* Queima */}
-                                                    <td className={`px-3 py-3.5 text-right text-xs font-bold text-red-400 ${br} ${bgCls} min-w-[80px]`}>
-                                                        {q && q > 0 ? `R$ ${q.toFixed(2).replace('.', ',')}` : '—'}
-                                                    </td>
-                                                </>
-                                            );
+                                                      <td className={`px-3 py-3.5 text-right text-xs font-bold text-red-400 border-r border-gray-200 ${bgCls} min-w-[80px]`}>
+                                                          {q && q > 0 ? `R$ ${q.toFixed(2).replace('.', ',')}` : '�'}
+                                                      </td>
+                                                      {/* Lucro M�s */}
+                                                      <td className={`px-3 py-3.5 text-right text-xs font-bold text-indigo-600 ${br} ${bgCls} min-w-[110px]`}>
+                                                          {maxProfitPerMonth != null ? `R$ ${maxProfitPerMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '�'}
+                                                      </td>
+                                                  </>
+                                              );
                                         };
                                         const ml = getMktMetrics(ft, 'meli');
                                         const tiktok = getMktMetrics(ft, 'tiktok');
