@@ -2267,12 +2267,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             const rawSaleVal = editingValues[`${ft.id}-${mktId}`] !== undefined ? editingValues[`${ft.id}-${mktId}`] : mktData.salePrice;
                                             const salePriceVal = parseFloat(String(rawSaleVal || '').replace(',', '.')) || 0;
                                             let maxProfitPerMonth = null;
+                                              let maxUnitsStr = "";
                                             if (salePriceVal > 0) {
                                                 const saleMarginRS = salePriceVal - mktData.fixedCosts - (mktData.percentRate * salePriceVal);
                                                 const prodTime = ft.productionTime ? parseInt(ft.productionTime, 10) : 0;
                                                 if (saleMarginRS > 0 && prodTime > 0) {
                                                     const maxUnits = Math.floor((8 * 22 * 60) / prodTime);
                                                     maxProfitPerMonth = saleMarginRS * maxUnits;
+                                                      maxUnitsStr = maxUnits;
                                                 }
                                             }
                                             const key = `${ft.id}-${mktId}`;
@@ -2332,10 +2334,19 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                       <td className={`px-3 py-3.5 text-right text-xs font-bold text-red-400 border-r border-gray-200 ${bgCls} min-w-[80px]`}>
                                                           {q && q > 0 ? `R$ ${q.toFixed(2).replace('.', ',')}` : '�'}
                                                       </td>
-                                                      {/* Lucro M�s */}
-                                                      <td className={`px-3 py-3.5 text-right text-xs font-bold text-indigo-600 ${br} ${bgCls} min-w-[110px]`}>
-                                                          {maxProfitPerMonth != null ? `R$ ${maxProfitPerMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '�'}
-                                                      </td>
+                                                      {/* Lucro Mes com Unidades */}
+                                                        <td className={`px-2 py-3 text-right ${br} ${bgCls} min-w-[110px]`}>
+                                                            {maxProfitPerMonth != null ? (
+                                                                <div className="flex flex-col items-end gap-0.5">
+                                                                    <span className="text-xs font-bold text-indigo-600">
+                                                                        R$ {maxProfitPerMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                    </span>
+                                                                    <span className="text-[9px] font-semibold text-indigo-400 bg-indigo-50/50 px-1 rounded" title="Unidades produzidas projetadas">
+                                                                        {maxUnitsStr} pçs/mês
+                                                                    </span>
+                                                                </div>
+                                                            ) : '—'}
+                                                        </td>
                                                   </>
                                               );
                                         };
