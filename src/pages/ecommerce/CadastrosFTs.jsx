@@ -81,6 +81,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const [editingValues, setEditingValues] = useState({});
     const [matrixRankValues, setMatrixRankValues] = useState({});
     const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
+    const [matrixSortBy, setMatrixSortBy] = useState('name_asc');
     const [ftSearchTerm, setFtSearchTerm] = useState('');
     const ALL_MKT_PLATFORMS = ['meli', 'tiktok', 'amazon', 'shopee', 'site'];
     const [matrixPlatformFilter, setMatrixPlatformFilter] = useState(ALL_MKT_PLATFORMS);
@@ -2030,7 +2031,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </button>
                                 )}
                             </div>
-                            <div className="flex gap-2 flex-wrap items-center">
+                            <select 
+                                value={matrixSortBy}
+                                onChange={(e) => setMatrixSortBy(e.target.value)}
+                                className="text-sm bg-white border border-gray-200 text-gray-700 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all cursor-pointer"
+                            >
+                                <option value="name_asc">Ordem Alfab�tica</option>
+                                <option value="venda_desc">Maior Pre�o Venda</option>
+                                <option value="venda_asc">Menor Pre�o Venda</option>
+                                <option value="lucro_mes_desc">Maior Lucro M�s</option>
+                                <option value="lucro_mes_asc">Menor Lucro M�s</option>
+                            </select>
+                            <div className="flex gap-2 flex-wrap items-center ml-2">
                                 <button 
                                     onClick={() => setMatrixPlatformFilter(ALL_MKT_PLATFORMS)}
                                     className={clsx('px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors', matrixPlatformFilter.length === 5 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
@@ -2139,7 +2151,43 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {fts.filter(ft => ft.name.toLowerCase().includes(matrixSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(matrixSearchTerm.toLowerCase())).map((ft, idx) => {
+                                    {fts.filter(ft => ft.name.toLowerCase().includes(matrixSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(matrixSearchTerm.toLowerCase())).sort((a, b) => {
+                                        if (matrixSortBy === 'name_asc') return a.name.localeCompare(b.name);
+                                        
+                                        const getVal = (item, type) => {
+                                            let max = 0;
+                                            matrixPlatformFilter.forEach(mkt => {
+                                                const mktData = getMktMetrics(item, mkt);
+                                                const rawSale = editingValues[`${item.id}-${mkt}`] !== undefined ? editingValues[`${item.id}-${mkt}`] : mktData.salePrice;
+                                                const p = parseFloat(String(rawSale || '').replace(',', '.')) || 0;
+                                                if (type === 'venda') {
+                                                    if (p > max) max = p;
+                                                } else if (type === 'lucro_mes') {
+                                                    if (p > 0 && !mktData.notForSale) {
+                                                        const m = p - mktData.fixedCosts - (mktData.percentRate * p);
+                                                        const t = item.productionTime ? parseInt(item.productionTime, 10) : 0;
+                                                        if (m > 0 && t > 0) {
+                                                            const l = m * Math.floor((24 * 30 * 60) / t);
+                                                            if (l > max) max = l;
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                            return max;
+                                        };
+
+                                        if (matrixSortBy.startsWith('venda')) {
+                                            const valA = getVal(a, 'venda');
+                                            const valB = getVal(b, 'venda');
+                                            return matrixSortBy === 'venda_desc' ? valB - valA : valA - valB;
+                                        }
+                                        if (matrixSortBy.startsWith('lucro_mes')) {
+                                            const valA = getVal(a, 'lucro_mes');
+                                            const valB = getVal(b, 'lucro_mes');
+                                            return matrixSortBy === 'lucro_mes_desc' ? valB - valA : valA - valB;
+                                        }
+                                        return 0;
+                                    }).map((ft, idx) => {
                                         // Helper: calcula % MC para preço digitado no rankeamento
                                         const rankPctFor = (raw, fixedCosts, percentRate) => {
                                             const price = parseFloat(String(raw || '').replace(',', '.')) || null;
