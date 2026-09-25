@@ -2109,7 +2109,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-yellow-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-yellow-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se um turno comercial (8h/dia, 22 dias) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* TikTok */}
@@ -2118,7 +2118,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-slate-100/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-slate-100/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se um turno comercial (8h/dia, 22 dias) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Amazon */}
@@ -2127,7 +2127,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-amber-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-amber-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se um turno comercial (8h/dia, 22 dias) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Shopee */}
@@ -2136,7 +2136,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-orange-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-orange-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se um turno comercial (8h/dia, 22 dias) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Site */}
@@ -2145,7 +2145,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se um turno comercial (8h/dia, 22 dias) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                     </tr>
@@ -2167,7 +2167,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                         const m = p - mktData.fixedCosts - (mktData.percentRate * p);
                                                         const t = item.productionTime ? parseInt(item.productionTime, 10) : 0;
                                                         if (m > 0 && t > 0) {
-                                                            const l = m * Math.floor((24 * 30 * 60) / t);
+                                                            const l = m * Math.floor((8 * 22 * 60) / t);
                                                             if (l > max) max = l;
                                                         }
                                                     }
@@ -2271,7 +2271,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 const saleMarginRS = salePriceVal - mktData.fixedCosts - (mktData.percentRate * salePriceVal);
                                                 const prodTime = ft.productionTime ? parseInt(ft.productionTime, 10) : 0;
                                                 if (saleMarginRS > 0 && prodTime > 0) {
-                                                    const maxUnits = Math.floor((24 * 30 * 60) / prodTime);
+                                                    const maxUnits = Math.floor((8 * 22 * 60) / prodTime);
                                                     maxProfitPerMonth = saleMarginRS * maxUnits;
                                                 }
                                             }
