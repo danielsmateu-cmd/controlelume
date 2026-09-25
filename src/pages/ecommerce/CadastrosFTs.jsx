@@ -2036,11 +2036,11 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 onChange={(e) => setMatrixSortBy(e.target.value)}
                                 className="text-sm bg-white border border-gray-200 text-gray-700 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all cursor-pointer"
                             >
-                                <option value="name_asc">Ordem Alfab�tica</option>
-                                <option value="venda_desc">Maior Pre�o Venda</option>
-                                <option value="venda_asc">Menor Pre�o Venda</option>
-                                <option value="lucro_mes_desc">Maior Lucro M�s</option>
-                                <option value="lucro_mes_asc">Menor Lucro M�s</option>
+                                <option value="name_asc">Ordem Alfabética</option>
+                                <option value="venda_desc">Maior Preço Venda</option>
+                                <option value="venda_asc">Menor Preço Venda</option>
+                                <option value="lucro_mes_desc">Maior Lucro Mês</option>
+                                <option value="lucro_mes_asc">Menor Lucro Mês</option>
                             </select>
                             <div className="flex gap-2 flex-wrap items-center ml-2">
                                 <button 
