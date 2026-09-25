@@ -2075,19 +2075,19 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     <tr>
                                         <th rowSpan={2} className="px-4 py-4 font-bold text-gray-700 bg-gray-100 border-r border-b border-gray-200 text-left min-w-[220px] sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Ficha Técnica</th>
                                         {(matrixPlatformFilter.includes('meli')) && (
-                                            <th colSpan={3} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
+                                            <th colSpan={4} className="px-4 py-2 font-bold text-center bg-yellow-100 text-yellow-900 border-r border-b border-gray-200">Mercado Livre 🛒</th>
                                         )}
                                         {(matrixPlatformFilter.includes('tiktok')) && (
-                                            <th colSpan={3} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
+                                            <th colSpan={4} className="px-4 py-2 font-bold text-center bg-slate-200 text-slate-800 border-r border-b border-gray-200">TikTok 🎵</th>
                                         )}
                                         {(matrixPlatformFilter.includes('amazon')) && (
-                                            <th colSpan={3} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
+                                            <th colSpan={4} className="px-4 py-2 font-bold text-center bg-amber-100 text-amber-900 border-r border-b border-gray-200">Amazon 📦</th>
                                         )}
                                         {(matrixPlatformFilter.includes('shopee')) && (
-                                            <th colSpan={3} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
+                                            <th colSpan={4} className="px-4 py-2 font-bold text-center bg-orange-100 text-orange-900 border-r border-b border-gray-200">Shopee 🧡</th>
                                         )}
                                         {(matrixPlatformFilter.includes('site')) && (
-                                            <th colSpan={3} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
+                                            <th colSpan={4} className="px-4 py-2 font-bold text-center bg-indigo-100 text-indigo-950 border-b border-gray-200">Site 🌐</th>
                                         )}
                                     </tr>
                                     <tr className="bg-gray-50">
@@ -2097,6 +2097,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-yellow-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-yellow-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* TikTok */}
@@ -2105,6 +2106,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-slate-100/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-slate-100/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Amazon */}
@@ -2113,6 +2115,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-amber-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-amber-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Shopee */}
@@ -2121,6 +2124,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-orange-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-orange-50/10 border-r border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                         {/* Site */}
@@ -2128,7 +2132,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             <React.Fragment>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/60 border-r border-b border-gray-200 min-w-[100px]">Venda</th>
                                                 <th className="px-3 py-2 font-semibold text-right bg-indigo-50/30 border-r border-b border-gray-200 min-w-[110px]">Rank R$</th>
-                                                <th className="px-3 py-2 font-semibold text-right bg-indigo-50/20 border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-indigo-50/20 border-r border-b border-gray-200 min-w-[80px]">Queima</th>
+                                                <th className="px-3 py-2 font-semibold text-right bg-indigo-50/10 border-b border-gray-200 min-w-[110px]" title="Lucro total projetado se 100% do mês (24h) for dedicado apenas a este produto">Lucro Mês</th>
                                             </React.Fragment>
                                         )}
                                     </tr>
@@ -2211,6 +2216,17 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
                                         // Gera as 2 células (Rankeamento + Queima) de um marketplace
                                         const rankCells = (mktData, mktId, bgCls, withBorderR) => {
+                                            const rawSaleVal = editingValues[`${ft.id}-${mktId}`] !== undefined ? editingValues[`${ft.id}-${mktId}`] : mktData.salePrice;
+                                            const salePriceVal = parseFloat(String(rawSaleVal || '').replace(',', '.')) || 0;
+                                            let maxProfitPerMonth = null;
+                                            if (salePriceVal > 0) {
+                                                const saleMarginRS = salePriceVal - mktData.fixedCosts - (mktData.percentRate * salePriceVal);
+                                                const prodTime = ft.productionTime ? parseInt(ft.productionTime, 10) : 0;
+                                                if (saleMarginRS > 0 && prodTime > 0) {
+                                                    const maxUnits = Math.floor((24 * 30 * 60) / prodTime);
+                                                    maxProfitPerMonth = saleMarginRS * maxUnits;
+                                                }
+                                            }
                                             const key = `${ft.id}-${mktId}`;
                                             const raw = matrixRankValues[key] !== undefined ? matrixRankValues[key] : (mktData.rankPrice || '');
                                             const pct = rankPctFor(raw, mktData.fixedCosts, mktData.percentRate);
