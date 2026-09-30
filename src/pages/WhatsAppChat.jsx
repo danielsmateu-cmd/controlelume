@@ -55,6 +55,7 @@ function WhatsAppChatInner() {
   const { currentUser, usersList } = useAuth();
   const [chats, setChats] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
+  const [chatFontSize, setChatFontSize] = useState(() => localStorage.getItem('whatsappFontSize') || 'text-xs');
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [quickReplies, setQuickReplies] = useState([]);
@@ -230,7 +231,17 @@ function WhatsAppChatInner() {
   };
 
   // Enviar Mensagem
-    const handleSendMessage = async (e) => {
+  
+  const cycleFontSize = () => {
+    const sizes = ['text-xs', 'text-sm', 'text-base', 'text-lg'];
+    const idx = sizes.indexOf(chatFontSize);
+    const nextIdx = (idx + 1) % sizes.length;
+    const nextSize = sizes[nextIdx];
+    setChatFontSize(nextSize);
+    localStorage.setItem('whatsappFontSize', nextSize);
+  };
+
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if ((!inputMessage.trim() && !selectedFile) || !activeChat) return;
 
@@ -769,6 +780,13 @@ function WhatsAppChatInner() {
                         ) : null}
 
                         <button
+                          onClick={cycleFontSize}
+                          title="Ajustar Tamanho da Fonte"
+                          className="px-3 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all mr-1"
+                        >
+                          A&plus;
+                        </button>
+                        <button
                           onClick={() => setTransferModalOpen(true)}
                           className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
                         >
@@ -942,7 +960,7 @@ function WhatsAppChatInner() {
                   >
                     <div
                       className={clsx(
-                        'p-3 rounded-2xl text-xs shadow-sm',
+                        `p-3 rounded-2xl ${chatFontSize} shadow-sm`,
                         isMe
                           ? 'bg-emerald-600 text-white rounded-tr-none'
                           : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
