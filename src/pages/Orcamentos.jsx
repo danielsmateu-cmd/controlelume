@@ -2831,8 +2831,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     const { areaM2, cost } = calculateRow(mat);
                                                     const m = measurements[mat.id] || { x: '', y: '' };
                                                     return (
-                                                        <tr key={mat.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                            <td className="px-3 py-1 text-[11px] font-bold text-gray-700 bg-gray-50/50">{mat.name}</td>
+                                                        <tr key={mat.id} className={clsx("transition-colors", areaM2 > 0 ? "bg-yellow-100/80 shadow-[inset_4px_0_0_0_#eab308]" : "hover:bg-indigo-50/30")}>
+                                                            <td className={clsx("px-3 py-1 text-[11px] font-bold", areaM2 > 0 ? "text-yellow-900" : "text-gray-700 bg-gray-50/50")}>{mat.name}</td>
                                                             <td className="px-1 py-1 border-l border-gray-100">
                                                                 <input type="number" value={m.x} onChange={e => handleMeasurementChange(mat.id, 'x', e.target.value)}
                                                                     placeholder="0" className="w-full px-1 py-0.5 text-center text-[11px] border border-gray-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none" />
@@ -2850,8 +2850,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     const qty = parseFloat(unitQtys[mat.id]) || 0;
                                                     const cost = qty * mat.price;
                                                     return (
-                                                        <tr key={mat.id} className="hover:bg-emerald-50/30 transition-colors">
-                                                            <td className="px-3 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/30">
+                                                        <tr key={mat.id} className={clsx("transition-colors", qty > 0 ? "bg-yellow-100/80 shadow-[inset_4px_0_0_0_#eab308]" : "hover:bg-emerald-50/30")}>
+                                                            <td className={clsx("px-3 py-1 text-[11px] font-bold", qty > 0 ? "text-yellow-900" : "text-emerald-700 bg-emerald-50/30")}>
                                                                 {mat.name} <span className="text-[9px] font-normal text-emerald-500 ml-1">(unid)</span>
                                                             </td>
                                                             <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
@@ -2868,8 +2868,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     const lengthCm = parseFloat(linearLengths[mat.id]) || 0;
                                                     const cost = (lengthCm / 100) * mat.price;
                                                     return (
-                                                        <tr key={mat.id} className="hover:bg-amber-50/30 transition-colors">
-                                                            <td className="px-3 py-1 text-[11px] font-bold text-amber-700 bg-amber-50/30">
+                                                        <tr key={mat.id} className={clsx("transition-colors", lengthCm > 0 ? "bg-yellow-100/80 shadow-[inset_4px_0_0_0_#eab308]" : "hover:bg-amber-50/30")}>
+                                                            <td className={clsx("px-3 py-1 text-[11px] font-bold", lengthCm > 0 ? "text-yellow-900" : "text-amber-700 bg-amber-50/30")}>
                                                                 {mat.name} <span className="text-[9px] font-normal text-amber-500 ml-1">(m linear)</span>
                                                             </td>
                                                             <td className="px-1 py-1 border-l border-gray-100" colSpan="2">
