@@ -408,6 +408,8 @@ function WhatsAppChatInner() {
   const unreadCounts = {
     aguardando: 0,
     todas: 0,
+    em_atendimento: 0,
+    aguardando_retorno: 0,
     attendants: {}
   };
 
@@ -421,8 +423,14 @@ function WhatsAppChatInner() {
       }
       
       if (chat.assigned_to) {
-        unreadCounts.attendants[chat.assigned_to] = (unreadCounts.attendants[chat.assigned_to] || 0) + unread;
-      }
+          unreadCounts.attendants[chat.assigned_to] = (unreadCounts.attendants[chat.assigned_to] || 0) + unread;
+        }
+        if (chat.status === 'em_atendimento') {
+          unreadCounts.em_atendimento += unread;
+        }
+        if (chat.status === 'aguardando_retorno') {
+          unreadCounts.aguardando_retorno += unread;
+        }
     }
   });
 
@@ -535,27 +543,37 @@ function WhatsAppChatInner() {
           {/* 2ª LINHA DE ABAS (Sub-Status de Atendimento) */}
           <div className="flex p-0.5 bg-slate-100/90 rounded-lg text-[11px] font-medium text-gray-500 gap-0.5 border border-slate-200/60">
             <button
-              onClick={() => setSubFilter('em_atendimento')}
-              className={clsx(
-                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
-                subFilter === 'em_atendimento'
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                  : 'hover:text-emerald-700'
-              )}
-            >
-              Em Atendimento
-            </button>
+                onClick={() => setSubFilter('em_atendimento')}
+                className={clsx(
+                  'flex-1 py-1 rounded-md transition-all text-center leading-tight relative',
+                  subFilter === 'em_atendimento'
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                    : 'hover:text-emerald-700'
+                )}
+              >
+                Em Atendimento
+                {unreadCounts.em_atendimento > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full shadow-sm">
+                    {unreadCounts.em_atendimento}
+                  </span>
+                )}
+              </button>
             <button
-              onClick={() => setSubFilter('aguardando_retorno')}
-              className={clsx(
-                'flex-1 py-1 rounded-md transition-all text-center leading-tight',
-                subFilter === 'aguardando_retorno'
-                  ? 'bg-amber-500 text-white font-bold shadow-xs'
-                  : 'hover:text-amber-700'
-              )}
-            >
-              Aguard. Retorno
-            </button>
+                onClick={() => setSubFilter('aguardando_retorno')}
+                className={clsx(
+                  'flex-1 py-1 rounded-md transition-all text-center leading-tight relative',
+                  subFilter === 'aguardando_retorno'
+                    ? 'bg-amber-500 text-white font-bold shadow-xs'
+                    : 'hover:text-amber-700'
+                )}
+              >
+                Aguard. Retorno
+                {unreadCounts.aguardando_retorno > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full shadow-sm">
+                    {unreadCounts.aguardando_retorno}
+                  </span>
+                )}
+              </button>
             <button
               onClick={() => setSubFilter('finalizado')}
               className={clsx(
