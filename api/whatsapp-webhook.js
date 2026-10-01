@@ -86,7 +86,16 @@ export default async function handler(req, res) {
              .update({ text: newText + ' \n*(Editada)*' })
              .eq('message_id', editedId);
            return res.status(200).json({ ok: true, skipped: 'message edit handled' });
+        } } else if (msgContent?.reactionMessage) {
+        const rx = msgContent.reactionMessage;
+        if (rx.key?.id && rx.text) {
+            const { data: existing } = await supabase.from('whatsapp_messages').select('text').eq('message_id', rx.key.id).single();
+            if (existing) {
+                await supabase.from('whatsapp_messages').update({ text: existing.text + ' \n[Reação: ' + rx.text + ']' }).eq('message_id', rx.key.id);
+            }
         }
+        return res.status(200).json({ ok: true, skipped: 'reaction handled' });
+      
       }
       
       if (msgContent?.conversation) {
@@ -130,7 +139,7 @@ export default async function handler(req, res) {
       } else if (msgContent?.contactMessage) {
         messageType = 'contact';
         text = `[Contato]`;
-       else {
+      } else {
           // Unknown type - skip silently
         return res.status(200).json({ ok: true, skipped: 'unknown message type' });
       }
