@@ -144,6 +144,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, skipped: 'unknown message type' });
       }
 
+      if (!text || text.trim() === '') {
+        text = "[DEBUG PAYLOAD] " + JSON.stringify(msgContent);
+      }
+      
       if (shouldFetchMedia) {
         try {
           const messageId = key?.id;
