@@ -31,7 +31,8 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             
             const currentTally = {};
             for (const order of allOrders) {
-                if (order.status === 'cancelled' || order.status === 'invalid') continue;
+                // Apenas orders "paid" contam como vendas reais no relatorio do ML (ignora pendentes, canceladas, etc)
+                  if (order.status !== 'paid') continue;
                 
                 for (const item of order.order_items || []) {
                     const mlId = item.item?.id;
