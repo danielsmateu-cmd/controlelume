@@ -39,7 +39,24 @@ export default async function handler(req, res) {
       const pushName = data?.pushName || msg?.pushName || null;
 
       // Detect message type and content
-      const msgContent = msg?.message || data?.message || {};
+      let msgContent = msg?.message || data?.message || {};
+
+      // Unwrap nested message structures (disappearing messages, view once, etc)
+      if (msgContent?.ephemeralMessage?.message) {
+        msgContent = msgContent.ephemeralMessage.message;
+      }
+      if (msgContent?.viewOnceMessage?.message) {
+        msgContent = msgContent.viewOnceMessage.message;
+      }
+      if (msgContent?.viewOnceMessageV2?.message) {
+        msgContent = msgContent.viewOnceMessageV2.message;
+      }
+      if (msgContent?.viewOnceMessageV2Extension?.message) {
+        msgContent = msgContent.viewOnceMessageV2Extension.message;
+      }
+      if (msgContent?.documentWithCaptionMessage?.message) {
+        msgContent = msgContent.documentWithCaptionMessage.message;
+      }
       let text = '';
       let messageType = 'text';
       let mediaUrl = null;
