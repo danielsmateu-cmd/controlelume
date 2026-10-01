@@ -47,6 +47,31 @@ export default async function handler(req, res) {
       let mediaMimeType = null;
       let shouldFetchMedia = false;
 
+      if (msgContent?.protocolMessage && (msgContent.protocolMessage.type === 'MESSAGE_EDIT' || msgContent.protocolMessage.type === 14)) {
+        const editedKey = msgContent.protocolMessage.key;
+        const editedMsg = msgContent.protocolMessage.editedMessage;
+        const newText = editedMsg?.conversation || editedMsg?.extendedTextMessage?.text || '';
+        if (editedKey?.id) {
+           await supabase
+             .from('whatsapp_messages')
+             .update({ text: newText + ' \n*(Editada)*' })
+             .eq('message_id', editedKey.id);
+        }
+        return res.status(200).json({ ok: true, skipped: 'message edit handled' });
+      } else if (msgContent?.editedMessage) {
+        const newText = msgContent.editedMessage.message?.protocolMessage?.editedMessage?.conversation 
+                     || msgContent.editedMessage.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text 
+                     || '';
+        const editedId = msgContent.editedMessage.message?.protocolMessage?.key?.id;
+        if (editedId) {
+           await supabase
+             .from('whatsapp_messages')
+             .update({ text: newText + ' \n*(Editada)*' })
+             .eq('message_id', editedId);
+           return res.status(200).json({ ok: true, skipped: 'message edit handled' });
+        }
+      }
+      
       if (msgContent?.conversation) {
         text = msgContent.conversation;
         messageType = 'text';
@@ -88,19 +113,7 @@ export default async function handler(req, res) {
       } else if (msgContent?.contactMessage) {
         messageType = 'contact';
         text = `[Contato]`;
-      } else if (msgContent?.protocolMessage && msgContent.protocolMessage.type === 'MESSAGE_EDIT') {
-          const editedKey = msgContent.protocolMessage.key;
-          const editedMsg = msgContent.protocolMessage.editedMessage;
-          const newText = editedMsg?.conversation || editedMsg?.extendedTextMessage?.text || '';
-          
-          if (editedKey?.id) {
-             await supabase
-               .from('whatsapp_messages')
-               .update({ text: newText + ' \n*(Editada)*' })
-               .eq('message_id', editedKey.id);
-          }
-          return res.status(200).json({ ok: true, skipped: 'message edit handled' });
-        } else {
+       else {
           // Unknown type - skip silently
         return res.status(200).json({ ok: true, skipped: 'unknown message type' });
       }
