@@ -85,16 +85,26 @@ export default async function handler(req, res) {
              .from('whatsapp_messages')
              .update({ text: newText + ' \n*(Editada)*' })
              .eq('message_id', editedId);
+           if (key?.id) {
+               await new Promise(r => setTimeout(r, 2000));
+               await supabase.from('whatsapp_messages').delete().eq('message_id', key.id);
+           }
            return res.status(200).json({ ok: true, skipped: 'message edit handled' });
         } } else if (msgContent?.reactionMessage) {
         const rx = msgContent.reactionMessage;
         if (rx.key?.id && rx.text) {
             const { data: existing } = await supabase.from('whatsapp_messages').select('text').eq('message_id', rx.key.id).single();
-            if (existing) {
-                await supabase.from('whatsapp_messages').update({ text: existing.text + ' \n[Reação: ' + rx.text + ']' }).eq('message_id', rx.key.id);
-            }
-        }
-        return res.status(200).json({ ok: true, skipped: 'reaction handled' });
+            
+              if (existing) {
+                  await supabase.from('whatsapp_messages').update({ text: existing.text + ' \n[Reação: ' + rx.text + ']' }).eq('message_id', rx.key.id);
+              }
+              if (key?.id) {
+                  // Atraso de 2s para garantir que o n8n ja inseriu a mensagem vazia antes de tentarmos deletar
+                  await new Promise(r => setTimeout(r, 2000));
+                  await supabase.from('whatsapp_messages').delete().eq('message_id', key.id);
+              }
+          }
+          return res.status(200).json({ ok: true, skipped: 'reaction handled' });
       
       }
       
