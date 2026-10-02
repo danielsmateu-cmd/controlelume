@@ -18,6 +18,7 @@ import WhatsAppChat from './pages/WhatsAppChat';
 import Agenda from './pages/Agenda';
 import Funcionarios from './pages/Funcionarios';
 import { api } from './services/api';
+import { supabase } from './lib/supabase';
 import { Store, ShoppingCart, Wallet, Tag, Calculator } from 'lucide-react';
 
 function AppContent() {
@@ -148,18 +149,9 @@ function AppContent() {
     }, [currentUser?.id]);
 
     // Persist to localStorage + Supabase on change
-    useEffect(() => {
+        useEffect(() => {
         if (isLoading) return;
         localStorage.setItem('expenses', JSON.stringify(expenses));
-
-        // Sincroniza com Supabase sempre (saveExpenses tem try/catch e timeout próprios)
-        const handler = setTimeout(() => {
-            api.saveExpenses(expenses);
-        }, 500);
-
-        return () => {
-            clearTimeout(handler);
-        };
     }, [expenses, isLoading]);
 
     useEffect(() => {
@@ -176,6 +168,28 @@ function AppContent() {
         if (isLoading) return;
         localStorage.setItem('materials', JSON.stringify(materials));
     }, [materials, isLoading]);
+
+    
+    // --- REALTIME SYNC SUPABASE ---
+    useEffect(() => {
+        if (!currentUser) return;
+        const channel = supabase.channel('global_sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+                api.getOrders().then(data => { if(data) setOrders(data) });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, (payload) => {
+                api.getExpenses().then(data => { if(data) setExpenses(data) });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+                api.getNotes().then(data => { if(data) setNotes(data) });
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUser?.id]);
+    // -----------------------------
 
     const handleExportBackup = async () => {
         try {
