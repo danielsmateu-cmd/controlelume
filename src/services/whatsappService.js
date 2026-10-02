@@ -49,6 +49,7 @@ export const whatsappService = {
 
       // 1. Enviar mensagem via Vercel Backend (Proxy) para evitar Mixed Content
       let sentDirectly = false;
+      let sentMessageId = null;
       try {
         const payload = {
           number: cleanNumber,
@@ -67,6 +68,7 @@ export const whatsappService = {
         });
         if (response.ok) {
           sentDirectly = true;
+          try { const respData = await response.json(); if (respData?.key?.id) { sentMessageId = respData.key.id; } else if (respData?.id) { sentMessageId = respData.id; } } catch(e) {}
           console.log('Mensagem enviada com sucesso via proxy Vercel.');
         } else {
           console.error('Falha no envio via proxy:', await response.text());
@@ -83,7 +85,8 @@ export const whatsappService = {
         sender_name: senderName,
         text: formattedText,
         timestamp: Date.now(),
-        sent_to_evolution: sentDirectly // Marca se o envio real funcionou
+        sent_to_evolution: sentDirectly,
+        message_id: sentMessageId // Marca se o envio real funcionou
       };
 
       if (mediaBase64) {
