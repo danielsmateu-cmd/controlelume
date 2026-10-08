@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, Copy, MessageSquareText
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, Copy, Edit2, Check, MessageSquareText
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
@@ -61,6 +61,8 @@ function WhatsAppChatInner() {
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
+  const [newQuickReplyTitle, setNewQuickReplyTitle] = useState('');
+  const [editingQuickReplyId, setEditingQuickReplyId] = useState(null);
   const [signMessage, setSignMessage] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
@@ -296,10 +298,40 @@ function WhatsAppChatInner() {
 
   const handleSaveQuickReply = async () => {
     if (!newQuickReply.trim()) return;
-    const newReplies = [...quickReplies, { id: Date.now().toString(), text: newQuickReply.trim() }];
+    
+    let newReplies;
+    if (editingQuickReplyId) {
+        newReplies = quickReplies.map(qr => 
+            qr.id === editingQuickReplyId 
+                ? { ...qr, title: newQuickReplyTitle.trim(), text: newQuickReply.trim() } 
+                : qr
+        );
+    } else {
+        newReplies = [...quickReplies, { 
+            id: Date.now().toString(), 
+            title: newQuickReplyTitle.trim(), 
+            text: newQuickReply.trim() 
+        }];
+    }
+    
     setQuickReplies(newReplies);
     setNewQuickReply('');
+    setNewQuickReplyTitle('');
+    setEditingQuickReplyId(null);
     await api.saveSettings('whatsapp_quick_replies', newReplies);
+  };
+
+  const handleEditQuickReply = (qr, e) => {
+    e.stopPropagation();
+    setEditingQuickReplyId(qr.id);
+    setNewQuickReplyTitle(qr.title || '');
+    setNewQuickReply(qr.text);
+  };
+
+  const handleCancelEditQuickReply = () => {
+    setEditingQuickReplyId(null);
+    setNewQuickReplyTitle('');
+    setNewQuickReply('');
   };
 
   const handleDeleteQuickReply = async (id, e) => {
@@ -1043,18 +1075,41 @@ function WhatsAppChatInner() {
                           <p className="text-xs text-gray-400 text-center py-2">Nenhuma resposta salva.</p>
                         ) : (
                           quickReplies.map(qr => (
-                            <div key={qr.id} onClick={() => handleSelectQuickReply(qr.text)} className="group flex justify-between items-center p-2 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors text-xs text-gray-700">
-                              <span className="whitespace-pre-wrap pr-2">{qr.text}</span>
-                              <button type="button" onClick={(e) => handleDeleteQuickReply(qr.id, e)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                            <div key={qr.id} onClick={() => handleSelectQuickReply(qr.text)} title={qr.text} className="group flex justify-between items-center p-2 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors text-xs text-gray-700">
+                              <span className="whitespace-pre-wrap pr-2 font-medium">{qr.title || (qr.text.length > 30 ? qr.text.substring(0, 30) + '...' : qr.text)}</span>
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button type="button" onClick={(e) => handleEditQuickReply(qr, e)} className="text-gray-400 hover:text-indigo-600">
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button type="button" onClick={(e) => handleDeleteQuickReply(qr.id, e)} className="text-gray-400 hover:text-red-500">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           ))
                         )}
                       </div>
-                      <div className="p-2 border-t border-gray-100 flex gap-2">
-                        <textarea placeholder="Nova resposta... (Shift+Enter para quebrar linha)" value={newQuickReply} onChange={(e) => setNewQuickReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveQuickReply(); } }} className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded outline-none focus:border-indigo-500 resize-none scrollbar-thin" rows="3" />
-                        <button type="button" onClick={handleSaveQuickReply} disabled={!newQuickReply.trim()} className="bg-indigo-600 text-white p-1.5 rounded hover:bg-indigo-700 disabled:opacity-50"><Plus className="w-4 h-4"/></button>
+                      <div className="p-2 border-t border-gray-100 flex flex-col gap-2 bg-gray-50">
+                        {editingQuickReplyId && (
+                           <div className="flex justify-between items-center text-[10px] font-semibold text-indigo-600 px-1 uppercase tracking-wide">
+                              <span>Editando resposta</span>
+                              <button type="button" onClick={handleCancelEditQuickReply} className="text-gray-400 hover:text-gray-600">Cancelar</button>
+                           </div>
+                        )}
+                        <input 
+                            type="text" 
+                            placeholder="Título (opcional)" 
+                            value={newQuickReplyTitle} 
+                            onChange={(e) => setNewQuickReplyTitle(e.target.value)} 
+                            className="w-full px-2 py-1.5 text-xs bg-white border border-gray-200 rounded outline-none focus:border-indigo-500" 
+                        />
+                        <div className="flex gap-2">
+                            <textarea placeholder="Mensagem... (Shift+Enter para quebrar linha)" 
+                              value={newQuickReply} onChange={(e) => setNewQuickReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && 
+                              !e.shiftKey) { e.preventDefault(); handleSaveQuickReply(); } }} className="flex-1 px-2 py-1.5 text-xs bg-white border border-gray-200 rounded outline-none focus:border-indigo-500 resize-none scrollbar-thin" rows="3" />
+                            <button type="button" onClick={handleSaveQuickReply} disabled={!newQuickReply.trim()} 
+                              className="bg-indigo-600 text-white p-1.5 rounded hover:bg-indigo-700 disabled:opacity-50">{editingQuickReplyId ? <Check className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}</button>
+                        </div>
                       </div>
                     </div>
                   )}
