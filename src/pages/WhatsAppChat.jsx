@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Plus, Trash2, Copy, Edit2, Check, MessageSquareText
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText
 } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
 import { whatsappService } from '../services/whatsappService';
@@ -60,6 +61,7 @@ function WhatsAppChatInner() {
   const [inputMessage, setInputMessage] = useState('');
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
   const [newQuickReplyTitle, setNewQuickReplyTitle] = useState('');
   const [editingQuickReplyId, setEditingQuickReplyId] = useState(null);
@@ -1128,7 +1130,7 @@ function WhatsAppChatInner() {
                   <div className="p-3 pt-2 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowQuickReplies(!showQuickReplies)}
+                      onClick={() => { setShowQuickReplies(!showQuickReplies); setShowEmojiPicker(false); }}
                       className="p-2.5 bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-600 rounded-xl transition-colors relative"
                       title="Respostas R�pidas"
                     >
@@ -1143,6 +1145,30 @@ function WhatsAppChatInner() {
                   >
                     <Paperclip className="w-4 h-4" />
                   </button>
+                    
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-12 mb-2 z-50 shadow-xl rounded-xl overflow-hidden border border-gray-200">
+                        <EmojiPicker 
+                          onEmojiClick={(emojiData) => {
+                            setInputMessage(prev => prev + emojiData.emoji);
+                          }}
+                          searchDisabled={true}
+                          skinTonesDisabled={true}
+                          previewConfig={{ showPreview: false }}
+                          height={350}
+                          width={300}
+                        />
+                      </div>
+                    )}
+                    
+                    <button
+                      type="button"
+                      onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickReplies(false); }}
+                      className="p-2.5 bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-600 rounded-xl transition-colors relative"
+                      title="Emojis"
+                    >
+                      <Smile className="w-5 h-5" />
+                    </button>
                   <input 
                     type="file" 
                     ref={fileInputRef} 
