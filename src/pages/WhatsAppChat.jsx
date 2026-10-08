@@ -352,6 +352,60 @@ function WhatsAppChatInner() {
   };
 
   // Assumir Atendimento
+  const handleCreateNewChat = async (e) => {
+    e.preventDefault();
+    if (!newChatPhone) return;
+
+    // Remove non-numeric chars
+    let phoneNum = newChatPhone.replace(/\D/g, '');
+    
+    // Auto-add country code 55 if missing (assuming Brazil)
+    if (phoneNum.length === 10 || phoneNum.length === 11) {
+        phoneNum = '55' + phoneNum;
+    }
+
+    const remoteJid = `${phoneNum}@s.whatsapp.net`;
+    const contactName = newChatName.trim() || phoneNum;
+
+    // Check if chat already exists
+    const existingChat = chats.find(c => c.remote_jid === remoteJid);
+    if (existingChat) {
+      setActiveChat(existingChat);
+      setShowNewChatModal(false);
+      setNewChatPhone('');
+      setNewChatName('');
+      return;
+    }
+
+    // Insert new chat in Supabase
+    try {
+      const { data, error } = await supabase.from('whatsapp_chats').insert([{
+        remote_jid: remoteJid,
+        push_name: contactName,
+        phone_number: phoneNum,
+        unread_count: 0,
+        status: 'em_atendimento',
+        assigned_to: currentUser?.name,
+        last_message: 'Conversa iniciada',
+        updated_at: new Date().toISOString()
+      }]).select().single();
+
+      if (error) throw error;
+
+      if (data) {
+        setChats(prev => [data, ...prev]);
+        setActiveChat(data);
+      }
+    } catch (err) {
+      console.error('Erro ao criar conversa:', err);
+      alert('Erro ao criar nova conversa. Verifique sua conexão.');
+    }
+
+    setShowNewChatModal(false);
+    setNewChatPhone('');
+    setNewChatName('');
+  };
+
   const handleAssign = async () => {
     if (!activeChat) return;
     const userName = currentUser?.name || currentUser?.login || 'Atendente';
