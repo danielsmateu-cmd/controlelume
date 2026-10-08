@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText, MessageSquarePlus
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import clsx from 'clsx';
@@ -77,6 +77,9 @@ function WhatsAppChatInner() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState('');
+  const [newChatName, setNewChatName] = useState('');
   const [transferTab, setTransferTab] = useState('setor'); // 'setor' or 'usuario'
 
 
@@ -507,6 +510,13 @@ function WhatsAppChatInner() {
               </div>
             </div>
             <button
+                onClick={() => setShowNewChatModal(true)}
+                title="Nova Conversa"
+                className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
+              </button>
+              <button
               onClick={fetchChats}
               title="Atualizar conversas"
               className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -1222,6 +1232,43 @@ function WhatsAppChatInner() {
           <p className="text-xs text-gray-500 max-w-sm">
             Selecione uma conversa na lista à esquerda para visualizar o histórico de mensagens e responder ao cliente em tempo real.
           </p>
+        </div>
+      )}
+
+      
+      {/* MODAL NOVA CONVERSA */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                <MessageSquarePlus className="w-4 h-4 text-emerald-600" />
+                Nova Conversa
+              </h3>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateNewChat} className="space-y-4">
+               <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Telefone (com DDD)</label>
+                  <input type="text" value={newChatPhone} onChange={e => setNewChatPhone(e.target.value)} placeholder="Ex: 11999999999" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required />
+               </div>
+               <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nome do Contato (Opcional)</label>
+                  <input type="text" value={newChatName} onChange={e => setNewChatName(e.target.value)} placeholder="Ex: João da Silva" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+               </div>
+
+               <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setShowNewChatModal(false)} className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
+                  <button type="submit" disabled={!newChatPhone} className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50">Iniciar</button>
+               </div>
+            </form>
+          </div>
         </div>
       )}
 
