@@ -82,8 +82,7 @@ const getReportMonthDisplay = (monthStr) => {
 };
 
 const ECommerce = ({ readOnly }) => {
-    const { currentUser } = useAuth();
-    const [activeSubTab, setActiveSubTab] = useState('visao_geral');
+    const { currentUser, canView, canEdit } = useAuth();
     const [activePlatform, setActivePlatform] = useState('meli');
     const [activeMktTab, setActiveMktTab] = useState('vendas');
     const [reportMonth, setReportMonth] = useState(() => {
@@ -98,12 +97,28 @@ const ECommerce = ({ readOnly }) => {
         { id: 'cadastros_fts', label: 'Cadastros de FTs', icon: ListTodo },
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
-
     ];
 
-    if (currentUser?.login === 'dsmateu' || currentUser?.role === 'admin') {
+    if (currentUser?.login === 'dsmateu' || currentUser?.role === 'admin' || (canView && canView('ecommerce', 'auditoria_ads'))) {
         subTabs.push({ id: 'auditoria_ads', label: 'Auditoria Ads', icon: Activity });
     }
+
+    // Filtrar apenas as sub-abas liberadas para este usuário
+    const availableSubTabs = subTabs.filter(tab => canView ? canView('ecommerce', tab.id) : true);
+
+    const [activeSubTab, setActiveSubTab] = useState(() => {
+        const first = subTabs.find(tab => canView ? canView('ecommerce', tab.id) : true);
+        return first ? first.id : 'visao_geral';
+    });
+
+    // Se a aba ativa não for permitida, redireciona para a primeira disponível
+    useEffect(() => {
+        if (canView && !canView('ecommerce', activeSubTab) && availableSubTabs.length > 0) {
+            setActiveSubTab(availableSubTabs[0].id);
+        }
+    }, [activeSubTab, availableSubTabs, canView]);
+
+    const isCurrentSubReadOnly = readOnly || (canEdit ? !canEdit('ecommerce', activeSubTab) : false);
 
     const mktTabs = [
         { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
