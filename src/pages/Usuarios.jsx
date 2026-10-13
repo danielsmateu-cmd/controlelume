@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, Plus, Edit2, Trash2, Shield, Save, X, Eye, Edit3 } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Shield, Save, X, Eye, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 
 const MODULES = [
@@ -8,20 +8,49 @@ const MODULES = [
     { id: 'whatsapp', label: 'WhatsApp Lume' },
     { id: 'agenda', label: 'Agenda Lume' },
     { id: 'vendas', label: 'Entradas/Vendas' },
-    { id: 'saida', label: 'Saídas' },
+    { 
+        id: 'saida', 
+        label: 'Saídas / Despesas',
+        subModules: [
+            { id: 'fixos', label: 'Gastos Fixos' },
+            { id: 'mercado', label: 'Gastos Extras' },
+            { id: 'fornecedores', label: 'Fornecedores' },
+            { id: 'retirada', label: 'Retirada de Sócios' },
+            { id: 'acerto_socios', label: 'Acerto Sócios' }
+        ]
+    },
     { id: 'orcamentos', label: 'Orçamentos' },
     { id: 'contas', label: 'Produção / Contas' },
     { id: 'compras', label: 'Compras' },
     { id: 'estudo_produtos', label: 'Estudo de Produtos' },
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'funcionarios', label: 'Funcionários' },
-    { id: 'ecommerce', label: 'E-Commerce' },
+    { 
+        id: 'ecommerce', 
+        label: 'E-Commerce / Marketplaces',
+        subModules: [
+            { id: 'visao_geral', label: 'Visão Geral' },
+            { id: 'empresas_custos', label: 'Empresas e Custos' },
+            { id: 'marketplaces', label: 'Marketplaces (Vendas / FTs)' },
+            { id: 'cadastros_fts', label: 'Cadastros de FTs' },
+            { id: 'parcerias', label: 'Parcerias' },
+            { id: 'relatorio', label: 'Gerar Relatório PDF' },
+            { id: 'auditoria_ads', label: 'Auditoria Ads' }
+        ]
+    },
     { id: 'precificacao', label: 'Precificação' }
 ];
 
 export default function Usuarios() {
     const { usersList, saveUsersList, currentUser } = useAuth();
     const [editingUser, setEditingUser] = useState(null);
+    const [expandedModules, setExpandedModules] = useState(['ecommerce']);
+
+    const toggleExpandModule = (modId) => {
+        setExpandedModules(prev =>
+            prev.includes(modId) ? prev.filter(id => id !== modId) : [...prev, modId]
+        );
+    };
 
     // Form state
     const [formData, setFormData] = useState({
@@ -31,6 +60,8 @@ export default function Usuarios() {
         password: '',
         visibleTabs: [],
         editableTabs: [],
+        visibleSubTabs: {},
+        editableSubTabs: {},
         canExportImport: false
     });
 
@@ -42,34 +73,49 @@ export default function Usuarios() {
             password: '',
             visibleTabs: [],
             editableTabs: [],
+            visibleSubTabs: {},
+            editableSubTabs: {},
             canExportImport: false
         });
         setEditingUser('new');
+        setExpandedModules(['ecommerce']);
     };
 
     const handleEditUser = (user) => {
         const perms = user.customPermissions || {
             visibleTabs: [],
             editableTabs: [],
+            visibleSubTabs: {},
+            editableSubTabs: {},
             canExportImport: false
         };
         
-        // If it's a legacy user without customPermissions, we can try to guess from its role
-        // But for safety and clarity in the UI, if they don't have customPermissions, 
-        // they start blank in the UI so the admin can set them explicitly.
-        // Actually, let's pre-fill with role defaults if customPermissions doesn't exist.
         let defaultVisible = [];
         let defaultEditable = [];
+        let defaultVisibleSub = {};
+        let defaultEditableSub = {};
         let defaultExport = false;
         
         if (!user.customPermissions) {
             if (user.role === 'admin') {
                 defaultVisible = MODULES.map(m => m.id);
                 defaultEditable = MODULES.map(m => m.id);
+                MODULES.forEach(m => {
+                    if (m.subModules) {
+                        defaultVisibleSub[m.id] = m.subModules.map(s => s.id);
+                        defaultEditableSub[m.id] = m.subModules.map(s => s.id);
+                    }
+                });
                 defaultExport = true;
             } else if (user.role === 'editor') {
                 defaultVisible = MODULES.map(m => m.id);
-                defaultEditable = ['orcamentos', 'contas', 'tarefas', 'simulacao'];
+                defaultEditable = ['orcamentos', 'contas', 'tarefas', 'precificacao'];
+                MODULES.forEach(m => {
+                    if (m.subModules) {
+                        defaultVisibleSub[m.id] = m.subModules.map(s => s.id);
+                        defaultEditableSub[m.id] = [];
+                    }
+                });
             } else if (user.role === 'budget_only') {
                 defaultVisible = ['orcamentos', 'contas'];
                 defaultEditable = ['orcamentos', 'contas'];
@@ -77,13 +123,27 @@ export default function Usuarios() {
                 defaultVisible = ['contas'];
                 defaultEditable = ['contas'];
             } else if (user.role === 'simulacao_only') {
-                defaultVisible = ['simulacao'];
-                defaultEditable = ['simulacao'];
+                defaultVisible = ['precificacao', 'agenda'];
+                defaultEditable = ['precificacao', 'agenda'];
             }
         } else {
             defaultVisible = perms.visibleTabs || [];
             defaultEditable = perms.editableTabs || [];
+            defaultVisibleSub = { ...(perms.visibleSubTabs || {}) };
+            defaultEditableSub = { ...(perms.editableSubTabs || {}) };
             defaultExport = perms.canExportImport || false;
+
+            // Se o módulo pai está visível/editável mas ainda não tem sub-permissões gravadas, pré-carrega todas
+            MODULES.forEach(m => {
+                if (m.subModules) {
+                    if (defaultVisible.includes(m.id) && !defaultVisibleSub[m.id]) {
+                        defaultVisibleSub[m.id] = m.subModules.map(s => s.id);
+                    }
+                    if (defaultEditable.includes(m.id) && !defaultEditableSub[m.id]) {
+                        defaultEditableSub[m.id] = m.subModules.map(s => s.id);
+                    }
+                }
+            });
         }
 
         setFormData({
@@ -93,9 +153,12 @@ export default function Usuarios() {
             password: user.password,
             visibleTabs: defaultVisible,
             editableTabs: defaultEditable,
+            visibleSubTabs: defaultVisibleSub,
+            editableSubTabs: defaultEditableSub,
             canExportImport: defaultExport
         });
         setEditingUser(user.id);
+        setExpandedModules(['ecommerce']);
     };
 
     const handleDeleteUser = async (user) => {
@@ -128,6 +191,8 @@ export default function Usuarios() {
             customPermissions: {
                 visibleTabs: formData.visibleTabs,
                 editableTabs: formData.editableTabs,
+                visibleSubTabs: formData.visibleSubTabs,
+                editableSubTabs: formData.editableSubTabs,
                 canExportImport: formData.canExportImport
             }
         };
@@ -165,26 +230,95 @@ export default function Usuarios() {
         setFormData(prev => {
             let vis = [...prev.visibleTabs];
             let edi = [...prev.editableTabs];
+            let visSub = { ...prev.visibleSubTabs };
+            let ediSub = { ...prev.editableSubTabs };
+
+            const modConfig = MODULES.find(m => m.id === moduleId);
 
             if (type === 'view') {
                 if (vis.includes(moduleId)) {
                     vis = vis.filter(id => id !== moduleId);
                     // If removing view, remove edit too
                     edi = edi.filter(id => id !== moduleId);
+                    delete visSub[moduleId];
+                    delete ediSub[moduleId];
                 } else {
                     vis.push(moduleId);
+                    if (modConfig?.subModules) {
+                        visSub[moduleId] = modConfig.subModules.map(s => s.id);
+                    }
                 }
             } else if (type === 'edit') {
                 if (edi.includes(moduleId)) {
                     edi = edi.filter(id => id !== moduleId);
+                    delete ediSub[moduleId];
                 } else {
                     edi.push(moduleId);
                     // If adding edit, add view too
                     if (!vis.includes(moduleId)) vis.push(moduleId);
+                    if (modConfig?.subModules) {
+                        ediSub[moduleId] = modConfig.subModules.map(s => s.id);
+                        if (!visSub[moduleId]) {
+                            visSub[moduleId] = modConfig.subModules.map(s => s.id);
+                        }
+                    }
                 }
             }
 
-            return { ...prev, visibleTabs: vis, editableTabs: edi };
+            return {
+                ...prev,
+                visibleTabs: vis,
+                editableTabs: edi,
+                visibleSubTabs: visSub,
+                editableSubTabs: ediSub
+            };
+        });
+    };
+
+    const toggleSubPermission = (moduleId, subId, type) => {
+        setFormData(prev => {
+            let vis = [...prev.visibleTabs];
+            let edi = [...prev.editableTabs];
+            let visSub = { ...prev.visibleSubTabs };
+            let ediSub = { ...prev.editableSubTabs };
+
+            const currentVisSub = [...(visSub[moduleId] || [])];
+            const currentEdiSub = [...(ediSub[moduleId] || [])];
+
+            if (type === 'view') {
+                if (currentVisSub.includes(subId)) {
+                    // Remove view
+                    const newVis = currentVisSub.filter(id => id !== subId);
+                    visSub[moduleId] = newVis;
+                    // Also remove edit
+                    ediSub[moduleId] = currentEdiSub.filter(id => id !== subId);
+                } else {
+                    // Add view
+                    visSub[moduleId] = [...currentVisSub, subId];
+                    if (!vis.includes(moduleId)) vis.push(moduleId);
+                }
+            } else if (type === 'edit') {
+                if (currentEdiSub.includes(subId)) {
+                    // Remove edit
+                    ediSub[moduleId] = currentEdiSub.filter(id => id !== subId);
+                } else {
+                    // Add edit
+                    ediSub[moduleId] = [...currentEdiSub, subId];
+                    if (!currentVisSub.includes(subId)) {
+                        visSub[moduleId] = [...currentVisSub, subId];
+                    }
+                    if (!vis.includes(moduleId)) vis.push(moduleId);
+                    if (!edi.includes(moduleId)) edi.push(moduleId);
+                }
+            }
+
+            return {
+                ...prev,
+                visibleTabs: vis,
+                editableTabs: edi,
+                visibleSubTabs: visSub,
+                editableSubTabs: ediSub
+            };
         });
     };
 
@@ -258,12 +392,17 @@ export default function Usuarios() {
 
                         {/* Permissões */}
                         <div>
-                            <h3 className="text-sm font-bold text-gray-800 border-b pb-2 mb-4">Permissões de Módulos</h3>
+                            <div className="flex items-center justify-between border-b pb-2 mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-800">Permissões de Módulos & Sub-Áreas</h3>
+                                    <p className="text-xs text-gray-500">Defina quais telas e abas internas o usuário pode acessar e editar.</p>
+                                </div>
+                            </div>
                             <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-gray-100 text-gray-600 font-semibold border-b border-gray-200">
                                         <tr>
-                                            <th className="px-4 py-3">Módulo</th>
+                                            <th className="px-4 py-3">Módulo / Sub-Área</th>
                                             <th className="px-4 py-3 text-center w-32">Visualizar</th>
                                             <th className="px-4 py-3 text-center w-32">Editar</th>
                                         </tr>
@@ -272,31 +411,99 @@ export default function Usuarios() {
                                         {MODULES.map(m => {
                                             const canView = formData.visibleTabs.includes(m.id);
                                             const canEdit = formData.editableTabs.includes(m.id);
-                                            
+                                            const hasSubModules = Boolean(m.subModules && m.subModules.length > 0);
+                                            const isExpanded = expandedModules.includes(m.id);
+                                            const visSubCount = (formData.visibleSubTabs?.[m.id] || []).length;
+
                                             return (
-                                                <tr key={m.id} className="hover:bg-white transition-colors">
-                                                    <td className="px-4 py-3 font-medium text-gray-800">{m.label}</td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        <label className="inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={canView}
-                                                                onChange={() => togglePermission(m.id, 'view')}
-                                                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                                                            />
-                                                        </label>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        <label className="inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={canEdit}
-                                                                onChange={() => togglePermission(m.id, 'edit')}
-                                                                className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                                                            />
-                                                        </label>
-                                                    </td>
-                                                </tr>
+                                                <React.Fragment key={m.id}>
+                                                    <tr className={clsx(
+                                                        "hover:bg-white transition-colors",
+                                                        hasSubModules && isExpanded && "bg-slate-50/80"
+                                                    )}>
+                                                        <td className="px-4 py-3 font-semibold text-gray-800">
+                                                            <div className="flex items-center gap-2">
+                                                                {hasSubModules ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleExpandModule(m.id)}
+                                                                        className="p-1 hover:bg-gray-200 text-gray-500 rounded transition-colors"
+                                                                        title={isExpanded ? "Recolher sub-áreas" : "Expandir sub-áreas"}
+                                                                    >
+                                                                        {isExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />}
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="w-6" />
+                                                                )}
+                                                                <span>{m.label}</span>
+                                                                {hasSubModules && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleExpandModule(m.id)}
+                                                                        className="text-[10px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-0.5 rounded-full font-medium transition-colors"
+                                                                    >
+                                                                        {canView ? `${visSubCount}/${m.subModules.length} liberadas` : `${m.subModules.length} sub-áreas`}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <label className="inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={canView}
+                                                                    onChange={() => togglePermission(m.id, 'view')}
+                                                                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                                />
+                                                            </label>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <label className="inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={canEdit}
+                                                                    onChange={() => togglePermission(m.id, 'edit')}
+                                                                    className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                                                                />
+                                                            </label>
+                                                        </td>
+                                                    </tr>
+
+                                                    {/* Sub-módulos expandidos */}
+                                                    {hasSubModules && isExpanded && m.subModules.map(sub => {
+                                                        const isSubVis = (formData.visibleSubTabs?.[m.id] || []).includes(sub.id);
+                                                        const isSubEdi = (formData.editableSubTabs?.[m.id] || []).includes(sub.id);
+
+                                                        return (
+                                                            <tr key={`${m.id}-${sub.id}`} className="bg-indigo-50/40 hover:bg-indigo-50/80 transition-colors border-t border-indigo-100/50">
+                                                                <td className="pl-12 pr-4 py-2 font-normal text-xs text-gray-700 flex items-center gap-2">
+                                                                    <span className="text-indigo-400 font-bold">↳</span>
+                                                                    <span>{sub.label}</span>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center">
+                                                                    <label className="inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isSubVis}
+                                                                            onChange={() => toggleSubPermission(m.id, sub.id, 'view')}
+                                                                            className="w-3.5 h-3.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                                        />
+                                                                    </label>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center">
+                                                                    <label className="inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isSubEdi}
+                                                                            onChange={() => toggleSubPermission(m.id, sub.id, 'edit')}
+                                                                            className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                                                                        />
+                                                                    </label>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
                                             );
                                         })}
                                     </tbody>
@@ -391,24 +598,34 @@ export default function Usuarios() {
                                     <div className="flex flex-wrap gap-1.5">
                                         {user.customPermissions?.editableTabs?.map(tabId => {
                                             const mod = MODULES.find(m => m.id === tabId);
-                                            return mod ? (
+                                            if (!mod) return null;
+                                            const subList = user.customPermissions?.editableSubTabs?.[tabId];
+                                            const subText = mod.subModules && subList && subList.length < mod.subModules.length 
+                                                ? ` (${subList.length}/${mod.subModules.length})` 
+                                                : '';
+                                            return (
                                                 <span key={tabId} className="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1 rounded-md">
                                                     <Edit3 className="w-3 h-3" />
-                                                    {mod.label}
+                                                    {mod.label}{subText}
                                                 </span>
-                                            ) : null;
+                                            );
                                         })}
                                         
                                         {user.customPermissions?.visibleTabs?.map(tabId => {
                                             // Only show 'view' tag if not already in 'edit' tag
                                             if (user.customPermissions?.editableTabs?.includes(tabId)) return null;
                                             const mod = MODULES.find(m => m.id === tabId);
-                                            return mod ? (
+                                            if (!mod) return null;
+                                            const subList = user.customPermissions?.visibleSubTabs?.[tabId];
+                                            const subText = mod.subModules && subList && subList.length < mod.subModules.length 
+                                                ? ` (${subList.length}/${mod.subModules.length})` 
+                                                : '';
+                                            return (
                                                 <span key={`view-${tabId}`} className="flex items-center gap-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded-md">
                                                     <Eye className="w-3 h-3" />
-                                                    {mod.label}
+                                                    {mod.label}{subText}
                                                 </span>
-                                            ) : null;
+                                            );
                                         })}
                                         
                                         {!user.customPermissions && (

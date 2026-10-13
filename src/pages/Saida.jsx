@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Check, X, Trash2, Copy } from 'lucide-react';
 import { api } from '../services/api';
 

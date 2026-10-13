@@ -221,7 +221,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
                 )}
 
                 {/* User Management */}
-                {currentUser?.login === 'dsmateu' && (
+                {(currentUser?.login === 'dsmateu' || currentUser?.role === 'admin') && (
                     <div className="px-2 border-t border-gray-100 pt-2 pb-1 space-y-1">
                         <button
                             onClick={() => setActiveTab('usuarios')}

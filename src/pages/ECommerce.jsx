@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
 import {
@@ -115,11 +115,11 @@ const ECommerce = ({ readOnly }) => {
     const renderSubContent = () => {
         switch (activeSubTab) {
             case 'visao_geral':
-                return <VisaoGeral readOnly={readOnly} />;
+                return <VisaoGeral readOnly={isCurrentSubReadOnly} />;
             case 'empresas_custos':
-                return <EmpresasCustos readOnly={readOnly} />;
+                return <EmpresasCustos readOnly={isCurrentSubReadOnly} />;
             case 'parcerias':
-                return <Parcerias readOnly={readOnly} />;
+                return <Parcerias readOnly={isCurrentSubReadOnly} />;
             case 'marketplaces':
                 return (
                     <div className="space-y-4">
@@ -160,20 +160,20 @@ const ECommerce = ({ readOnly }) => {
                                         className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${activeMktTab === 'integracao' ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:bg-gray-100'}`}
                                     >🔗 Integração API</button>
                                 </div>
-                                {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={readOnly} />}
-                                {activeMktTab === 'integracao' && <MercadoLivreIntegracao />}
+                                {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={isCurrentSubReadOnly} />}
+                                {activeMktTab === 'integracao' && <MercadoLivreIntegracao readOnly={isCurrentSubReadOnly} />}
                             </div>
                         )}
 
                         {activePlatform !== 'meli' && (
-                            <Vendas marketplace={activePlatform} readOnly={readOnly} />
+                            <Vendas marketplace={activePlatform} readOnly={isCurrentSubReadOnly} />
                         )}
                     </div>
                 );
             case 'cadastros_fts':
-                return <CadastrosFTs readOnly={readOnly} />;
+                return <CadastrosFTs readOnly={isCurrentSubReadOnly} />;
             case 'auditoria_ads':
-                return <AuditoriaAds />;
+                return <AuditoriaAds readOnly={isCurrentSubReadOnly} />;
             case 'relatorio':
                 return (
                     <div className="space-y-6">
@@ -293,7 +293,7 @@ const ECommerce = ({ readOnly }) => {
 
             {/* Menu principal */}
             <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-2 print:hidden">
-                {subTabs.map((tab) => {
+                {availableSubTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
                         <button

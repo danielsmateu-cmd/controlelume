@@ -123,11 +123,30 @@ export function AuthProvider({ children }) {
     };
 
     // Calculate active permissions dynamically
-    const activeUser = currentUser ? usersList.find(u => u.id === currentUser.id) : null;
+    const activeUser = (currentUser ? usersList.find(u => u.id === currentUser.id) : null) || currentUser;
     const permissions = activeUser?.customPermissions || (activeUser ? ROLE_PERMISSIONS[activeUser.role] : null);
 
-    const canEdit = (tab) => permissions?.editableTabs?.includes(tab);
-    const canView = (tab) => permissions?.visibleTabs?.includes(tab);
+    const canEdit = (tab, subTab) => {
+        if (!permissions) return false;
+        if (activeUser?.role === 'admin' || activeUser?.login === 'dsmateu') return true;
+        if (!permissions.editableTabs?.includes(tab)) return false;
+        if (!subTab) return true;
+        if (permissions.editableSubTabs?.[tab]) {
+            return permissions.editableSubTabs[tab].includes(subTab);
+        }
+        return true;
+    };
+
+    const canView = (tab, subTab) => {
+        if (!permissions) return false;
+        if (activeUser?.role === 'admin' || activeUser?.login === 'dsmateu') return true;
+        if (!permissions.visibleTabs?.includes(tab)) return false;
+        if (!subTab) return true;
+        if (permissions.visibleSubTabs?.[tab]) {
+            return permissions.visibleSubTabs[tab].includes(subTab);
+        }
+        return true;
+    };
 
     return (
         <AuthContext.Provider value={{ 
