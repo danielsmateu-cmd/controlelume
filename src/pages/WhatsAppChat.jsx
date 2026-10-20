@@ -58,6 +58,7 @@ function WhatsAppChatInner() {
   const [activeChat, setActiveChat] = useState(null);
   const [chatFontSize, setChatFontSize] = useState(() => localStorage.getItem('whatsappFontSize') || 'text-xs');
   const [messages, setMessages] = useState([]);
+  const [reactions, setReactions] = useState({});
   const [inputMessage, setInputMessage] = useState('');
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -177,8 +178,19 @@ function WhatsAppChatInner() {
   useEffect(() => {
     if (!activeChat) {
       setMessages([]);
+      setReactions({});
       return;
     }
+
+    const cleanPhone = activeChat.phone_number || (activeChat.remote_jid ? activeChat.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '') : '');
+
+    const syncReactions = async () => {
+      if (!cleanPhone) return;
+      const rxMap = await whatsappService.getReactions(cleanPhone);
+      if (rxMap && Object.keys(rxMap).length > 0) {
+        setReactions(prev => ({ ...prev, ...rxMap }));
+      }
+    };
 
     const loadMessages = async () => {
       setLoadingMessages(true);
@@ -187,6 +199,9 @@ function WhatsAppChatInner() {
       setLoadingMessages(false);
       scrollToBottom();
       whatsappService.markAsRead(activeChat.id);
+
+      // Sincroniza reações logo após carregar as mensagens
+      syncReactions();
     };
 
     loadMessages();
@@ -203,8 +218,27 @@ function WhatsAppChatInner() {
           filter: `remote_jid=eq.${activeChat.remote_jid}` 
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          const newMsg = payload.new;
+          // Se for mensagem vazia sem mídia, é sinal de reação!
+          if ((!newMsg.text || newMsg.text.trim() === '') && !newMsg.media_url) {
+            syncReactions();
+            return; // Não adiciona o balão vazio na conversa
+          }
+
+          setMessages((prev) => [...prev, newMsg]);
           scrollToBottom();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_messages',
+          filter: `remote_jid=eq.${activeChat.remote_jid}`
+        },
+        (payload) => {
+          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
         }
       )
       .subscribe();
@@ -937,10 +971,13 @@ function WhatsAppChatInner() {
                 Nenhuma mensagem registrada nesta conversa ainda.
               </div>
             ) : (
-              messages.map((msg) => {
-                const isMe = msg.from_me;
-                const msgType = msg.message_type || 'text';
-                const hasText = msg.text && msg.text.trim() !== '';
+              messages
+                .filter(msg => (msg.text && msg.text.trim() !== '') || msg.media_url)
+                .map((msg) => {
+                  const isMe = msg.from_me;
+                  const msgType = msg.message_type || 'text';
+                  const hasText = msg.text && msg.text.trim() !== '';
+                  const msgReaction = reactions[msg.message_id] || (msg.message_type === 'text' && msg.media_caption ? msg.media_caption : null);
 
                   const getSafeUrl = (url, type, mimeType) => {
                     if (!url) return '';
@@ -1076,13 +1113,26 @@ function WhatsAppChatInner() {
                   >
                     <div
                       className={clsx(
-                        `p-3 rounded-2xl ${chatFontSize} shadow-sm`,
+                        `p-3 rounded-2xl ${chatFontSize} shadow-sm relative`,
                         isMe
                           ? 'bg-emerald-600 text-white rounded-tr-none'
                           : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
                       )}
                     >
                       {renderContent()}
+
+                      {/* Badge da Reação (Joinha, Coração, etc.) */}
+                      {msgReaction && (
+                        <div
+                          className={clsx(
+                            "absolute -bottom-2.5 bg-white border border-gray-100 rounded-full px-1.5 py-0.5 shadow-md text-sm flex items-center justify-center select-none z-10 animate-in zoom-in-75 duration-200 ring-1 ring-black/5",
+                            isMe ? "right-2" : "left-2"
+                          )}
+                          title={`Reação: ${msgReaction}`}
+                        >
+                          <span className="leading-none">{msgReaction}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">

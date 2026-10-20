@@ -39,6 +39,21 @@ export const whatsappService = {
     }
   },
 
+  // Buscar e sincronizar reações do WhatsApp
+  async getReactions(phone) {
+    if (!phone) return {};
+    try {
+      const cleanPhone = phone.replace(/\D/g, '');
+      const res = await fetch(`/api/whatsapp-reactions?phone=${cleanPhone}`);
+      if (!res.ok) return {};
+      const data = await res.json();
+      return data.reactions || {};
+    } catch (err) {
+      console.warn('Erro ao sincronizar reações:', err);
+      return {};
+    }
+  },
+
   // Enviar mensagem para o cliente
   async sendMessage(chat, text, senderName = 'Atendente', mediaBase64 = null, mediaName = null, mediaType = null) {
     try {
