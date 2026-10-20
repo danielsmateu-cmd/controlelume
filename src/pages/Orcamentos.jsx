@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X, Calendar } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X, Calendar, Printer } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import jsPDF from 'jspdf';
@@ -435,6 +435,50 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         } finally {
             setIsGeneratingPdf(false);
         }
+    };
+
+    const getProposalTitle = (customClientData, customDate) => {
+        const cName = (customClientData?.name || clientData?.name || '').trim().replace(/[\\/:*?"<>|]/g, '') || 'Cliente';
+        const dateObj = (customDate && !isNaN(new Date(customDate).getTime())) ? new Date(customDate) : new Date();
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        const formattedDate = `${day}-${month}-${year}`;
+        return `Proposta Comercial - ${cName} - ${formattedDate}`;
+    };
+
+    const handlePrint = (budgetToPrint) => {
+        const cData = budgetToPrint?.clientData || clientData;
+        const bDate = budgetToPrint?.date;
+        const title = getProposalTitle(cData, bDate);
+        const originalTitle = document.title;
+
+        document.title = title;
+
+        if (budgetToPrint && budgetToPrint.id !== 'atual') {
+            setClientData({
+                ...budgetToPrint.clientData,
+                hasBoleto: budgetToPrint.clientData?.hasBoleto || false,
+                boletoDdl: budgetToPrint.clientData?.boletoDdl || ''
+            });
+            setBudgetItems(budgetToPrint.items || []);
+            setAttachedImages(budgetToPrint.attachedImages || budgetToPrint.clientData?.attachedImages || []);
+
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        } else {
+            window.print();
+        }
+
+        const restore = () => {
+            document.title = originalTitle;
+            window.removeEventListener('afterprint', restore);
+        };
+        window.addEventListener('afterprint', restore);
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 3000);
     };
 
     const renderPrintLayout = () => {
@@ -1138,8 +1182,23 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
+
+        const handleBeforePrint = () => {
+            const title = getProposalTitle(clientData);
+            document.title = title;
+        };
+
+        const handleAfterPrint = () => {
+            document.title = 'Controle Antigravity';
+        };
+
+        window.addEventListener('beforeprint', handleBeforePrint);
+        window.addEventListener('afterprint', handleAfterPrint);
+
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('beforeprint', handleBeforePrint);
+            window.removeEventListener('afterprint', handleAfterPrint);
             window.hasUnsavedBudget = false;
         };
     }, [budgetItems, clientData, attachedImages]);
@@ -1770,6 +1829,13 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             title="Enviar pelo WhatsApp"
                                                         >
                                                             <WhatsAppIcon size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handlePrint(budget)}
+                                                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                                            title="Imprimir / Salvar PDF"
+                                                        >
+                                                            <Printer size={18} />
                                                         </button>
                                                         <button
                                                             onClick={() => handleLoadBudget(budget)}
@@ -2748,10 +2814,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                                     <WhatsAppIcon size={20} /> ENVIAR P/ WHATSAPP
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => window.print()}
+                                                                    onClick={() => handlePrint()}
                                                                     className="w-full px-8 py-3 bg-white text-indigo-900 rounded-xl text-sm font-bold shadow hover:bg-gray-100 transition-all flex items-center justify-center gap-2 border border-gray-200 hover:shadow-md"
                                                                 >
-                                                                    <DollarSign size={20} /> IMPRIMIR PDF / RECIBO
+                                                                    <Printer size={20} /> IMPRIMIR PDF / RECIBO
                                                                 </button>
                                                             </div>
                                                         </div>
