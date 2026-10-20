@@ -366,7 +366,7 @@ ${installationVal > 0 ? `🛠️ *Instalação:* R$ ${installationVal.toLocaleSt
 💵 *À Vista (PIX com 10% de desconto):* R$ ${totalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
    ↳ Sinal de 50% (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) + Saldo na Retirada (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
 
-💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData?.hasBoleto ? `\n📄 *Boleto Bancário (Faturado):* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData.boletoDdl ? ` (${cData.boletoDdl} DDL)` : ''}` : ''}
 
 ⏱️ *Prazo de Produção:* 10 dias úteis (a partir da aprovação do sinal).
 📍 *Retirada:* Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba/SP.
@@ -421,7 +421,7 @@ ${installationVal > 0 ? `🛠️ *Instalação:* R$ ${installationVal.toLocaleSt
 💵 *À Vista (PIX com 10% de desconto):* R$ ${totalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
    ↳ Sinal de 50% (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) + Saldo na Retirada (R$ ${signalPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
 
-💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData?.hasBoleto ? `\n📄 *Boleto Bancário (Faturado):* R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData.boletoDdl ? ` (${cData.boletoDdl} DDL)` : ''}` : ''}
 
 ⏱️ *Prazo de Produção:* 10 dias úteis (a partir da aprovação do sinal).
 📍 *Retirada:* Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba/SP.
@@ -517,7 +517,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                 <td className="text-right font-black text-slate-900 align-top pt-1.5">R$ {(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                             </tr>
                                         ))}
-                                        {Array.from({ length: Math.max(0, 4 - budgetItems.length) }).map((_, i) => (
+                                        {Array.from({ length: Math.max(0, (clientData.hasBoleto ? 2 : 4) - budgetItems.length) }).map((_, i) => (
                                             <tr key={`empty-${i}`} className="h-5">
                                                 <td className="border-b border-slate-200"></td>
                                                 <td className="border-b border-slate-200"></td>
@@ -568,8 +568,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             <div className="grid grid-cols-12 gap-8 mt-2">
                                 <div className="col-span-8">
                                     <div className="section-title">Condições de Pagamento</div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                    <div className={clientData.hasBoleto ? "space-y-2" : "space-y-4"}>
+                                        <div className={`flex justify-between items-center border-b border-slate-200 ${clientData.hasBoleto ? 'pb-2' : 'pb-3'}`}>
                                             <div>
                                                 <span className="text-[10px] font-black text-slate-800 block uppercase">À Vista (PIX ou Transferência)</span>
                                                 <span className="text-[9px] text-green-700 font-bold uppercase tracking-wide">Benefício de 10% de desconto aplicado</span>
@@ -582,7 +582,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between items-center">
+                                        <div className={`flex justify-between items-center ${clientData.hasBoleto ? 'border-b border-slate-200 pb-2' : ''}`}>
                                             <div>
                                                 <span className="text-[10px] font-black text-slate-800 block uppercase">Cartão de Crédito</span>
                                                 <span className="text-[9px] text-slate-600 font-bold uppercase">Parcelamento padrão sem descontos</span>
@@ -592,6 +592,36 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                 <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">Sem juros no cartão</div>
                                             </div>
                                         </div>
+                                        {clientData.hasBoleto && (
+                                            <div className="flex justify-between items-center pt-0.5">
+                                                <div>
+                                                    <span className="text-[10px] font-black text-slate-800 block uppercase">Boleto Bancário (Faturado)</span>
+                                                    <span className="text-[9px] text-amber-800 font-bold uppercase">
+                                                        {clientData.boletoDdl ? `Condição: ${clientData.boletoDdl} DDL (Valor integral sem desconto)` : 'Faturado sem desconto (Valor integral)'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    {(() => {
+                                                        const ddlParts = (clientData.boletoDdl || '').split('/').map(p => p.trim()).filter(Boolean);
+                                                        if (ddlParts.length > 1) {
+                                                            const installmentVal = projectTotal / ddlParts.length;
+                                                            return (
+                                                                <>
+                                                                    <span className="text-base font-black text-slate-900">{ddlParts.length}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                    <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">Total: R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                                </>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <>
+                                                                <span className="text-base font-black text-slate-900">R$ {projectTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">{clientData.boletoDdl ? `${clientData.boletoDdl} DDL` : 'À Prazo'}</div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="section-title mt-3">Dados Bancários / Pagamento</div>
                                     <div className="flex gap-8">
@@ -788,7 +818,11 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleLoadBudget = (budget) => {
-        setClientData(budget.clientData);
+        setClientData({
+            ...budget.clientData,
+            hasBoleto: budget.clientData?.hasBoleto || false,
+            boletoDdl: budget.clientData?.boletoDdl || ''
+        });
         setBudgetItems(budget.items);
         const images = budget.attachedImages || budget.clientData?.attachedImages || [];
         setAttachedImages(images);
@@ -834,7 +868,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             zip: '',
             phone: '',
             email: '',
-            installationValue: ''
+            installationValue: '',
+            hasBoleto: false,
+            boletoDdl: ''
         });
         setBudgetItems([]);
         setAttachedImages([]);
@@ -853,7 +889,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                 zip: '',
                 phone: '',
                 email: '',
-                installationValue: ''
+                installationValue: '',
+                hasBoleto: false,
+                boletoDdl: ''
             },
             attachedImages: []
         };
@@ -1057,7 +1095,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         zip: '',
         phone: '',
         email: '',
-        installationValue: ''
+        installationValue: '',
+        hasBoleto: false,
+        boletoDdl: ''
     });
 
     const originalBudgetRef = React.useRef({
@@ -1072,7 +1112,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             zip: '',
             phone: '',
             email: '',
-            installationValue: ''
+            installationValue: '',
+            hasBoleto: false,
+            boletoDdl: ''
         },
         attachedImages: []
     });
@@ -1655,7 +1697,16 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     </div>
                                                     <div className="text-xs text-gray-400">{new Date(budget.date).toLocaleTimeString().slice(0, 5)}</div>
                                                 </td>
-                                                <td className="px-3 py-4 font-bold text-gray-800">{budget.clientData.name}</td>
+                                                <td className="px-3 py-4 font-bold text-gray-800">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span>{budget.clientData?.name}</span>
+                                                        {budget.clientData?.hasBoleto && (
+                                                            <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold" title="Pagamento por Boleto Faturado">
+                                                                Boleto {budget.clientData.boletoDdl ? `(${budget.clientData.boletoDdl} DDL)` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-3 py-4">
                                                      <div className="flex flex-wrap gap-1.5 max-w-md">
                                                          {budget.items && budget.items.map((item, idx) => (
@@ -1772,7 +1823,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                         zip: cliente.cep || '',
                         phone: cliente.telefone || '',
                         email: cliente.email || '',
-                        installationValue: clientData.installationValue || ''
+                        installationValue: clientData.installationValue || '',
+                        hasBoleto: clientData.hasBoleto || false,
+                        boletoDdl: clientData.boletoDdl || ''
                     });
                     setView('budget');
                 }} />
@@ -2495,6 +2548,39 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     onChange={e => setClientData({ ...clientData, installationValue: e.target.value })}
                                     className="px-4 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold text-indigo-700 placeholder-indigo-400"
                                 />
+                            </div>
+
+                            {/* Opções de Pagamento / Boleto Faturado */}
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-4 bg-gray-50/80 p-3.5 rounded-xl border border-gray-100">
+                                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!clientData.hasBoleto}
+                                        onChange={e => setClientData({ ...clientData, hasBoleto: e.target.checked })}
+                                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <span className="text-sm font-bold text-gray-800">
+                                        Habilitar opção de Pagamento via Boleto Bancário (Faturado)
+                                    </span>
+                                </label>
+
+                                {clientData.hasBoleto && (
+                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                            Prazo (DDL):
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: 30, 28/35, 30/60/90"
+                                            value={clientData.boletoDdl || ''}
+                                            onChange={e => setClientData({ ...clientData, boletoDdl: e.target.value })}
+                                            className="px-3 py-1.5 bg-white border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-amber-900 w-48 placeholder:font-normal placeholder-gray-400 shadow-sm"
+                                        />
+                                        <span className="text-xs text-amber-800 bg-amber-100/80 px-2.5 py-1 rounded-md font-bold border border-amber-200">
+                                            Valor integral sem desconto de 10%
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
