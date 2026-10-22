@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText, MessageSquarePlus
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText, MessageSquarePlus, ALargeSmall
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import clsx from 'clsx';
@@ -11,6 +11,50 @@ import { whatsappService } from '../services/whatsappService';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROLE_PERMISSIONS } from '../data/users';
+
+
+export const formatPhoneNumber = (phone) => {
+  if (!phone) return '';
+  const cleaned = String(phone).replace(/\D/g, '');
+  if (cleaned.length === 13 && cleaned.startsWith('55')) {
+    return `+55 (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
+  }
+  if (cleaned.length === 12 && cleaned.startsWith('55')) {
+    return `+55 (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
+  }
+  if (cleaned.length === 11) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  }
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+
+export const renderEmojiText = (text) => {
+  if (!text) return '';
+  const flagRegex = /([\u{1F1E6}-\u{1F1FF}]{2})/gu;
+  if (!flagRegex.test(text)) return text;
+
+  const parts = text.split(flagRegex);
+  return parts.filter(Boolean).map((part, idx) => {
+    if (/^[\u{1F1E6}-\u{1F1FF}]{2}$/u.test(part)) {
+      const codePoints = [...part].map(c => c.codePointAt(0).toString(16).toLowerCase()).join('-');
+      return (
+        <img
+          key={idx}
+          src={`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codePoints}.svg`}
+          alt={part}
+          title={part}
+          className="inline-block w-4 h-4 mx-0.5 align-middle select-none"
+          loading="lazy"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      );
+    }
+    return <span key={idx}>{part}</span>;
+  });
+};
 
 const SETORES = [
   { id: 'vendas', label: 'Vendas / Orçamentos', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
@@ -463,7 +507,7 @@ function WhatsAppChatInner() {
   // Finalizar Atendimento
   const handleClose = async () => {
     if (!activeChat) return;
-    if (window.confirm(`Deseja encerrar o atendimento de ${activeChat.push_name || activeChat.phone_number}?`)) {
+    if (window.confirm(`Deseja encerrar o atendimento de ${activeChat.push_name || formatPhoneNumber(activeChat.phone_number)}?`)) {
       const success = await whatsappService.closeChat(activeChat.id);
       if (success) {
         setActiveChat({ ...activeChat, status: 'finalizado' });
@@ -504,7 +548,8 @@ function WhatsAppChatInner() {
   const filteredChats = chats.filter((chat) => {
     const matchesSearch = 
       (chat.push_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (chat.phone_number || '').includes(searchQuery);
+      (chat.phone_number || '').includes(searchQuery) ||
+      (searchQuery.replace(/\D/g, '').length >= 3 && (chat.phone_number || '').includes(searchQuery.replace(/\D/g, '')));
 
     if (!matchesSearch) return false;
 
@@ -811,7 +856,7 @@ function WhatsAppChatInner() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <h3 className="font-semibold text-gray-900 text-xs truncate">
-                        {chat.push_name || chat.phone_number}
+                        {chat.push_name ? renderEmojiText(chat.push_name) : formatPhoneNumber(chat.phone_number)}
                       </h3>
                       <span className="text-[10px] text-gray-400 flex-shrink-0">
                         {(() => { try { const d = new Date(chat.updated_at); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; } })()}
@@ -870,9 +915,9 @@ function WhatsAppChatInner() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold text-gray-900 text-sm">
-                    {activeChat.push_name || 'Cliente WhatsApp'}
+                    {activeChat.push_name ? renderEmojiText(activeChat.push_name) : 'Cliente WhatsApp'}
                   </h2>
-                  <span className="text-xs text-gray-400 font-medium">({activeChat.phone_number})</span>
+                  <span className="text-xs text-gray-400 font-medium">({formatPhoneNumber(activeChat.phone_number)})</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                   <span className={clsx('px-2 py-0.5 rounded-md text-[10px] font-bold border', getStatusBadge(activeChat.status).color)}>
@@ -931,10 +976,18 @@ function WhatsAppChatInner() {
 
                         <button
                           onClick={cycleFontSize}
-                          title="Ajustar Tamanho da Fonte"
-                          className="px-3 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all mr-1"
+                          title={`Tamanho do texto das mensagens: ${
+                            chatFontSize === 'text-xs' ? 'Pequeno (P)' :
+                            chatFontSize === 'text-sm' ? 'Médio (M)' :
+                            chatFontSize === 'text-base' ? 'Grande (G)' : 'Extra Grande (GG)'
+                          }. Clique para alterar.`}
+                          className="px-3 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all mr-1"
                         >
-                          A&plus;
+                          <ALargeSmall className="w-3.5 h-3.5 text-gray-600" />
+                          <span>Texto</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-bold uppercase">
+                            {chatFontSize === 'text-xs' ? 'P' : chatFontSize === 'text-sm' ? 'M' : chatFontSize === 'text-base' ? 'G' : 'GG'}
+                          </span>
                         </button>
                         <button
                           onClick={() => setTransferModalOpen(true)}
@@ -1035,7 +1088,7 @@ function WhatsAppChatInner() {
                       return (
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
-                            <span>??</span>
+                            <span>🎤</span>
                             <span className="text-xs italic opacity-80">Mensagem de voz</span>
                           </div>
                           {msg.media_url && (
@@ -1051,7 +1104,7 @@ function WhatsAppChatInner() {
                             <video src={msg.media_url} controls className="max-w-[240px] rounded-lg" />
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span>??</span>
+                              <span>🎬</span>
                               <span className="text-xs">{msg.media_caption || 'Video'}</span>
                             </div>
                           )}
