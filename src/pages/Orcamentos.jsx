@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X, Calendar, Printer } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowLeft, Settings, DollarSign, Package, Percent, User, MapPin, Phone, FileText, Save, List, CheckCircle, XCircle, Clock, Eye, ChevronUp, ChevronDown, Pencil, Search, X, Calendar, Printer, AlertTriangle, Copy, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import jsPDF from 'jspdf';
@@ -118,6 +118,9 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [includeNf, setIncludeNf] = useState(true);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [manualPrice, setManualPrice] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [duplicateWarning, setDuplicateWarning] = useState(null);
+    const [loadedBudgetId, setLoadedBudgetId] = useState(null);
 
     const generateAndUploadPDF = async (budget) => {
         const printElement = document.getElementById('print-area-container');
@@ -761,7 +764,8 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         );
     };
 
-    const handleSaveBudget = async () => {
+    const handleSaveBudget = async (forceSave = false) => {
+        if (isSaving) return;
         if (budgetItems.length === 0) {
             alert("Adicione itens ao orçamento antes de salvar.");
             return;
@@ -776,41 +780,72 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         delete cleanedClientData.deliveryDate;
         delete cleanedClientData.productionObs;
 
-        const newBudget = {
-            date: new Date().toISOString(),
-            clientData: { 
-                ...cleanedClientData,
-                attachedImages: [...attachedImages]
-            },
-            items: budgetItems.map(item => ({ ...item, concluido: false })),
-            total: projectTotal,
-            status: 'Aguardando'
+        const currentBudgetObj = {
+            clientData: cleanedClientData,
+            items: budgetItems,
+            total: projectTotal
         };
 
-        const saved = await api.addBudget(newBudget);
-        if (saved) {
-            setSavedBudgets([saved, ...savedBudgets]);
-            originalBudgetRef.current = {
-                items: budgetItems,
-                clientData: clientData,
-                attachedImages: attachedImages
-            };
-            if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
-                handleSendWhatsApp(saved);
+        if (!forceSave) {
+            const duplicate = savedBudgets.find(b => isBudgetIdentical(currentBudgetObj, b));
+            if (duplicate) {
+                setDuplicateWarning(duplicate);
+                return;
             }
-        } else {
-            // Fallback
-            const fallback = { ...newBudget, id: Date.now() };
-            const updated = [fallback, ...savedBudgets];
-            setSavedBudgets(updated);
-            originalBudgetRef.current = {
-                items: budgetItems,
-                clientData: clientData,
-                attachedImages: attachedImages
+        }
+
+        await executeSaveBudget();
+    };
+
+    const executeSaveBudget = async () => {
+        setIsSaving(true);
+        try {
+            const cleanedClientData = { ...clientData };
+            delete cleanedClientData.finishedBy;
+            delete cleanedClientData.deliveryDate;
+            delete cleanedClientData.productionObs;
+
+            const newBudget = {
+                date: new Date().toISOString(),
+                clientData: { 
+                    ...cleanedClientData,
+                    attachedImages: [...attachedImages]
+                },
+                items: budgetItems.map(item => ({ ...item, concluido: false })),
+                total: projectTotal,
+                status: 'Aguardando'
             };
-            if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
-                handleSendWhatsApp(fallback);
+
+            const saved = await api.addBudget(newBudget);
+            if (saved) {
+                setSavedBudgets(prev => [saved, ...prev]);
+                setLoadedBudgetId(saved.id);
+                setDuplicateWarning(null);
+                originalBudgetRef.current = {
+                    items: budgetItems,
+                    clientData: clientData,
+                    attachedImages: attachedImages
+                };
+                if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                    handleSendWhatsApp(saved);
+                }
+            } else {
+                // Fallback
+                const fallback = { ...newBudget, id: Date.now() };
+                setSavedBudgets(prev => [fallback, ...prev]);
+                setLoadedBudgetId(fallback.id);
+                setDuplicateWarning(null);
+                originalBudgetRef.current = {
+                    items: budgetItems,
+                    clientData: clientData,
+                    attachedImages: attachedImages
+                };
+                if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                    handleSendWhatsApp(fallback);
+                }
             }
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -862,6 +897,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleLoadBudget = (budget) => {
+        setLoadedBudgetId(budget.id || null);
         setClientData({
             ...budget.clientData,
             hasBoleto: budget.clientData?.hasBoleto || false,
@@ -897,6 +933,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
     };
 
     const handleNewBudget = () => {
+        setLoadedBudgetId(null);
         if (budgetItems.length > 0 || clientData.name) {
             if (!confirm("Deseja iniciar um novo orçamento? Os dados não salvos do orçamento atual serão perdidos.")) {
                 return;
@@ -2407,8 +2444,117 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         );
     }
 
+    
+    const DuplicateWarningModal = () => {
+        if (!duplicateWarning) return null;
+
+        const formattedDate = (() => {
+            try {
+                const d = new Date(duplicateWarning.date);
+                return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return '';
+            }
+        })();
+
+        const itemsCount = (duplicateWarning.items || []).length;
+        const itemsSummary = (duplicateWarning.items || [])
+            .map(it => `${it.quantity || 1}x ${it.name || 'Item'}`)
+            .join(', ');
+
+        const isSameLoaded = loadedBudgetId && duplicateWarning.id === loadedBudgetId;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 text-left">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-amber-200">
+                    <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-5 text-white flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold leading-tight">Orçamento Repetido Detectado</h3>
+                            <p className="text-amber-100 text-xs mt-0.5 font-medium">
+                                {isSameLoaded 
+                                    ? 'Nenhuma alteração foi feita em relação ao orçamento original.' 
+                                    : 'Todos os campos são idênticos a um orçamento já cadastrado.'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-4 text-xs space-y-2.5 text-gray-700">
+                            <div className="font-semibold text-amber-900 flex items-center justify-between pb-1.5 border-b border-amber-200">
+                                <span>Orçamento idêntico encontrado</span>
+                                {duplicateWarning.id && (
+                                    <span className="bg-amber-200 text-amber-900 px-2 py-0.5 rounded text-[10px] font-bold">
+                                        ID #{duplicateWarning.id}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2.5 pt-1">
+                                <div>
+                                    <span className="text-gray-400 block text-[10px] uppercase font-bold">Cliente</span>
+                                    <strong className="text-gray-900 font-semibold">{duplicateWarning.clientData?.name || duplicateWarning.client_data?.name || 'Não informado'}</strong>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block text-[10px] uppercase font-bold">Valor Total</span>
+                                    <strong className="text-emerald-700 font-bold">
+                                        R$ {Number(duplicateWarning.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block text-[10px] uppercase font-bold">Data do Salvamento</span>
+                                    <span className="text-gray-700 font-medium">{formattedDate || 'Data indisponível'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block text-[10px] uppercase font-bold">Status Atual</span>
+                                    <span className="text-gray-700 font-medium">{duplicateWarning.status || 'Aguardando'}</span>
+                                </div>
+                            </div>
+                            {itemsSummary && (
+                                <div className="pt-2 border-t border-amber-100">
+                                    <span className="text-gray-400 block text-[10px] uppercase font-bold mb-0.5">
+                                        Itens ({itemsCount})
+                                    </span>
+                                    <p className="text-gray-600 truncate text-[11px]" title={itemsSummary}>
+                                        {itemsSummary}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                            Para evitar duplicar registros em <strong>Orçamentos Prontos</strong>, recomendamos cancelar caso não queira criar uma cópia repetida.
+                        </p>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setDuplicateWarning(null)}
+                                className="flex-1 py-3 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                                <X size={16} />
+                                Cancelar (Não Salvar)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => executeSaveBudget()}
+                                disabled={isSaving}
+                                className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors shadow-lg shadow-amber-600/20 flex items-center justify-center gap-1.5"
+                            >
+                                <Copy size={16} />
+                                {isSaving ? 'Salvando...' : 'Salvar Cópia Mesmo Assim'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <>
+            <DuplicateWarningModal />
             {isGeneratingPdf && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center gap-4 text-white">
                     <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -2802,10 +2948,19 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             </div>
                                                             <div className="flex flex-col gap-3">
                                                                 <button
-                                                                    onClick={handleSaveBudget}
+                                                                    onClick={() => handleSaveBudget()}
+                                                                    disabled={isSaving}
                                                                     className="w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
                                                                 >
-                                                                    <Save size={24} /> SALVAR ORÇAMENTO
+                                                                    {isSaving ? (
+                                                                        <>
+                                                                            <RefreshCw size={24} className="animate-spin" /> SALVANDO...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Save size={24} /> SALVAR ORÇAMENTO
+                                                                        </>
+                                                                    )}
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleSendWhatsApp()}
