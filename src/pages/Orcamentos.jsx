@@ -42,6 +42,71 @@ const getBudgetPixTotal = (b) => {
     return subtotalPix + installationPix;
 };
 
+
+const deepEqualSimple = (obj1, obj2) => {
+    if (obj1 === obj2) return true;
+    if (!obj1 || !obj2) return (!obj1 || Object.keys(obj1).length === 0) && (!obj2 || Object.keys(obj2).length === 0);
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return String(obj1).trim() === String(obj2).trim();
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    if (keys1.length !== keys2.length) return false;
+    for (const k of keys1) {
+        if (!deepEqualSimple(obj1[k], obj2[k])) return false;
+    }
+    return true;
+};
+
+const normStr = (str) => (str || '').toString().trim().toLowerCase();
+const normDigits = (str) => (str || '').toString().replace(/\D/g, '');
+
+const areItemsIdentical = (items1 = [], items2 = []) => {
+    if (items1.length !== items2.length) return false;
+    const sortKey = (it) => `${normStr(it.name)}_${it.quantity || 0}_${Number(it.unitPrice || 0).toFixed(2)}`;
+    const sorted1 = [...items1].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+    const sorted2 = [...items2].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+
+    for (let i = 0; i < sorted1.length; i++) {
+        const it1 = sorted1[i];
+        const it2 = sorted2[i];
+
+        if (normStr(it1.name) !== normStr(it2.name)) return false;
+        if (Number(it1.quantity || 0) !== Number(it2.quantity || 0)) return false;
+        if (Math.abs(Number(it1.unitPrice || 0) - Number(it2.unitPrice || 0)) > 0.05) return false;
+        if (normStr(it1.description) !== normStr(it2.description)) return false;
+        if (Boolean(it1.includeNf) !== Boolean(it2.includeNf)) return false;
+        if (normStr(it1.discount) !== normStr(it2.discount)) return false;
+        if (normStr(it1.discountValue) !== normStr(it2.discountValue)) return false;
+
+        if (!deepEqualSimple(it1.measurements, it2.measurements)) return false;
+        if (!deepEqualSimple(it1.unitQtys, it2.unitQtys)) return false;
+        if (!deepEqualSimple(it1.linearLengths, it2.linearLengths)) return false;
+    }
+    return true;
+};
+
+const isBudgetIdentical = (b1, b2) => {
+    if (!b1 || !b2) return false;
+    const c1 = b1.clientData || b1.client_data || {};
+    const c2 = b2.clientData || b2.client_data || {};
+
+    if (normStr(c1.name) !== normStr(c2.name)) return false;
+    if (normDigits(c1.doc) !== normDigits(c2.doc)) return false;
+    if (normDigits(c1.phone) !== normDigits(c2.phone)) return false;
+    if (normStr(c1.email) !== normStr(c2.email)) return false;
+    if (normStr(c1.address) !== normStr(c2.address)) return false;
+    if (normStr(c1.installationValue) !== normStr(c2.installationValue)) return false;
+    if (Boolean(c1.hasBoleto) !== Boolean(c2.hasBoleto)) return false;
+    if (normStr(c1.boletoDdl) !== normStr(c2.boletoDdl)) return false;
+
+    const total1 = Number(b1.total || 0);
+    const total2 = Number(b2.total || 0);
+    if (Math.abs(total1 - total2) > 0.05) return false;
+
+    const items1 = b1.items || [];
+    const items2 = b2.items || [];
+    return areItemsIdentical(items1, items2);
+};
+
 const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [view, setView] = useState('budget');
     const [clientesCadastrados, setClientesCadastrados] = useState([]);
@@ -764,7 +829,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         );
     };
 
-    const handleSaveBudget = async (forceSave = false) => {
+    const handleSaveBudget = async (forceSave = false, saveAsNew = false) => {
         if (isSaving) return;
         if (budgetItems.length === 0) {
             alert("Adicione itens ao orçamento antes de salvar.");
@@ -786,18 +851,36 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             total: projectTotal
         };
 
+        const isEditingExisting = Boolean(loadedBudgetId) && !saveAsNew;
+
         if (!forceSave) {
-            const duplicate = savedBudgets.find(b => isBudgetIdentical(currentBudgetObj, b));
-            if (duplicate) {
-                setDuplicateWarning(duplicate);
-                return;
+            if (isEditingExisting) {
+                // Ao editar um orçamento existente: verificar se houve alterações em relação ao original
+                const originalBudget = savedBudgets.find(b => b.id === loadedBudgetId);
+                if (originalBudget && isBudgetIdentical(currentBudgetObj, originalBudget)) {
+                    setDuplicateWarning({
+                        ...originalBudget,
+                        isSameLoaded: true
+                    });
+                    return;
+                }
+            } else {
+                // Ao criar novo orçamento ou salvar como cópia: verificar se já existe algum exatamente idêntico
+                const duplicate = savedBudgets.find(b => isBudgetIdentical(currentBudgetObj, b));
+                if (duplicate) {
+                    setDuplicateWarning({
+                        ...duplicate,
+                        isSameLoaded: false
+                    });
+                    return;
+                }
             }
         }
 
-        await executeSaveBudget();
+        await executeSaveBudget(isEditingExisting);
     };
 
-    const executeSaveBudget = async () => {
+    const executeSaveBudget = async (isEditingExisting = false) => {
         setIsSaving(true);
         try {
             const cleanedClientData = { ...clientData };
@@ -805,43 +888,74 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             delete cleanedClientData.deliveryDate;
             delete cleanedClientData.productionObs;
 
-            const newBudget = {
-                date: new Date().toISOString(),
+            const budgetData = {
                 clientData: { 
                     ...cleanedClientData,
                     attachedImages: [...attachedImages]
                 },
                 items: budgetItems.map(item => ({ ...item, concluido: false })),
-                total: projectTotal,
-                status: 'Aguardando'
+                total: projectTotal
             };
 
-            const saved = await api.addBudget(newBudget);
-            if (saved) {
-                setSavedBudgets(prev => [saved, ...prev]);
-                setLoadedBudgetId(saved.id);
-                setDuplicateWarning(null);
-                originalBudgetRef.current = {
-                    items: budgetItems,
-                    clientData: clientData,
-                    attachedImages: attachedImages
-                };
-                if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
-                    handleSendWhatsApp(saved);
+            if (isEditingExisting && loadedBudgetId) {
+                // Atualizar orçamento existente
+                const success = await api.updateBudget(loadedBudgetId, budgetData);
+                if (success) {
+                    setSavedBudgets(prev => prev.map(b => b.id === loadedBudgetId ? { 
+                        ...b, 
+                        clientData: budgetData.clientData, 
+                        items: budgetData.items, 
+                        total: budgetData.total 
+                    } : b));
+                    setDuplicateWarning(null);
+                    originalBudgetRef.current = {
+                        items: budgetItems,
+                        clientData: clientData,
+                        attachedImages: attachedImages
+                    };
+                    alert(`Orçamento #${loadedBudgetId} atualizado com sucesso!`);
+                    const currentUpdated = savedBudgets.find(b => b.id === loadedBudgetId) || { id: loadedBudgetId, ...budgetData };
+                    if (confirm("Deseja enviar o resumo atualizado do orçamento pelo WhatsApp para o cliente?")) {
+                        handleSendWhatsApp(currentUpdated);
+                    }
+                } else {
+                    alert("Erro ao atualizar o orçamento no servidor.");
                 }
             } else {
-                // Fallback
-                const fallback = { ...newBudget, id: Date.now() };
-                setSavedBudgets(prev => [fallback, ...prev]);
-                setLoadedBudgetId(fallback.id);
-                setDuplicateWarning(null);
-                originalBudgetRef.current = {
-                    items: budgetItems,
-                    clientData: clientData,
-                    attachedImages: attachedImages
+                // Criar novo orçamento
+                const newBudget = {
+                    date: new Date().toISOString(),
+                    ...budgetData,
+                    status: 'Aguardando'
                 };
-                if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
-                    handleSendWhatsApp(fallback);
+
+                const saved = await api.addBudget(newBudget);
+                if (saved) {
+                    setSavedBudgets(prev => [saved, ...prev]);
+                    setLoadedBudgetId(saved.id);
+                    setDuplicateWarning(null);
+                    originalBudgetRef.current = {
+                        items: budgetItems,
+                        clientData: clientData,
+                        attachedImages: attachedImages
+                    };
+                    if (confirm("Orçamento salvo com sucesso!\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                        handleSendWhatsApp(saved);
+                    }
+                } else {
+                    // Fallback
+                    const fallback = { ...newBudget, id: Date.now() };
+                    setSavedBudgets(prev => [fallback, ...prev]);
+                    setLoadedBudgetId(fallback.id);
+                    setDuplicateWarning(null);
+                    originalBudgetRef.current = {
+                        items: budgetItems,
+                        clientData: clientData,
+                        attachedImages: attachedImages
+                    };
+                    if (confirm("Orçamento salvo localmente (Erro ao salvar no servidor).\nDeseja enviar o resumo do orçamento pelo WhatsApp para o cliente?")) {
+                        handleSendWhatsApp(fallback);
+                    }
                 }
             }
         } finally {
@@ -2462,7 +2576,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             .map(it => `${it.quantity || 1}x ${it.name || 'Item'}`)
             .join(', ');
 
-        const isSameLoaded = loadedBudgetId && duplicateWarning.id === loadedBudgetId;
+        const isSameLoaded = Boolean(duplicateWarning.isSameLoaded);
 
         return (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 text-left">
@@ -2472,11 +2586,13 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             <AlertTriangle className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold leading-tight">Orçamento Repetido Detectado</h3>
+                            <h3 className="text-lg font-bold leading-tight">
+                                {isSameLoaded ? 'Orçamento Sem Alterações' : 'Orçamento Repetido Detectado'}
+                            </h3>
                             <p className="text-amber-100 text-xs mt-0.5 font-medium">
                                 {isSameLoaded 
-                                    ? 'Nenhuma alteração foi feita em relação ao orçamento original.' 
-                                    : 'Todos os campos são idênticos a um orçamento já cadastrado.'}
+                                    ? 'Nenhuma alteração foi realizada em relação ao orçamento original.' 
+                                    : 'Todos os campos deste orçamento são idênticos a um orçamento já cadastrado.'}
                             </p>
                         </div>
                     </div>
@@ -2484,7 +2600,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     <div className="p-6 space-y-4">
                         <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-4 text-xs space-y-2.5 text-gray-700">
                             <div className="font-semibold text-amber-900 flex items-center justify-between pb-1.5 border-b border-amber-200">
-                                <span>Orçamento idêntico encontrado</span>
+                                <span>{isSameLoaded ? 'Orçamento original aberto' : 'Orçamento idêntico encontrado'}</span>
                                 {duplicateWarning.id && (
                                     <span className="bg-amber-200 text-amber-900 px-2 py-0.5 rounded text-[10px] font-bold">
                                         ID #{duplicateWarning.id}
@@ -2524,7 +2640,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                         </div>
 
                         <p className="text-xs text-gray-600 leading-relaxed">
-                            Para evitar duplicar registros em <strong>Orçamentos Prontos</strong>, recomendamos cancelar caso não queira criar uma cópia repetida.
+                            {isSameLoaded 
+                                ? 'Como os dados já estão salvos, você pode fechar este aviso ou salvar como uma nova cópia caso deseje duplicar o orçamento.'
+                                : 'Para evitar duplicar registros em Orçamentos Prontos, recomendamos cancelar caso não queira criar uma cópia repetida.'}
                         </p>
 
                         <div className="flex gap-3 pt-2">
@@ -2538,12 +2656,12 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                             </button>
                             <button
                                 type="button"
-                                onClick={() => executeSaveBudget()}
+                                onClick={() => executeSaveBudget(false)}
                                 disabled={isSaving}
                                 className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors shadow-lg shadow-amber-600/20 flex items-center justify-center gap-1.5"
                             >
                                 <Copy size={16} />
-                                {isSaving ? 'Salvando...' : 'Salvar Cópia Mesmo Assim'}
+                                {isSaving ? 'Salvando...' : 'Salvar Nova Cópia'}
                             </button>
                         </div>
                     </div>
@@ -2660,7 +2778,14 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                 <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                                     <Receipt size={24} />
                                 </div>
-                                <h2 className="text-2xl font-bold text-gray-800">Orçamento Atual</h2>
+                                <h2 className="text-2xl font-bold text-gray-800">
+                                    {loadedBudgetId ? `Editando Orçamento #${loadedBudgetId}` : 'Orçamento Atual'}
+                                </h2>
+                                {loadedBudgetId && (
+                                    <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm">
+                                        Modo Edição
+                                    </span>
+                                )}
                             </div>
                             <div className="flex gap-2">
                                 <button
@@ -2948,13 +3073,20 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             </div>
                                                             <div className="flex flex-col gap-3">
                                                                 <button
-                                                                    onClick={() => handleSaveBudget()}
+                                                                    onClick={() => handleSaveBudget(false, false)}
                                                                     disabled={isSaving}
-                                                                    className="w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                                                                    className={clsx(
+                                                                        "w-full px-8 py-4 bg-green-500 text-white rounded-2xl text-lg font-bold shadow-[0_10px_20px_rgba(34,197,94,0.3)] hover:bg-green-600 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]",
+                                                                        isSaving && "opacity-50 cursor-not-allowed transform-none"
+                                                                    )}
                                                                 >
                                                                     {isSaving ? (
                                                                         <>
                                                                             <RefreshCw size={24} className="animate-spin" /> SALVANDO...
+                                                                        </>
+                                                                    ) : loadedBudgetId ? (
+                                                                        <>
+                                                                            <Save size={24} /> SALVAR ALTERAÇÕES (ORÇAMENTO #{loadedBudgetId})
                                                                         </>
                                                                     ) : (
                                                                         <>
@@ -2962,6 +3094,17 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                                         </>
                                                                     )}
                                                                 </button>
+                                                                {loadedBudgetId && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSaveBudget(false, true)}
+                                                                        disabled={isSaving}
+                                                                        className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-gray-200"
+                                                                        title="Salvar como um novo orçamento sem sobrescrever o original"
+                                                                    >
+                                                                        <Copy size={14} /> Salvar como Novo Orçamento (Cópia)
+                                                                    </button>
+                                                                )}
                                                                 <button
                                                                     onClick={() => handleSendWhatsApp()}
                                                                     className="w-full px-8 py-3 bg-[#25D366] text-white rounded-xl text-sm font-bold shadow hover:bg-[#20ba56] transition-all flex items-center justify-center gap-2 border border-[#20ba56] hover:shadow-md"
