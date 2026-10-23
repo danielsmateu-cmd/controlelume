@@ -976,7 +976,7 @@ function WhatsAppChatInner() {
 
                         <button
                           onClick={cycleFontSize}
-                          title={`Tamanho do texto das mensagens: ${
+                          title={`Tamanho do texto (chat e digitação): ${
                             chatFontSize === 'text-xs' ? 'Pequeno (P)' :
                             chatFontSize === 'text-sm' ? 'Médio (M)' :
                             chatFontSize === 'text-base' ? 'Grande (G)' : 'Extra Grande (GG)'
@@ -1357,7 +1357,10 @@ function WhatsAppChatInner() {
                     onPaste={handlePaste}
                     
                     rows="2"
-                    className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none scrollbar-thin"
+                    className={clsx(
+                      "flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none scrollbar-thin",
+                      chatFontSize
+                    )}
                   />
     
                   <button
