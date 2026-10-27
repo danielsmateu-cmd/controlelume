@@ -175,16 +175,16 @@ export default function Etiquetas() {
   const [labels, setLabels] = useState([
     {
       id: '1',
-      title: 'Caixa de Acrílico 15x15x15 Cristal',
-      sku: 'CX-15X15-CR',
-      code: '7898901234567',
+      title: 'Porta Fotos - Diplomas Quadro De Parede Em Acrílico 33x42cm',
+      sku: 'ft24',
+      code: 'KUVJ26590',
       quantity: 4
     },
     {
       id: '2',
-      title: 'Expositor Acrílico com Tampa',
-      sku: 'EXP-ACR-002',
-      code: 'MLBU10928374',
+      title: 'Caixa de Acrílico 15x15x15 Cristal',
+      sku: 'CX-15X15-CR',
+      code: 'ADJA34480',
       quantity: 2
     }
   ]);
@@ -195,18 +195,21 @@ export default function Etiquetas() {
   const [manualCode, setManualCode] = useState('');
   const [manualQty, setManualQty] = useState(1);
 
-  // Configurações avançadas do rolo térmico
+  // Configurações avançadas do rolo térmico (ajustadas conforme o padrão exato do Mercado Livre)
   const [showSettings, setShowSettings] = useState(false);
   const [config110x25, setConfig110x25] = useState({
     rollWidth: 110,     // Largura total do rolo em mm
     rollHeight: 25,     // Altura de cada passo em mm
     labelWidth: 50,     // Largura de cada etiqueta individual em mm
     labelHeight: 21,    // Altura útil de impressão em mm
+    barcodeWidth: 34,   // Largura contida do código de barras em mm (Padrão Labelary / ML)
+    barcodeHeight: 6.2, // Altura das barras em mm
     marginLeft: 3,      // Margem esquerda em mm
     gap: 4,             // Espaçamento entre as duas colunas em mm
-    marginTop: 2,       // Margem superior em mm
-    fontSizeTitle: 7.5, // pt
-    fontSizeSku: 6.5    // pt
+    marginTop: 1.2,     // Margem superior em mm
+    fontSizeTitle: 7.2, // pt (título do produto)
+    fontSizeSku: 8.5,   // pt (SKU aumentado para destaque na produção)
+    fontSizeCode: 8.5   // pt (código legível centralizado abaixo do código de barras)
   });
 
   const [config100x150, setConfig100x150] = useState({
@@ -221,7 +224,7 @@ export default function Etiquetas() {
   // Cache de códigos de barras renderizados (DataURL)
   const [barcodeCache, setBarcodeCache] = useState({});
 
-  // Helper para gerar o DataURL do código de barras usando JsBarcode
+  // Helper para gerar o DataURL do código de barras usando JsBarcode (Apenas barras, sem texto embutido)
   const getBarcodeDataUrl = (codeText) => {
     if (!codeText) return null;
     const clean = String(codeText).trim();
@@ -229,14 +232,12 @@ export default function Etiquetas() {
 
     try {
       const canvas = document.createElement('canvas');
+      // Gerar apenas as barras com máxima nitidez (displayValue: false)
       JsBarcode(canvas, clean, {
         format: 'CODE128',
         width: 2,
-        height: 38,
-        displayValue: true,
-        fontSize: 12,
-        font: 'monospace',
-        textMargin: 2,
+        height: 44,
+        displayValue: false,
         margin: 0
       });
       const dataUrl = canvas.toDataURL('image/png');
@@ -247,9 +248,8 @@ export default function Etiquetas() {
         const canvas = document.createElement('canvas');
         JsBarcode(canvas, clean, {
           width: 2,
-          height: 38,
-          displayValue: true,
-          fontSize: 12,
+          height: 44,
+          displayValue: false,
           margin: 0
         });
         const dataUrl = canvas.toDataURL('image/png');
@@ -311,7 +311,7 @@ export default function Etiquetas() {
         }
 
         // Se a lista só tem os dois itens iniciais fictícios, substitui diretamente
-        const isDefaultOnly = labels.length <= 2 && labels[0]?.id === '1';
+        const isDefaultOnly = labels.length <= 2 && (labels[0]?.id === '1' || labels[0]?.id === '2');
         if (isDefaultOnly) {
           setLabels(parsedLabels);
         } else {
@@ -379,7 +379,7 @@ export default function Etiquetas() {
         if (item.code) getBarcodeDataUrl(item.code);
       });
 
-      const isDefaultOnly = labels.length <= 2 && labels[0]?.id === '1';
+      const isDefaultOnly = labels.length <= 2 && (labels[0]?.id === '1' || labels[0]?.id === '2');
       if (isDefaultOnly) {
         setLabels(newItems);
       } else {
@@ -502,7 +502,7 @@ export default function Etiquetas() {
         format: [config110x25.rollHeight, config110x25.rollWidth] // [25, 110]
       });
 
-      const { marginLeft, gap, labelWidth, labelHeight, marginTop, fontSizeTitle, fontSizeSku } = config110x25;
+      const { marginLeft, gap, labelWidth, labelHeight, marginTop } = config110x25;
       const totalPairs = Math.ceil(expandedList.length / 2);
 
       for (let pageIdx = 0; pageIdx < totalPairs; pageIdx++) {
@@ -517,14 +517,14 @@ export default function Etiquetas() {
         if (leftItem) {
           const xLeft = marginLeft;
           const yLeft = marginTop;
-          renderSingleLabel50x25(doc, leftItem, xLeft, yLeft, labelWidth, labelHeight, fontSizeTitle, fontSizeSku);
+          renderSingleLabel50x25(doc, leftItem, xLeft, yLeft, labelWidth, labelHeight, config110x25);
         }
 
         // Renderizar Coluna Direita
         if (rightItem) {
           const xRight = marginLeft + labelWidth + gap;
           const yRight = marginTop;
-          renderSingleLabel50x25(doc, rightItem, xRight, yRight, labelWidth, labelHeight, fontSizeTitle, fontSizeSku);
+          renderSingleLabel50x25(doc, rightItem, xRight, yRight, labelWidth, labelHeight, config110x25);
         }
       }
 
@@ -552,38 +552,55 @@ export default function Etiquetas() {
     }
   };
 
-  // Renderizar 1 etiqueta individual de 50x25 mm dentro do PDF (Padrão Mercado Livre)
-  const renderSingleLabel50x25 = (doc, item, x, y, width, height, fontSizeTitle, fontSizeSku) => {
-    // 1. Código de Barras no Topo (com o código legível centralizado logo abaixo das barras)
+  // Renderizar 1 etiqueta individual de 50x25 mm dentro do PDF (Padrão Idêntico ao Labelary / ML)
+  const renderSingleLabel50x25 = (doc, item, x, y, width, height, cfg) => {
+    const { barcodeWidth, barcodeHeight, fontSizeTitle, fontSizeSku, fontSizeCode } = cfg;
+    
+    // 1. Código de barras com largura contida (34 mm por padrão) e centralizado na etiqueta de 50 mm
+    const bWidth = barcodeWidth || 34;
+    const bHeight = barcodeHeight || 6.2;
+    const barcodeX = x + (width - bWidth) / 2;
+    const barcodeY = y + 0.8;
+
     const barcodeDataUrl = getBarcodeDataUrl(item.code);
     if (barcodeDataUrl) {
-      const barcodeY = y + 0.8;
-      const barcodeH = 9.8;
-      const barcodeW = width - 4;
-      doc.addImage(barcodeDataUrl, 'PNG', x + 2, barcodeY, barcodeW, barcodeH);
+      doc.addImage(barcodeDataUrl, 'PNG', barcodeX, barcodeY, bWidth, bHeight);
     } else {
       doc.setFont('courier', 'bold');
       doc.setFontSize(8);
-      doc.text(`* ${item.code} *`, x + width / 2, y + 6, { align: 'center' });
+      doc.text(`* ${item.code} *`, x + width / 2, y + 5, { align: 'center' });
     }
 
-    // 2. Título do Produto (negrito, 1 ou 2 linhas)
+    // 2. Texto do Código Legível (Entre o código de barras e o título)
+    // Vetorial, nítido, em negrito e bem legível (sem pixelização de imagem)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(fontSizeTitle || 7);
+    doc.setFontSize(fontSizeCode || 8.5);
+    doc.setTextColor(0, 0, 0);
+    doc.text(String(item.code || '').trim(), x + width / 2, y + 9.8, { align: 'center' });
+
+    // 3. Título do Produto (mais legível, 1 ou 2 linhas)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontSizeTitle || 7.2);
     doc.setTextColor(0, 0, 0);
 
-    const titleLines = doc.splitTextToSize(item.title || 'Produto sem título', width - 3);
+    const titleLines = doc.splitTextToSize(item.title || 'Produto sem título', width - 4);
     const displayedLines = titleLines.slice(0, 2);
-    doc.text(displayedLines, x + 1.5, y + 13.8);
 
-    // 3. SKU / Variação no Rodapé da Etiqueta
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(fontSizeSku || 6);
-    doc.setTextColor(50, 50, 50);
+    if (displayedLines.length === 1) {
+      doc.text(displayedLines[0], x + 2, y + 14.0);
+    } else {
+      doc.text(displayedLines[0], x + 2, y + 13.0);
+      doc.text(displayedLines[1], x + 2, y + 15.8);
+    }
 
-    const skuText = item.sku ? `SKU: ${item.sku}` : '';
+    // 4. SKU em Destaque Aumentado (para facilitar na linha de produção e sem cortar no rodapé)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSizeSku || 8.5);
+    doc.setTextColor(0, 0, 0);
+
+    const skuText = item.sku ? `SKU: ${item.sku}` : (item.code ? `SKU: ${item.code}` : '');
     if (skuText) {
-      doc.text(skuText, x + 1.5, y + 19.8);
+      doc.text(skuText, x + 2, y + 20.0);
     }
   };
 
@@ -608,22 +625,26 @@ export default function Etiquetas() {
     // Código de Barras Grande Principal (Centralizado)
     const barcodeDataUrl = getBarcodeDataUrl(item.code);
     if (barcodeDataUrl) {
-      doc.addImage(barcodeDataUrl, 'PNG', 10, 24, 80, 32);
+      doc.addImage(barcodeDataUrl, 'PNG', 15, 24, 70, 26);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(String(item.code || '').trim(), 50, 54, { align: 'center' });
     }
 
     // Linha divisória
-    doc.line(4, 62, 96, 62);
+    doc.line(4, 60, 96, 60);
 
     // Detalhes do Produto / Pacote
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text('DESCRIÇÃO DO PRODUTO / CONTEÚDO:', 8, 70);
+    doc.text('DESCRIÇÃO DO PRODUTO / CONTEÚDO:', 8, 68);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     const titleLines = doc.splitTextToSize(item.title || 'Produto sem descrição', 84);
-    doc.text(titleLines.slice(0, 3), 8, 77);
+    doc.text(titleLines.slice(0, 3), 8, 75);
 
     // Box de SKU e Referência
     doc.setFillColor(248, 250, 252);
@@ -637,7 +658,7 @@ export default function Etiquetas() {
     doc.text('SKU / CÓDIGO DO VENDEDOR', 12, 101);
 
     doc.setFont('courier', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(13);
     doc.setTextColor(15, 23, 42);
     doc.text(item.sku || item.code, 12, 108);
 
@@ -839,7 +860,7 @@ export default function Etiquetas() {
                       <button
                         type="button"
                         onClick={handleDownloadZpl}
-                        className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-all"
+                        className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-200 rounded-lg flex items-center gap-1 transition-all"
                         title="Baixar arquivo .zpl bruto"
                       >
                         <Download size={13} />
@@ -927,7 +948,7 @@ export default function Etiquetas() {
                     type="text"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="Ex: 7898901234567 ou ADJA34480"
+                    placeholder="Ex: 7898901234567 ou KUVJ26590"
                     className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
@@ -975,7 +996,7 @@ export default function Etiquetas() {
                 <button
                   type="button"
                   onClick={handleClearAll}
-                  className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 transition-colors"
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <Trash2 size={13} />
                   Limpar Fila
@@ -1003,7 +1024,7 @@ export default function Etiquetas() {
                           {item.title}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
-                          {item.sku && <span className="bg-gray-100 px-1.5 py-0.2 rounded text-gray-700 font-bold">{item.sku}</span>}
+                          {item.sku && <span className="bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded font-bold">SKU: {item.sku}</span>}
                           <span>Código: {item.code}</span>
                         </div>
                       </div>
@@ -1115,11 +1136,11 @@ export default function Etiquetas() {
             <button
               type="button"
               onClick={() => setShowSettings(!showSettings)}
-              className="w-full flex items-center justify-between text-xs font-bold text-gray-700 hover:text-gray-900 transition-colors"
+              className="w-full flex items-center justify-between text-xs font-bold text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
                 <Settings2 size={15} className="text-indigo-600" />
-                Ajustes Milimétricos da Impressora
+                Ajustes Finos de Medidas e Fontes
               </span>
               {showSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
@@ -1129,6 +1150,52 @@ export default function Etiquetas() {
                 {model === '110x25' ? (
                   <>
                     <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Largura das Barras (mm)</label>
+                        <input
+                          type="number"
+                          step="1"
+                          value={config110x25.barcodeWidth}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, barcodeWidth: parseFloat(e.target.value) || 34 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Tamanho Fonte SKU (pt)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.fontSizeSku}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, fontSizeSku: parseFloat(e.target.value) || 8.5 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Tamanho Código Central (pt)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.fontSizeCode}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, fontSizeCode: parseFloat(e.target.value) || 8.5 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Tamanho Título (pt)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.fontSizeTitle}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, fontSizeTitle: parseFloat(e.target.value) || 7.2 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-gray-100">
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Esquerda (mm)</label>
                         <input
@@ -1146,28 +1213,6 @@ export default function Etiquetas() {
                           step="0.5"
                           value={config110x25.gap}
                           onChange={(e) => setConfig110x25(c => ({ ...c, gap: parseFloat(e.target.value) || 0 }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Largura Útil (mm)</label>
-                        <input
-                          type="number"
-                          step="1"
-                          value={config110x25.labelWidth}
-                          onChange={(e) => setConfig110x25(c => ({ ...c, labelWidth: parseFloat(e.target.value) || 50 }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Superior (mm)</label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={config110x25.marginTop}
-                          onChange={(e) => setConfig110x25(c => ({ ...c, marginTop: parseFloat(e.target.value) || 0 }))}
                           className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
                         />
                       </div>
@@ -1200,7 +1245,7 @@ export default function Etiquetas() {
             </div>
 
             {model === '110x25' ? (
-              /* Preview 110 x 25 mm (2 Colunas) */
+              /* Preview 110 x 25 mm (2 Colunas no formato padrão ML) */
               <div className="bg-gray-100 rounded-xl p-3 border border-gray-200 space-y-2">
                 <div className="text-[10px] text-gray-500 font-bold text-center">
                   Passo 1 do Rolo (Largura 110mm x Altura 25mm)
@@ -1208,46 +1253,61 @@ export default function Etiquetas() {
 
                 {/* Simulação física do rolo de 2 colunas com bordas tracejadas */}
                 <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-2.5 flex items-center justify-center gap-2 shadow-inner">
+                  
                   {/* Coluna 1 (50x25mm) */}
-                  <div className="w-[145px] h-[78px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
-                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
-                      {labels[0]?.code && barcodeCache[labels[0].code] ? (
-                        <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
-                      ) : (
-                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
-                      )}
+                  <div className="w-[145px] h-[82px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                    {/* Código de barras com largura contida e texto legível centralizado */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-[75%] h-5 flex items-center justify-center overflow-hidden">
+                        {labels[0]?.code && barcodeCache[labels[0].code] ? (
+                          <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-full w-full object-fill" />
+                        ) : (
+                          <div className="w-full h-4 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
+                        )}
+                      </div>
+                      <div className="text-[9px] font-black text-gray-950 font-mono tracking-wider mt-0.5">
+                        {labels[0]?.code || 'CÓDIGO'}
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[8px] font-bold text-gray-900 truncate">
-                        {labels[0]?.title || 'Título do Produto'}
-                      </div>
-                      <div className="text-[7px] text-gray-500 font-mono">
-                        {labels[0]?.sku ? `SKU: ${labels[0].sku}` : 'SKU-001'}
-                      </div>
+
+                    {/* Título do produto */}
+                    <div className="text-[7.5px] font-medium text-gray-900 leading-tight line-clamp-2 px-0.5">
+                      {labels[0]?.title || 'Título do Produto'}
+                    </div>
+
+                    {/* SKU aumentado e em destaque para a produção */}
+                    <div className="text-[8.5px] font-black text-gray-950 font-mono px-0.5 pt-0.5 border-t border-gray-100">
+                      {labels[0]?.sku ? `SKU: ${labels[0].sku}` : (labels[0]?.code ? `SKU: ${labels[0].code}` : 'SKU')}
                     </div>
                   </div>
 
                   {/* Espaço central (Gap 4mm) */}
-                  <div className="w-1.5 h-12 border-r border-dotted border-gray-300" />
+                  <div className="w-1.5 h-14 border-r border-dotted border-gray-300" />
 
                   {/* Coluna 2 (50x25mm) */}
-                  <div className="w-[145px] h-[78px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
-                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
-                      {((labels[1] || labels[0])?.code && barcodeCache[(labels[1] || labels[0]).code]) ? (
-                        <img src={barcodeCache[(labels[1] || labels[0]).code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
-                      ) : (
-                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
-                      )}
+                  <div className="w-[145px] h-[82px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                    <div className="flex flex-col items-center">
+                      <div className="w-[75%] h-5 flex items-center justify-center overflow-hidden">
+                        {((labels[1] || labels[0])?.code && barcodeCache[(labels[1] || labels[0]).code]) ? (
+                          <img src={barcodeCache[(labels[1] || labels[0]).code]} alt="Barcode" className="max-h-full w-full object-fill" />
+                        ) : (
+                          <div className="w-full h-4 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
+                        )}
+                      </div>
+                      <div className="text-[9px] font-black text-gray-950 font-mono tracking-wider mt-0.5">
+                        {(labels[1] || labels[0])?.code || 'CÓDIGO'}
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[8px] font-bold text-gray-900 truncate">
-                        {labels[1]?.title || labels[0]?.title || 'Título do Produto 2'}
-                      </div>
-                      <div className="text-[7px] text-gray-500 font-mono">
-                        {labels[1]?.sku ? `SKU: ${labels[1].sku}` : (labels[0]?.sku || 'SKU-002')}
-                      </div>
+
+                    <div className="text-[7.5px] font-medium text-gray-900 leading-tight line-clamp-2 px-0.5">
+                      {(labels[1] || labels[0])?.title || 'Título do Produto 2'}
+                    </div>
+
+                    <div className="text-[8.5px] font-black text-gray-950 font-mono px-0.5 pt-0.5 border-t border-gray-100">
+                      {(labels[1] || labels[0])?.sku ? `SKU: ${(labels[1] || labels[0]).sku}` : ((labels[1] || labels[0])?.code ? `SKU: ${(labels[1] || labels[0]).code}` : 'SKU')}
                     </div>
                   </div>
+
                 </div>
 
                 <p className="text-[10px] text-gray-400 text-center">
@@ -1262,9 +1322,12 @@ export default function Etiquetas() {
                     <span className="text-[10px] font-extrabold text-gray-800">LUME • ENVIO</span>
                   </div>
 
-                  <div className="py-2 flex items-center justify-center">
+                  <div className="py-2 flex flex-col items-center justify-center">
                     {labels[0]?.code && barcodeCache[labels[0].code] ? (
-                      <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-16 max-w-full object-contain" />
+                      <>
+                        <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-14 max-w-[85%] object-fill" />
+                        <span className="font-bold font-mono text-[10px] mt-1">{labels[0].code}</span>
+                      </>
                     ) : (
                       <div className="w-full h-12 bg-gray-200 flex items-center justify-center text-[9px] font-mono">||||||||||||||||||||||||</div>
                     )}
@@ -1272,7 +1335,7 @@ export default function Etiquetas() {
 
                   <div className="border border-gray-200 rounded p-1.5 text-[8px] space-y-1">
                     <div className="font-bold text-gray-900 truncate">{labels[0]?.title || 'Caixa Acrílico 15x15x15'}</div>
-                    <div className="text-gray-500 font-mono">SKU: {labels[0]?.sku || 'CX-15'}</div>
+                    <div className="text-gray-900 font-bold font-mono text-[9px]">SKU: {labels[0]?.sku || 'CX-15'}</div>
                   </div>
 
                   <div className="text-[7px] text-gray-400 text-center border-t border-gray-100 pt-1">
