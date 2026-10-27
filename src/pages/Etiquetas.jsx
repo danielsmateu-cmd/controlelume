@@ -483,14 +483,20 @@ export default function Etiquetas() {
       return null;
     }
 
-    // Expandir lista de etiquetas de acordo com a quantidade
+    // Expandir lista de etiquetas de acordo com a quantidade (filtrando nulos ou vazios)
     const expandedList = [];
     labels.forEach(item => {
+      if (!item || (!item.code && !item.title && !item.sku)) return;
       const q = Number(item.quantity) || 1;
       for (let i = 0; i < q; i++) {
         expandedList.push(item);
       }
     });
+
+    if (expandedList.length === 0) {
+      alert('Nenhuma etiqueta válida encontrada para gerar a impressão.');
+      return null;
+    }
 
     if (model === '110x25') {
       // ----------------------------------------------------
@@ -499,19 +505,24 @@ export default function Etiquetas() {
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
-        format: [config110x25.rollHeight, config110x25.rollWidth] // [25, 110]
+        format: [config110x25.rollWidth, config110x25.rollHeight] // [110, 25]
       });
 
       const { marginLeft, gap, labelWidth, labelHeight, marginTop } = config110x25;
       const totalPairs = Math.ceil(expandedList.length / 2);
+      let pageCount = 0;
 
       for (let pageIdx = 0; pageIdx < totalPairs; pageIdx++) {
-        if (pageIdx > 0) {
-          doc.addPage([config110x25.rollWidth, config110x25.rollHeight], 'landscape');
-        }
-
         const leftItem = expandedList[pageIdx * 2];
         const rightItem = expandedList[pageIdx * 2 + 1] || null;
+
+        // Garantir que pares completamente vazios nunca gerem uma página em branco
+        if (!leftItem && !rightItem) continue;
+
+        if (pageCount > 0) {
+          doc.addPage([config110x25.rollWidth, config110x25.rollHeight], 'landscape');
+        }
+        pageCount++;
 
         // Renderizar Coluna Esquerda
         if (leftItem) {
@@ -711,7 +722,7 @@ export default function Etiquetas() {
     }
   };
 
-  // Ação: Imprimir Direto (abre janela de impressão com configuração milimétrica)
+  // Ação: Imprimir Direto (abre janela de impressão com buffer seguro para lotes grandes)
   const handleDirectPrint = async () => {
     setIsGeneratingPdf(true);
     try {
@@ -731,14 +742,30 @@ export default function Etiquetas() {
       document.body.appendChild(printIframe);
 
       printIframe.onload = () => {
+        // Lotes grandes (ex: 252 etiquetas = 126 páginas) exigem tempo para o PDFium
+        // decodificar e renderizar todos os canvases no navegador antes de abrir o print().
+        // Chamar com apenas 300ms fazia páginas não renderizadas saírem em branco na térmica!
+        const totalItems = labels.reduce((acc, curr) => acc + (Number(curr.quantity) || 1), 0);
+        const bufferDelay = Math.min(2500, Math.max(600, totalItems * 8));
+
         setTimeout(() => {
           try {
             printIframe.contentWindow.focus();
             printIframe.contentWindow.print();
           } catch (e) {
             window.open(blobUrl, '_blank');
+          } finally {
+            // Limpar iframe e liberar memória após 1 minuto
+            setTimeout(() => {
+              try {
+                if (printIframe.parentNode) {
+                  printIframe.parentNode.removeChild(printIframe);
+                }
+              } catch (e2) {}
+              URL.revokeObjectURL(blobUrl);
+            }, 60000);
           }
-        }, 300);
+        }, bufferDelay);
       };
     } catch (err) {
       console.error('Erro na impressão direta:', err);
@@ -1197,6 +1224,30 @@ export default function Etiquetas() {
 
                     <div className="grid grid-cols-2 gap-3 pt-1 border-t border-gray-100">
                       <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Altura / Passo do Rolo (mm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.rollHeight}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, rollHeight: parseFloat(e.target.value) || 25 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                          title="Padrão 25mm. Ajuste se sua impressora exigir o passo com GAP (ex: 28mm)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Superior (mm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.marginTop}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, marginTop: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Esquerda (mm)</label>
                         <input
                           type="number"
@@ -1232,6 +1283,28 @@ export default function Etiquetas() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Card de Dicas de Impressão Sem Falhas na Térmica */}
+          <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 text-xs space-y-2 text-amber-950 shadow-2xs">
+            <div className="flex items-center gap-2 font-black text-amber-900 text-xs">
+              <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
+              <span>Como Evitar Etiquetas em Branco na Impressora Térmica:</span>
+            </div>
+            <ul className="space-y-1.5 text-[11px] text-amber-900/90 pl-5 list-disc leading-relaxed">
+              <li>
+                <strong>Calibração de GAP (Passo):</strong> Se a impressora pulou etiquetas no meio do lote, o sensor óptico da máquina perdeu o alinhamento com o corte do papel. <em>Pressione e segure o botão FEED da impressora até a luz piscar para ela reconhecer a altura exata da etiqueta e do GAP.</em>
+              </li>
+              <li>
+                <strong>Margens na Janela de Impressão:</strong> Na tela de impressão do Chrome/Edge, mude <strong>Margens</strong> de "Padrão" para <strong>"Nenhuma"</strong>. Margens padrão do navegador ultrapassam a altura de 25mm e fazem o driver avançar etiquetas em branco.
+              </li>
+              <li>
+                <strong>Escala:</strong> Deixe sempre em <strong>"Padrão" (100%)</strong> ou Tamanho Real (nunca "Ajustar à página").
+              </li>
+              <li>
+                <strong>Lotes Grandes (+50 etiquetas):</strong> Se preferir, clique em <strong>"Abrir em Nova Aba"</strong> ou <strong>"Baixar PDF"</strong> para imprimir direto com todas as páginas 100% cacheadas.
+              </li>
+            </ul>
           </div>
 
           {/* Pré-visualização da Etiqueta em Escala */}
