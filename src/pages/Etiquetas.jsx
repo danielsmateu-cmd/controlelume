@@ -8,19 +8,167 @@ import JsBarcode from 'jsbarcode';
 import { jsPDF } from 'jspdf';
 import clsx from 'clsx';
 
+// ==========================================
+// FUNÇÕES AUXILIARES DE PARSER DE CÓDIGO ZPL
+// ==========================================
+
+// Decodificar caracteres hexadecimais no formato ZPL (^FH com _XX em UTF-8)
+export const decodeZplHex = (str) => {
+  if (!str) return '';
+  return str.replace(/(?:_[0-9A-Fa-f]{2})+/g, (match) => {
+    try {
+      const hexPairs = match.split('_').filter(Boolean);
+      const bytes = new Uint8Array(hexPairs.map(h => parseInt(h, 16)));
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch (e) {
+      return match;
+    }
+  }).trim();
+};
+
+// Analisar ZPL nativo e extrair etiquetas individuais estruturadas
+export const parseZplToLabels = (zplText) => {
+  if (!zplText) return { labels: [], detectedModel: '110x25', totalLabelsCount: 0 };
+
+  const blocks = zplText.match(/\^XA[\s\S]*?\^XZ/gi) || [];
+  if (blocks.length === 0) {
+    return { labels: [], detectedModel: '110x25', totalLabelsCount: 0 };
+  }
+
+  let maxY = 0;
+  let hasTwoColumns = false;
+  const rawLabels = [];
+
+  for (const block of blocks) {
+    const fieldRegex = /\^FO(\d+),(\d+)([\s\S]*?)\^FD([\s\S]*?)\^FS/gi;
+    let match;
+    const fields = [];
+
+    while ((match = fieldRegex.exec(block)) !== null) {
+      const x = parseInt(match[1], 10);
+      const y = parseInt(match[2], 10);
+      if (y > maxY) maxY = y;
+      if (x >= 350) hasTwoColumns = true;
+
+      const cmd = match[3];
+      const rawData = match[4];
+      const data = decodeZplHex(rawData);
+      const isBarcode = cmd.includes('^BC') || cmd.includes('^BY') || cmd.includes('^B3');
+
+      fields.push({ x, y, cmd, data, isBarcode });
+    }
+
+    const leftFields = fields.filter(f => f.x < 350);
+    const rightFields = fields.filter(f => f.x >= 350);
+
+    const processFieldGroup = (colFields) => {
+      if (!colFields || colFields.length === 0) return null;
+
+      let code = '';
+      let title = '';
+      let variation = '';
+      let sku = '';
+
+      // 1. Procurar código de barras
+      for (const f of colFields) {
+        if (f.isBarcode || (!code && /^[A-Z0-9]{5,20}$/i.test(f.data) && !f.data.toUpperCase().startsWith('SKU:'))) {
+          if (f.data && f.data.length >= 4) {
+            code = f.data;
+          }
+        }
+      }
+
+      // 2. Procurar SKU
+      for (const f of colFields) {
+        if (/^SKU:/i.test(f.data)) {
+          sku = f.data.replace(/^SKU:\s*/i, '').trim();
+        }
+      }
+
+      // 3. Procurar Título e Variação
+      for (const f of colFields) {
+        const text = f.data.trim();
+        if (!text || text === code || /^SKU:/i.test(text)) continue;
+
+        if (text.length > 18 && !title) {
+          title = text;
+        } else if (text.length <= 18 && !variation) {
+          variation = text;
+        } else if (!title) {
+          title = text;
+        }
+      }
+
+      if (!title && colFields.length > 0) {
+        const validTexts = colFields
+          .map(f => f.data.trim())
+          .filter(t => t && t !== code && !/^SKU:/i.test(t));
+        if (validTexts.length > 0) {
+          title = validTexts.reduce((a, b) => (a.length >= b.length ? a : b));
+        }
+      }
+
+      if (code || title) {
+        let fullTitle = title || `Produto ${code}`;
+        if (variation && !fullTitle.includes(variation)) {
+          fullTitle = `${fullTitle} - ${variation}`;
+        }
+        return {
+          code: code || sku || 'PROD',
+          title: fullTitle,
+          sku: sku || ''
+        };
+      }
+      return null;
+    };
+
+    if (hasTwoColumns || (leftFields.length > 0 && rightFields.length > 0)) {
+      const left = processFieldGroup(leftFields);
+      if (left) rawLabels.push(left);
+
+      const right = processFieldGroup(rightFields);
+      if (right) rawLabels.push(right);
+    } else {
+      const single = processFieldGroup(fields);
+      if (single) rawLabels.push(single);
+    }
+  }
+
+  // Se a altura Y máxima for maior que 400 dots (~50mm), é etiqueta alta (100x150 mm)
+  const detectedModel = maxY > 400 ? '100x150' : '110x25';
+  const totalLabelsCount = rawLabels.length;
+
+  // Agrupar produtos idênticos para somar as quantidades
+  const aggregatedMap = new Map();
+  for (const item of rawLabels) {
+    const key = `${item.code}___${item.sku}___${item.title}`;
+    if (aggregatedMap.has(key)) {
+      aggregatedMap.get(key).quantity += 1;
+    } else {
+      aggregatedMap.set(key, {
+        id: 'zpl-' + Math.random().toString(36).substr(2, 9),
+        code: item.code,
+        title: item.title,
+        sku: item.sku,
+        quantity: 1
+      });
+    }
+  }
+
+  return {
+    labels: Array.from(aggregatedMap.values()),
+    detectedModel,
+    totalLabelsCount
+  };
+};
+
 export default function Etiquetas() {
   // Modelo da etiqueta: '110x25' (2 colunas de 50x25mm) ou '100x150' (1 coluna de 100x150mm)
   const [model, setModel] = useState('110x25');
 
   // Campo de texto para colar códigos do Mercado Livre
   const [pastedCode, setPastedCode] = useState('');
-  const [isProcessingCode, setIsProcessingCode] = useState(false);
-  const [isProcessingZpl, setIsProcessingZpl] = useState(false);
   const [detectedType, setDetectedType] = useState(null); // 'zpl' | 'codes' | null
-
-  // ZPL Renderizado (quando for ZPL do ML)
-  const [zplPreviewUrl, setZplPreviewUrl] = useState(null);
-  const [zplPdfBlob, setZplPdfBlob] = useState(null);
   const [zplError, setZplError] = useState(null);
 
   // Lista de etiquetas adicionadas para impressão
@@ -57,7 +205,6 @@ export default function Etiquetas() {
     marginLeft: 3,      // Margem esquerda em mm
     gap: 4,             // Espaçamento entre as duas colunas em mm
     marginTop: 2,       // Margem superior em mm
-    showCompanyName: false,
     fontSizeTitle: 7.5, // pt
     fontSizeSku: 6.5    // pt
   });
@@ -65,17 +212,11 @@ export default function Etiquetas() {
   const [config100x150, setConfig100x150] = useState({
     width: 100,         // mm
     height: 150,        // mm
-    margin: 5,          // mm
-    recipientName: '',
-    recipientAddress: '',
-    recipientCity: '',
-    trackingCode: ''
+    margin: 5           // mm
   });
 
   // Estado de geração de PDF / Impressão
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [previewRefresh, setPreviewRefresh] = useState(0);
 
   // Cache de códigos de barras renderizados (DataURL)
   const [barcodeCache, setBarcodeCache] = useState({});
@@ -91,9 +232,9 @@ export default function Etiquetas() {
       JsBarcode(canvas, clean, {
         format: 'CODE128',
         width: 2,
-        height: 42,
+        height: 38,
         displayValue: true,
-        fontSize: 13,
+        fontSize: 12,
         font: 'monospace',
         textMargin: 2,
         margin: 0
@@ -102,14 +243,13 @@ export default function Etiquetas() {
       setBarcodeCache(prev => ({ ...prev, [clean]: dataUrl }));
       return dataUrl;
     } catch (err) {
-      console.warn('Erro ao gerar código CODE128 para:', clean, err);
       try {
         const canvas = document.createElement('canvas');
         JsBarcode(canvas, clean, {
           width: 2,
-          height: 42,
+          height: 38,
           displayValue: true,
-          fontSize: 13,
+          fontSize: 12,
           margin: 0
         });
         const dataUrl = canvas.toDataURL('image/png');
@@ -135,89 +275,61 @@ export default function Etiquetas() {
     const trimmed = pastedCode.trim();
     if (!trimmed) {
       setDetectedType(null);
-      setZplPreviewUrl(null);
-      setZplPdfBlob(null);
       setZplError(null);
       return;
     }
 
     if (trimmed.includes('^XA') && trimmed.includes('^XZ')) {
       setDetectedType('zpl');
-      // Se for ZPL, sugerir mudar para 100x150 se tiver dimensões de envio
-      if (trimmed.includes('100') || trimmed.includes('150') || trimmed.includes('1200') || trimmed.includes('800')) {
-        setModel('100x150');
-      }
+      setZplError(null);
     } else {
       setDetectedType('codes');
-      setZplPreviewUrl(null);
-      setZplPdfBlob(null);
       setZplError(null);
     }
   }, [pastedCode]);
 
-  // Processar código ZPL via Labelary
-  const processZpl = async () => {
-    if (!pastedCode.trim()) return;
-    setIsProcessingZpl(true);
-    setZplError(null);
+  // Quantidade de blocos ZPL detectados no texto colado
+  const zplBlocksCount = pastedCode.includes('^XA') ? (pastedCode.match(/\^XA/gi) || []).length : 0;
 
-    const is4x6 = model === '100x150';
-    const labelaryEndpoint = is4x6 
-      ? 'https://api.labelary.com/v1/printers/8dpmm/labels/4x6/0/' 
-      : 'https://api.labelary.com/v1/printers/8dpmm/labels/110x25/0/';
-
-    try {
-      const formData = new FormData();
-      formData.append('file', new Blob([pastedCode.trim()]), 'label.zpl');
-
-      // 1. Obter imagem PNG para pré-visualização
-      const imgRes = await fetch(labelaryEndpoint, {
-        method: 'POST',
-        headers: { 'Accept': 'image/png' },
-        body: formData
-      });
-
-      if (!imgRes.ok) {
-        throw new Error(`Erro ao renderizar ZPL (Status ${imgRes.status}). Verifique se o código ZPL é válido.`);
-      }
-
-      const imgBlob = await imgRes.blob();
-      const imgUrl = URL.createObjectURL(imgBlob);
-      setZplPreviewUrl(imgUrl);
-
-      // 2. Obter PDF para impressão de alta qualidade
-      const pdfFormData = new FormData();
-      pdfFormData.append('file', new Blob([pastedCode.trim()]), 'label.zpl');
-
-      const pdfRes = await fetch(labelaryEndpoint, {
-        method: 'POST',
-        headers: { 'Accept': 'application/pdf' },
-        body: pdfFormData
-      });
-
-      if (pdfRes.ok) {
-        const pdfData = await pdfRes.blob();
-        setZplPdfBlob(pdfData);
-      }
-    } catch (err) {
-      console.error('Erro ao processar ZPL:', err);
-      setZplError(err.message || 'Falha ao processar código ZPL.');
-    } finally {
-      setIsProcessingZpl(false);
-    }
-  };
-
-  // Processar lista de códigos colados (MLBU, EAN, SKU, Títulos)
+  // Processar texto colado (ZPL ou lista de códigos/SKUs)
   const processPastedText = () => {
     const text = pastedCode.trim();
     if (!text) return;
 
+    // 1. Processar ZPL localmente
     if (detectedType === 'zpl') {
-      processZpl();
-      return;
+      const { labels: parsedLabels, detectedModel, totalLabelsCount } = parseZplToLabels(text);
+
+      if (parsedLabels.length > 0) {
+        // Pré-aquecer cache dos códigos de barras gerados
+        parsedLabels.forEach(p => {
+          if (p.code) getBarcodeDataUrl(p.code);
+        });
+
+        if (detectedModel && detectedModel !== model) {
+          setModel(detectedModel);
+        }
+
+        // Se a lista só tem os dois itens iniciais fictícios, substitui diretamente
+        const isDefaultOnly = labels.length <= 2 && labels[0]?.id === '1';
+        if (isDefaultOnly) {
+          setLabels(parsedLabels);
+        } else {
+          setLabels(prev => [...prev, ...parsedLabels]);
+        }
+
+        setPastedCode('');
+        setDetectedType(null);
+        setZplError(null);
+        alert(`✅ Sucesso! ${totalLabelsCount} etiqueta(s) importada(s) do ZPL (${parsedLabels.length} produto(s) agrupado(s)).\n\nAgora você pode clicar em "Imprimir Direto na Térmica" ou "Baixar PDF".`);
+        return;
+      } else {
+        setZplError('Não foi possível extrair dados válidos do código ZPL. Verifique se o código possui blocos ^XA ... ^XZ.');
+        return;
+      }
     }
 
-    // Processar linha por linha
+    // 2. Processar texto linha por linha (códigos simples ou delimitados)
     const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
     const newItems = [];
 
@@ -234,7 +346,6 @@ export default function Etiquetas() {
         let code = parts[2] || parts[0];
         let quantity = parseInt(parts[3], 10) || 1;
 
-        // Se o primeiro campo parecer um código de barras (só números ou começa com MLBU)
         if (/^\d{8,14}$/.test(parts[0]) || /^MLBU/i.test(parts[0])) {
           code = parts[0];
           title = parts[1] || `Produto ${parts[0]}`;
@@ -249,9 +360,7 @@ export default function Etiquetas() {
           quantity: quantity > 0 ? quantity : 1
         });
       } else {
-        // Linha simples (apenas código ou nome com código)
-        // Ex: "7891234567890" ou "MLBU12345678" ou "Caixa Acrilico 7891234567890"
-        const barcodeMatch = cleanLine.match(/\b(\d{8,14}|MLBU\w+)\b/i);
+        const barcodeMatch = cleanLine.match(/\b(\d{8,14}|[A-Z]{3,}\d{4,}|\w+)\b/i);
         const code = barcodeMatch ? barcodeMatch[0] : cleanLine;
         const title = cleanLine !== code ? cleanLine.replace(code, '').trim() : `Produto ${code}`;
 
@@ -266,12 +375,47 @@ export default function Etiquetas() {
     });
 
     if (newItems.length > 0) {
-      setLabels(prev => [...prev, ...newItems]);
+      newItems.forEach(item => {
+        if (item.code) getBarcodeDataUrl(item.code);
+      });
+
+      const isDefaultOnly = labels.length <= 2 && labels[0]?.id === '1';
+      if (isDefaultOnly) {
+        setLabels(newItems);
+      } else {
+        setLabels(prev => [...prev, ...newItems]);
+      }
+
       setPastedCode('');
       setDetectedType(null);
       alert(`${newItems.length} etiqueta(s) adicionada(s) à lista com sucesso!`);
     } else {
       alert('Nenhum código reconhecido no texto informado.');
+    }
+  };
+
+  // Baixar código ZPL puro como arquivo .zpl
+  const handleDownloadZpl = () => {
+    if (!pastedCode.trim()) return;
+    const blob = new Blob([pastedCode.trim()], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `etiquetas_${model}_${new Date().toISOString().slice(0, 10)}.zpl`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Copiar ZPL para a área de transferência
+  const handleCopyZpl = async () => {
+    if (!pastedCode.trim()) return;
+    try {
+      await navigator.clipboard.writeText(pastedCode.trim());
+      alert('Código ZPL copiado para a área de transferência!');
+    } catch (e) {
+      alert('Falha ao copiar.');
     }
   };
 
@@ -292,6 +436,7 @@ export default function Etiquetas() {
       quantity: Number(manualQty) > 0 ? Number(manualQty) : 1
     };
 
+    getBarcodeDataUrl(newItem.code);
     setLabels(prev => [...prev, newItem]);
     setManualTitle('');
     setManualSku('');
@@ -333,10 +478,6 @@ export default function Etiquetas() {
   // GERAÇÃO DE PDF PERSONALIZADO MILIMÉTRICO
   // ==========================================
   const generatePdfBlob = async () => {
-    if (detectedType === 'zpl' && zplPdfBlob) {
-      return zplPdfBlob;
-    }
-
     if (labels.length === 0) {
       alert('Adicione ao menos uma etiqueta para gerar o PDF.');
       return null;
@@ -362,7 +503,6 @@ export default function Etiquetas() {
       });
 
       const { marginLeft, gap, labelWidth, labelHeight, marginTop, fontSizeTitle, fontSizeSku } = config110x25;
-
       const totalPairs = Math.ceil(expandedList.length / 2);
 
       for (let pageIdx = 0; pageIdx < totalPairs; pageIdx++) {
@@ -412,41 +552,38 @@ export default function Etiquetas() {
     }
   };
 
-  // Renderizar 1 etiqueta individual de 50x25 mm dentro do PDF
+  // Renderizar 1 etiqueta individual de 50x25 mm dentro do PDF (Padrão Mercado Livre)
   const renderSingleLabel50x25 = (doc, item, x, y, width, height, fontSizeTitle, fontSizeSku) => {
-    // 1. Título do Produto (negrito, truncado ou até 2 linhas)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(fontSizeTitle);
-    doc.setTextColor(0, 0, 0);
-
-    const titleLines = doc.splitTextToSize(item.title || 'Produto sem título', width - 2);
-    // Limitar a no máximo 2 linhas para não invadir o código de barras
-    const displayedLines = titleLines.slice(0, 2);
-    doc.text(displayedLines, x + 1, y + 3);
-
-    // 2. SKU / Variação
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(fontSizeSku);
-    doc.setTextColor(60, 60, 60);
-
-    const skuText = item.sku ? `SKU: ${item.sku}` : '';
-    const ySku = y + (displayedLines.length === 1 ? 6.5 : 8.5);
-    if (skuText) {
-      doc.text(skuText, x + 1, ySku);
-    }
-
-    // 3. Código de Barras
+    // 1. Código de Barras no Topo (com o código legível centralizado logo abaixo das barras)
     const barcodeDataUrl = getBarcodeDataUrl(item.code);
     if (barcodeDataUrl) {
-      const barcodeY = y + 9.5;
-      const barcodeH = 10.5;
+      const barcodeY = y + 0.8;
+      const barcodeH = 9.8;
       const barcodeW = width - 4;
       doc.addImage(barcodeDataUrl, 'PNG', x + 2, barcodeY, barcodeW, barcodeH);
     } else {
-      // Fallback texto se o código não puder ser gerado
       doc.setFont('courier', 'bold');
       doc.setFontSize(8);
-      doc.text(`* ${item.code} *`, x + width / 2, y + 15, { align: 'center' });
+      doc.text(`* ${item.code} *`, x + width / 2, y + 6, { align: 'center' });
+    }
+
+    // 2. Título do Produto (negrito, 1 ou 2 linhas)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSizeTitle || 7);
+    doc.setTextColor(0, 0, 0);
+
+    const titleLines = doc.splitTextToSize(item.title || 'Produto sem título', width - 3);
+    const displayedLines = titleLines.slice(0, 2);
+    doc.text(displayedLines, x + 1.5, y + 13.8);
+
+    // 3. SKU / Variação no Rodapé da Etiqueta
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontSizeSku || 6);
+    doc.setTextColor(50, 50, 50);
+
+    const skuText = item.sku ? `SKU: ${item.sku}` : '';
+    if (skuText) {
+      doc.text(skuText, x + 1.5, y + 19.8);
     }
   };
 
@@ -578,7 +715,6 @@ export default function Etiquetas() {
             printIframe.contentWindow.focus();
             printIframe.contentWindow.print();
           } catch (e) {
-            // Se iframe print falhar por política de segurança, abre em nova aba
             window.open(blobUrl, '_blank');
           }
         }, 300);
@@ -604,7 +740,7 @@ export default function Etiquetas() {
             <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
               Gerador de Etiquetas Térmicas
               <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                Pronto p/ Térmica
+                100% Nativo & Offline
               </span>
             </h1>
             <p className="text-xs md:text-sm text-gray-500 mt-0.5">
@@ -642,10 +778,10 @@ export default function Etiquetas() {
                 : 'text-gray-600 hover:text-gray-900'
             )}
           >
-            <Printer size={16} className={model === '100x150' ? 'text-indigo-600' : 'text-gray-400'} />
+            <Layers size={16} className={model === '100x150' ? 'text-indigo-600' : 'text-gray-400'} />
             <div className="text-left">
               <div className="leading-tight font-extrabold">100 x 150 mm</div>
-              <div className="text-[10px] font-normal text-gray-500">1 Coluna • Envio / Despacho</div>
+              <div className="text-[10px] font-normal text-gray-500">1 Coluna • Transporte / ML</div>
             </div>
           </button>
         </div>
@@ -666,14 +802,14 @@ export default function Etiquetas() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-sm">Colar Código do Mercado Livre</h3>
-                  <p className="text-[11px] text-gray-500">Aceita código ZPL (^XA...), códigos de barras (789..., MLBU...) ou lista copiada de produtos</p>
+                  <p className="text-[11px] text-gray-500">Cole o código ZPL (^XA...) ou lista copiada de produtos / códigos</p>
                 </div>
               </div>
 
               {detectedType === 'zpl' && (
-                <span className="px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-lg text-xs font-bold flex items-center gap-1 border border-indigo-200 animate-pulse">
+                <span className="px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-lg text-xs font-bold flex items-center gap-1 border border-indigo-200">
                   <Sparkles size={13} />
-                  Código ZPL Detectado
+                  Código ZPL ({zplBlocksCount} bloco{zplBlocksCount > 1 ? 's' : ''})
                 </span>
               )}
             </div>
@@ -682,36 +818,56 @@ export default function Etiquetas() {
               <textarea
                 value={pastedCode}
                 onChange={(e) => setPastedCode(e.target.value)}
-                placeholder={`Cole aqui o código gerado pelo Mercado Livre...\n\nExemplos aceitos:\n- Código ZPL térmico: ^XA^FO50,50^ADN,36,20^FD...^FS^XZ\n- Código de barras simples: 7898901234567\n- Código MLBU do Full: MLBU10928374\n- Lista de produtos copiados (uma por linha): SKU | Título | Código | Quantidade`}
+                placeholder={`Cole aqui o código gerado pelo Mercado Livre...\n\nExemplos aceitos:\n- Código ZPL térmico: ^XA^FO65,18^BCN...^FS^XZ\n- Código de barras simples: 7898901234567\n- Código MLBU do Full: MLBU10928374\n- Lista de produtos (uma por linha): SKU | Título | Código | Quantidade`}
                 rows={5}
                 className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
               />
 
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setPastedCode('')}
-                  disabled={!pastedCode}
-                  className="px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                >
-                  Limpar Campo
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPastedCode('')}
+                    disabled={!pastedCode}
+                    className="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
+                  >
+                    Limpar
+                  </button>
+
+                  {detectedType === 'zpl' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleDownloadZpl}
+                        className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-all"
+                        title="Baixar arquivo .zpl bruto"
+                      >
+                        <Download size={13} />
+                        Baixar .ZPL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyZpl}
+                        className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-all"
+                        title="Copiar código ZPL"
+                      >
+                        <Copy size={13} />
+                        Copiar
+                      </button>
+                    </>
+                  )}
+                </div>
 
                 <button
                   type="button"
                   onClick={processPastedText}
-                  disabled={!pastedCode.trim() || isProcessingZpl}
-                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-sm shadow-amber-500/20 transition-all"
+                  disabled={!pastedCode.trim()}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-sm shadow-amber-500/20 transition-all cursor-pointer"
                 >
-                  {isProcessingZpl ? (
-                    <>
-                      <RefreshCw size={14} className="animate-spin" />
-                      Processando ZPL...
-                    </>
-                  ) : detectedType === 'zpl' ? (
+                  {detectedType === 'zpl' ? (
                     <>
                       <Sparkles size={14} />
-                      Renderizar Etiqueta ZPL
+                      Importar {zplBlocksCount > 0 ? (zplBlocksCount * 2) + ' ' : ''}Etiquetas do ZPL
                     </>
                   ) : (
                     <>
@@ -760,98 +916,95 @@ export default function Etiquetas() {
                     type="text"
                     value={manualSku}
                     onChange={(e) => setManualSku(e.target.value)}
-                    placeholder="Ex: CX-15X15"
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono"
+                    placeholder="Ex: CX-15X15-CR"
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Código de Barras (EAN / MLBU)</label>
+                  <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Código de Barras / EAN / MLBU</label>
                   <input
                     type="text"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="Ex: 7898901234567"
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono"
+                    placeholder="Ex: 7898901234567 ou ADJA34480"
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Quantidade</label>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={manualQty}
-                      onChange={(e) => setManualQty(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-center font-bold"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1 shadow-sm"
-                    >
-                      <Plus size={16} /> Adicionar
-                    </button>
-                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={manualQty}
+                    onChange={(e) => setManualQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  Adicionar à Fila
+                </button>
               </div>
             </form>
           </div>
 
           {/* Card 3: Lista de Etiquetas na Fila */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <div className="p-4 bg-gray-50 border-b border-gray-200/80 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Layers size={18} className="text-gray-700" />
-                <h3 className="font-bold text-gray-900 text-sm">
-                  Fila de Impressão ({labels.length} produto{labels.length === 1 ? '' : 's'})
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                  Total: {totalLabelUnits} etiqueta{totalLabelUnits === 1 ? '' : 's'} 
-                  {model === '110x25' && ` (${totalPages110x25} página${totalPages110x25 === 1 ? '' : 's'})`}
+                <h3 className="font-bold text-gray-900 text-sm">Etiquetas na Fila de Impressão</h3>
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-extrabold rounded-full">
+                  {totalLabelUnits} {totalLabelUnits === 1 ? 'etiqueta' : 'etiquetas'}
                 </span>
-
-                {labels.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearAll}
-                    className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    Limpar
-                  </button>
+                {model === '110x25' && (
+                  <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">
+                    ({totalPages110x25} passos/páginas do rolo)
+                  </span>
                 )}
               </div>
+
+              {labels.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 size={13} />
+                  Limpar Fila
+                </button>
+              )}
             </div>
 
             <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
               {labels.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-xs">
-                  Nenhuma etiqueta na fila de impressão. Cole os códigos do Mercado Livre acima ou adicione manualmente.
+                <div className="p-8 text-center text-gray-400 space-y-2">
+                  <Barcode size={32} className="mx-auto text-gray-300 stroke-1" />
+                  <p className="text-xs">Nenhuma etiqueta na fila.</p>
+                  <p className="text-[11px] text-gray-400">Cole um código ZPL ou adicione produtos acima para imprimir.</p>
                 </div>
               ) : (
-                labels.map((item) => (
-                  <div key={item.id} className="p-3.5 hover:bg-gray-50/80 transition-colors flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Miniatura do Código de Barras */}
-                      <div className="w-20 h-11 bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-center flex-shrink-0 shadow-2xs overflow-hidden">
-                        {barcodeCache[item.code] ? (
-                          <img src={barcodeCache[item.code]} alt="Barcode" className="max-w-full max-h-full object-contain" />
-                        ) : (
-                          <span className="text-[9px] text-gray-400 font-mono">Gerando...</span>
-                        )}
+                labels.map((item, index) => (
+                  <div key={item.id || index} className="p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50/80 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 flex-shrink-0">
+                        {index + 1}
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-gray-900 text-xs truncate" title={item.title}>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-900 truncate" title={item.title}>
                           {item.title}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
-                          {item.sku && <span className="bg-gray-100 px-1.5 py-0.2 rounded text-gray-700">{item.sku}</span>}
-                          <span>{item.code}</span>
+                          {item.sku && <span className="bg-gray-100 px-1.5 py-0.2 rounded text-gray-700 font-bold">{item.sku}</span>}
+                          <span>Código: {item.code}</span>
                         </div>
                       </div>
                     </div>
@@ -862,7 +1015,7 @@ export default function Etiquetas() {
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(item.id, -1)}
-                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100 text-xs font-bold"
+                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100 text-xs font-bold cursor-pointer"
                         >
                           -
                         </button>
@@ -872,7 +1025,7 @@ export default function Etiquetas() {
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(item.id, 1)}
-                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100 text-xs font-bold"
+                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100 text-xs font-bold cursor-pointer"
                         >
                           +
                         </button>
@@ -881,7 +1034,7 @@ export default function Etiquetas() {
                       <button
                         type="button"
                         onClick={() => handleRemoveLabel(item.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                         title="Remover"
                       >
                         <Trash2 size={16} />
@@ -909,7 +1062,7 @@ export default function Etiquetas() {
               </div>
 
               <span className="text-[10px] bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded-full border border-green-200">
-                Pronto
+                Pronto p/ Imprimir
               </span>
             </div>
 
@@ -917,8 +1070,8 @@ export default function Etiquetas() {
             <button
               type="button"
               onClick={handleDirectPrint}
-              disabled={isGeneratingPdf || (labels.length === 0 && !zplPreviewUrl)}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-2xl text-sm font-black shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.01]"
+              disabled={isGeneratingPdf || labels.length === 0}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-2xl text-sm font-black shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.01] cursor-pointer"
             >
               {isGeneratingPdf ? (
                 <>
@@ -938,8 +1091,8 @@ export default function Etiquetas() {
               <button
                 type="button"
                 onClick={handleDownloadPdf}
-                disabled={isGeneratingPdf || (labels.length === 0 && !zplPreviewUrl)}
-                className="py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                disabled={isGeneratingPdf || labels.length === 0}
+                className="py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
               >
                 <Download size={14} className="text-gray-500" />
                 Baixar PDF
@@ -948,13 +1101,92 @@ export default function Etiquetas() {
               <button
                 type="button"
                 onClick={handleOpenPdf}
-                disabled={isGeneratingPdf || (labels.length === 0 && !zplPreviewUrl)}
-                className="py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                disabled={isGeneratingPdf || labels.length === 0}
+                className="py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
               >
-                <ExternalLink size={14} className="text-indigo-600" />
-                Abrir PDF Nova Aba
+                <ExternalLink size={14} className="text-gray-500" />
+                Abrir em Nova Aba
               </button>
             </div>
+          </div>
+
+          {/* Configurações Avançadas do Rolo (Colapsável) */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <button
+              type="button"
+              onClick={() => setShowSettings(!showSettings)}
+              className="w-full flex items-center justify-between text-xs font-bold text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Settings2 size={15} className="text-indigo-600" />
+                Ajustes Milimétricos da Impressora
+              </span>
+              {showSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+
+            {showSettings && (
+              <div className="mt-4 pt-3 border-t border-gray-100 space-y-3 text-xs">
+                {model === '110x25' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Esquerda (mm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.marginLeft}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, marginLeft: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Espaço Central / Gap (mm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.gap}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, gap: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Largura Útil (mm)</label>
+                        <input
+                          type="number"
+                          step="1"
+                          value={config110x25.labelWidth}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, labelWidth: parseFloat(e.target.value) || 50 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem Superior (mm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={config110x25.marginTop}
+                          onChange={(e) => setConfig110x25(c => ({ ...c, marginTop: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Margem de Impressão (mm)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={config100x150.margin}
+                      onChange={(e) => setConfig100x150(c => ({ ...c, margin: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Pré-visualização da Etiqueta em Escala */}
@@ -967,13 +1199,7 @@ export default function Etiquetas() {
               <span className="text-[10px] text-gray-400">Escala visual aproximada</span>
             </div>
 
-            {/* Preview do ZPL renderizado */}
-            {detectedType === 'zpl' && zplPreviewUrl ? (
-              <div className="bg-gray-100 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-200">
-                <img src={zplPreviewUrl} alt="ZPL Preview" className="max-w-full max-h-[380px] object-contain rounded shadow-sm bg-white" />
-                <span className="text-[10px] text-gray-500 mt-2 font-mono">Renderização exata do código ZPL via Labelary</span>
-              </div>
-            ) : model === '110x25' ? (
+            {model === '110x25' ? (
               /* Preview 110 x 25 mm (2 Colunas) */
               <div className="bg-gray-100 rounded-xl p-3 border border-gray-200 space-y-2">
                 <div className="text-[10px] text-gray-500 font-bold text-center">
@@ -983,7 +1209,14 @@ export default function Etiquetas() {
                 {/* Simulação física do rolo de 2 colunas com bordas tracejadas */}
                 <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-2.5 flex items-center justify-center gap-2 shadow-inner">
                   {/* Coluna 1 (50x25mm) */}
-                  <div className="w-[145px] h-[75px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                  <div className="w-[145px] h-[78px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
+                      {labels[0]?.code && barcodeCache[labels[0].code] ? (
+                        <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
+                      )}
+                    </div>
                     <div>
                       <div className="text-[8px] font-bold text-gray-900 truncate">
                         {labels[0]?.title || 'Título do Produto'}
@@ -992,20 +1225,20 @@ export default function Etiquetas() {
                         {labels[0]?.sku ? `SKU: ${labels[0].sku}` : 'SKU-001'}
                       </div>
                     </div>
-                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
-                      {labels[0]?.code && barcodeCache[labels[0].code] ? (
-                        <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
-                      ) : (
-                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
-                      )}
-                    </div>
                   </div>
 
                   {/* Espaço central (Gap 4mm) */}
                   <div className="w-1.5 h-12 border-r border-dotted border-gray-300" />
 
                   {/* Coluna 2 (50x25mm) */}
-                  <div className="w-[145px] h-[75px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                  <div className="w-[145px] h-[78px] bg-white border border-dashed border-gray-400 rounded p-1.5 flex flex-col justify-between shadow-xs">
+                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
+                      {((labels[1] || labels[0])?.code && barcodeCache[(labels[1] || labels[0]).code]) ? (
+                        <img src={barcodeCache[(labels[1] || labels[0]).code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
+                      )}
+                    </div>
                     <div>
                       <div className="text-[8px] font-bold text-gray-900 truncate">
                         {labels[1]?.title || labels[0]?.title || 'Título do Produto 2'}
@@ -1013,13 +1246,6 @@ export default function Etiquetas() {
                       <div className="text-[7px] text-gray-500 font-mono">
                         {labels[1]?.sku ? `SKU: ${labels[1].sku}` : (labels[0]?.sku || 'SKU-002')}
                       </div>
-                    </div>
-                    <div className="w-full h-8 flex items-center justify-center overflow-hidden">
-                      {((labels[1] || labels[0])?.code && barcodeCache[(labels[1] || labels[0]).code]) ? (
-                        <img src={barcodeCache[(labels[1] || labels[0]).code]} alt="Barcode" className="max-h-full max-w-full object-contain" />
-                      ) : (
-                        <div className="w-full h-5 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
-                      )}
                     </div>
                   </div>
                 </div>
