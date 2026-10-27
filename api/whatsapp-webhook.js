@@ -27,7 +27,15 @@ export default async function handler(req, res) {
     if (event === 'messages.upsert' || event === 'message.upsert') {
       const msg = data?.message || data;
       const key = msg?.key || data?.key;
-      const remoteJid = key?.remoteJid || data?.remoteJid;
+      let remoteJid = key?.remoteJid || data?.remoteJid;
+      const remoteJidAlt = key?.remoteJidAlt || data?.remoteJidAlt || msg?.remoteJidAlt || data?.key?.remoteJidAlt;
+
+      // Se o remoteJid for um identificador interno do WhatsApp (@lid), resolver para o número real (@s.whatsapp.net)
+      if (remoteJid && remoteJid.includes('@lid')) {
+        if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
+          remoteJid = remoteJidAlt;
+        }
+      }
 
       if (!remoteJid || remoteJid.includes('@g.us')) {
         // Skip group messages
