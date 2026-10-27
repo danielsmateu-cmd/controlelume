@@ -17,9 +17,10 @@ import EstudoProdutos from './pages/EstudoProdutos';
 import WhatsAppChat from './pages/WhatsAppChat';
 import Agenda from './pages/Agenda';
 import Funcionarios from './pages/Funcionarios';
+import Etiquetas from './pages/Etiquetas';
 import { api } from './services/api';
 import { supabase } from './lib/supabase';
-import { Store, ShoppingCart, Wallet, Tag, Calculator } from 'lucide-react';
+import { Store, ShoppingCart, Wallet, Tag, Calculator, Barcode } from 'lucide-react';
 
 function AppContent() {
     const { currentUser, canEdit, canView } = useAuth();
@@ -315,7 +316,7 @@ function AppContent() {
                     {/* Acesso R�pido */}
                     <div className="w-full max-w-5xl px-4">
                         <h2 className="text-gray-500 font-bold mb-4 text-center">ACESSO RCTQ</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                             <button onClick={() => handleSetActiveTab('ecommerce')} className="flex flex-col items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-6 px-4 rounded-2xl transition-all border border-indigo-100 shadow-sm hover:shadow-md hover:-translate-y-1">
                                 <Store size={32} />
                                 Integração ML
@@ -335,6 +336,10 @@ function AppContent() {
                             <button onClick={() => handleSetActiveTab('orcamentos')} className="flex flex-col items-center justify-center gap-3 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold py-6 px-4 rounded-2xl transition-all border border-orange-100 shadow-sm hover:shadow-md hover:-translate-y-1">
                                 <Calculator size={32} />
                                 Orçamentos
+                            </button>
+                            <button onClick={() => handleSetActiveTab('etiquetas')} className="flex flex-col items-center justify-center gap-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold py-6 px-4 rounded-2xl transition-all border border-purple-100 shadow-sm hover:shadow-md hover:-translate-y-1">
+                                <Barcode size={32} />
+                                Etiquetas
                             </button>
                         </div>
                     </div>
@@ -365,6 +370,8 @@ function AppContent() {
                 return <ECommerce readOnly={!canEdit('ecommerce')} />;
             case 'precificacao':
                 return <Precificacao readOnly={!canEdit('precificacao')} />;
+            case 'etiquetas':
+                return <Etiquetas />;
             case 'tarefas':
                 return <Tarefas />;
             case 'funcionarios':
