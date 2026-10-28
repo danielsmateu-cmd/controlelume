@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import { supabase } from '../lib/supabase';
 import ClientesOrcamento from '../components/ClientesOrcamento';
 import ProdutosOrcamento from '../components/ProdutosOrcamento';
+import { useAuth } from '../context/AuthContext';
 
 const TrendingUp = ({ size }) => (
     <svg
@@ -108,6 +109,8 @@ const isBudgetIdentical = (b1, b2) => {
 };
 
 const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
+    const { currentUser } = useAuth();
+    const currentUserName = currentUser?.name || currentUser?.login || 'Usuário';
     const [view, setView] = useState('budget');
     const [clientesCadastrados, setClientesCadastrados] = useState([]);
     const [produtosCadastrados, setProdutosCadastrados] = useState([]); // 'budget' or 'register'
@@ -888,11 +891,23 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             delete cleanedClientData.deliveryDate;
             delete cleanedClientData.productionObs;
 
+            const originalBudget = isEditingExisting ? savedBudgets.find(b => b.id === loadedBudgetId) : null;
+            const originalCreatedBy = originalBudget?.clientData?.createdBy || originalBudget?.client_data?.createdBy || clientData.createdBy || currentUserName;
+            const originalCreatedAt = originalBudget?.clientData?.createdAt || originalBudget?.client_data?.createdAt || originalBudget?.date || clientData.createdAt || new Date().toISOString();
+
+            const finalClientData = { 
+                ...cleanedClientData,
+                attachedImages: [...attachedImages],
+                createdBy: originalCreatedBy,
+                createdAt: originalCreatedAt,
+                ...(isEditingExisting ? {
+                    updatedBy: currentUserName,
+                    updatedAt: new Date().toISOString()
+                } : {})
+            };
+
             const budgetData = {
-                clientData: { 
-                    ...cleanedClientData,
-                    attachedImages: [...attachedImages]
-                },
+                clientData: finalClientData,
                 items: budgetItems.map(item => ({ ...item, concluido: false })),
                 total: projectTotal
             };
@@ -976,8 +991,14 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             return;
         }
         // Para demais status (Aguardando, Recusado) salva diretamente
-        await api.updateBudget(id, { status: newStatus });
-        setSavedBudgets(savedBudgets.map(b => b.id === id ? { ...b, status: newStatus } : b));
+        const budget = savedBudgets.find(b => b.id === id);
+        const updatedClientData = {
+            ...(budget?.clientData || {}),
+            updatedBy: currentUserName,
+            updatedAt: new Date().toISOString()
+        };
+        await api.updateBudget(id, { status: newStatus, clientData: updatedClientData });
+        setSavedBudgets(savedBudgets.map(b => b.id === id ? { ...b, status: newStatus, clientData: updatedClientData } : b));
     };
 
     const handleConfirmDelivery = async (deliveryDate) => {
@@ -987,7 +1008,9 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         const budget = savedBudgets.find(b => b.id === id);
         const updatedClientData = budget ? {
             ...(budget.clientData || {}),
-            deliveryDate
+            deliveryDate,
+            updatedBy: currentUserName,
+            updatedAt: new Date().toISOString()
         } : null;
 
         await api.updateBudget(id, { 
@@ -1014,6 +1037,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         setLoadedBudgetId(budget.id || null);
         setClientData({
             ...budget.clientData,
+            createdBy: budget.clientData?.createdBy || budget.client_data?.createdBy || '',
+            createdAt: budget.clientData?.createdAt || budget.client_data?.createdAt || budget.date || '',
+            updatedBy: budget.clientData?.updatedBy || budget.client_data?.updatedBy || '',
+            updatedAt: budget.clientData?.updatedAt || budget.client_data?.updatedAt || '',
             hasBoleto: budget.clientData?.hasBoleto || false,
             boletoDdl: budget.clientData?.boletoDdl || ''
         });
@@ -1065,7 +1092,11 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
             email: '',
             installationValue: '',
             hasBoleto: false,
-            boletoDdl: ''
+            boletoDdl: '',
+            createdBy: currentUserName,
+            createdAt: new Date().toISOString(),
+            updatedBy: '',
+            updatedAt: ''
         });
         setBudgetItems([]);
         setAttachedImages([]);
@@ -1881,6 +1912,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                     <tr>
                                         <th className="px-3 py-4 font-bold">Data</th>
                                         <th className="px-3 py-4 font-bold">Cliente</th>
+                                        <th className="px-3 py-4 font-bold text-left">Usuário</th>
                                         <th className="px-3 py-4 font-bold text-left">Itens</th>
                                         <th className="px-3 py-4 font-bold text-right">Total Cheio</th>
                                         <th className="px-3 py-4 font-bold text-right text-indigo-600">À Vista (10% desc.)</th>
@@ -1916,6 +1948,29 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                             </span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="px-3 py-4 text-xs">
+                                                    {budget.clientData?.updatedBy ? (
+                                                        <div className="space-y-0.5">
+                                                            <div className="inline-flex items-center gap-1 font-bold text-gray-800" title={`Última edição por ${budget.clientData.updatedBy}${budget.clientData.updatedAt ? ' em ' + new Date(budget.clientData.updatedAt).toLocaleString('pt-BR') : ''}`}>
+                                                                <User size={12} className="text-amber-500 shrink-0" />
+                                                                <span className="truncate max-w-[120px]">{budget.clientData.updatedBy}</span>
+                                                                <span className="text-[9px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded">editou</span>
+                                                            </div>
+                                                            {budget.clientData?.createdBy && (
+                                                                <div className="text-[10px] text-gray-400 pl-4 truncate max-w-[130px]" title={`Criado por ${budget.clientData.createdBy}`}>
+                                                                    Criou: {budget.clientData.createdBy}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : budget.clientData?.createdBy ? (
+                                                        <div className="inline-flex items-center gap-1 font-bold text-gray-800" title={`Salvo por ${budget.clientData.createdBy}`}>
+                                                            <User size={12} className="text-indigo-500 shrink-0" />
+                                                            <span className="truncate max-w-[120px]">{budget.clientData.createdBy}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic text-[11px]">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-3 py-4">
                                                      <div className="flex flex-wrap gap-1.5 max-w-md">
@@ -2778,14 +2833,28 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                 <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                                     <Receipt size={24} />
                                 </div>
-                                <h2 className="text-2xl font-bold text-gray-800">
-                                    {loadedBudgetId ? `Editando Orçamento #${loadedBudgetId}` : 'Orçamento Atual'}
-                                </h2>
-                                {loadedBudgetId && (
-                                    <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm">
-                                        Modo Edição
-                                    </span>
-                                )}
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-2xl font-bold text-gray-800">
+                                            {loadedBudgetId ? `Editando Orçamento #${loadedBudgetId}` : 'Orçamento Atual'}
+                                        </h2>
+                                        {loadedBudgetId && (
+                                            <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm">
+                                                Modo Edição
+                                            </span>
+                                        )}
+                                    </div>
+                                    {loadedBudgetId && (clientData.updatedBy || clientData.createdBy) && (
+                                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                            <User size={12} className="text-gray-400 shrink-0" />
+                                            {clientData.updatedBy ? (
+                                                <span>Última edição por: <strong className="text-gray-700">{clientData.updatedBy}</strong> {clientData.updatedAt ? `(${new Date(clientData.updatedAt).toLocaleDateString('pt-BR')} às ${new Date(clientData.updatedAt).toLocaleTimeString('pt-BR').slice(0, 5)})` : ''} • Criado por: {clientData.createdBy || '-'}</span>
+                                            ) : (
+                                                <span>Criado por: <strong className="text-gray-700">{clientData.createdBy}</strong></span>
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex gap-2">
                                 <button

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil, CheckCircle2 } from 'lucide-react';
+import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil, CheckCircle2, ArrowUpDown, ShieldCheck, Lock, Flame, Star } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const PESSOAS = [
     { id: 'juliana', label: 'Juliana', accent: 'bg-pink-500' },
@@ -37,7 +38,20 @@ const ProducaoCardObs = ({ budgetId, initialObs, onUpdateObs, readOnly }) => {
     );
 };
 
-const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliveryDate, onUpdateFinishedBy, readOnly }) => {
+const ProducaoCard = ({ 
+    budget, 
+    priorityRank, 
+    priorityIndex, 
+    totalPendentes, 
+    isDaniel, 
+    onMovePriority, 
+    onUpdateItemStatus, 
+    onUpdateObs, 
+    onUpdateDeliveryDate, 
+    onUpdateFinishedBy, 
+    readOnly,
+    showPriority = false 
+}) => {
     const [expanded, setExpanded] = useState(false);
 
     const totalItens = budget.items?.length || 0;
@@ -98,12 +112,97 @@ const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliver
             >
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <User size={14} className="text-indigo-500 flex-shrink-0" />
-                            <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
-                            {budget.status === 'Faturado' && (
-                                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Faturado</span>
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            {showPriority && priorityRank && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {priorityRank === 1 ? (
+                                        <span className="px-2.5 py-0.5 bg-red-600 text-white text-[11px] font-black rounded-lg shadow-sm flex items-center gap-1 shrink-0 animate-pulse">
+                                            <Flame size={13} className="text-amber-200 fill-amber-200" /> 1º Prioridade
+                                        </span>
+                                    ) : priorityRank === 2 ? (
+                                        <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-black rounded-lg shadow-sm flex items-center gap-1 shrink-0">
+                                            <Star size={12} className="text-white fill-white" /> 2º Prioridade
+                                        </span>
+                                    ) : priorityRank === 3 ? (
+                                        <span className="px-2.5 py-0.5 bg-amber-400 text-amber-950 text-[11px] font-black rounded-lg shadow-sm flex items-center gap-1 shrink-0">
+                                            <Star size={12} className="text-amber-900 fill-amber-900" /> 3º Prioridade
+                                        </span>
+                                    ) : (
+                                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-extrabold rounded-lg shrink-0">
+                                            #{priorityRank} Prioridade
+                                        </span>
+                                    )}
+
+                                    {/* Controles de ordenação exclusivos para Daniel */}
+                                    {isDaniel && (
+                                        <div className="inline-flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200" onClick={e => e.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onMovePriority(budget.id, priorityIndex - 1);
+                                                }}
+                                                disabled={priorityIndex === 0}
+                                                className="p-1 text-gray-600 hover:text-indigo-600 hover:bg-white disabled:opacity-20 rounded transition-colors cursor-pointer"
+                                                title="Subir prioridade (produzir antes)"
+                                            >
+                                                <ChevronUp size={14} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onMovePriority(budget.id, priorityIndex + 1);
+                                                }}
+                                                disabled={priorityIndex === totalPendentes - 1}
+                                                className="p-1 text-gray-600 hover:text-indigo-600 hover:bg-white disabled:opacity-20 rounded transition-colors cursor-pointer"
+                                                title="Descer prioridade (produzir depois)"
+                                            >
+                                                <ChevronDown size={14} />
+                                            </button>
+
+                                            {priorityIndex > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onMovePriority(budget.id, 0);
+                                                    }}
+                                                    className="px-1.5 py-0.5 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors cursor-pointer"
+                                                    title="Mover para o topo (1º lugar na produção)"
+                                                >
+                                                    Topo
+                                                </button>
+                                            )}
+
+                                            <select
+                                                value={priorityRank}
+                                                onClick={e => e.stopPropagation()}
+                                                onChange={(e) => {
+                                                    e.stopPropagation();
+                                                    onMovePriority(budget.id, parseInt(e.target.value, 10) - 1);
+                                                }}
+                                                className="text-[10px] font-bold bg-white border border-gray-200 rounded px-1 py-0.5 text-gray-700 cursor-pointer focus:outline-none"
+                                                title="Alterar posição direta na fila de prioridades"
+                                            >
+                                                {Array.from({ length: totalPendentes }, (_, i) => (
+                                                    <option key={i + 1} value={i + 1}>
+                                                        {i + 1}º
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
                             )}
+
+                            <div className="flex items-center gap-1.5">
+                                <User size={14} className="text-indigo-500 flex-shrink-0" />
+                                <span className="font-bold text-gray-800 truncate">{budget.clientData?.name}</span>
+                                {budget.status === 'Faturado' && (
+                                    <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Faturado</span>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
@@ -332,17 +431,70 @@ const ProducaoCard = ({ budget, onUpdateItemStatus, onUpdateObs, onUpdateDeliver
 };
 
 const Producao = ({ readOnly }) => {
+    const { currentUser } = useAuth();
+    const isDaniel = currentUser?.login === 'dsmateu' || 
+                     currentUser?.name?.toLowerCase().includes('daniel') ||
+                     currentUser?.role === 'admin';
+
     const [budgetsAprovados, setBudgetsAprovados] = useState([]);
+    const [priorityOrder, setPriorityOrder] = useState(() => {
+        try {
+            const cached = localStorage.getItem('production_priority_order');
+            return cached ? JSON.parse(cached) : [];
+        } catch (e) {
+            return [];
+        }
+    });
     const [loading, setLoading] = useState(true);
     const [viewTab, setViewTab] = useState('pendentes'); // 'pendentes' ou 'finalizados'
     const [completionModal, setCompletionModal] = useState(null);
 
     useEffect(() => {
-        api.getBudgets().then(data => {
-            if (data) setBudgetsAprovados(data.filter(b => b.status === 'Aprovado' || b.status === 'Faturado'));
+        Promise.allSettled([
+            api.getBudgets(),
+            api.getSettings('production_priority_order')
+        ]).then(([budgetsRes, priorityRes]) => {
+            if (budgetsRes.status === 'fulfilled' && budgetsRes.value) {
+                setBudgetsAprovados(budgetsRes.value.filter(b => b.status === 'Aprovado' || b.status === 'Faturado'));
+            }
+            if (priorityRes.status === 'fulfilled' && priorityRes.value && Array.isArray(priorityRes.value)) {
+                setPriorityOrder(priorityRes.value);
+                try {
+                    localStorage.setItem('production_priority_order', JSON.stringify(priorityRes.value));
+                } catch (e) {}
+            }
+            setLoading(false);
+        }).catch(() => {
             setLoading(false);
         });
     }, []);
+
+    const handleMovePriority = async (budgetId, targetIndex) => {
+        if (!isDaniel) {
+            alert("Apenas o usuário Daniel tem permissão para alterar a ordem de prioridades da produção.");
+            return;
+        }
+
+        const currentIds = sortedPendentes.map(b => b.id);
+        const fromIndex = currentIds.indexOf(budgetId);
+        if (fromIndex === -1) return;
+        if (targetIndex < 0 || targetIndex >= currentIds.length) return;
+
+        const updatedIds = [...currentIds];
+        const [moved] = updatedIds.splice(fromIndex, 1);
+        updatedIds.splice(targetIndex, 0, moved);
+
+        setPriorityOrder(updatedIds);
+        try {
+            localStorage.setItem('production_priority_order', JSON.stringify(updatedIds));
+        } catch (e) {}
+
+        try {
+            await api.saveSettings('production_priority_order', updatedIds);
+        } catch (err) {
+            console.error("Erro ao salvar prioridade no banco:", err);
+        }
+    };
 
     const handleUpdateItemStatus = async (budgetId, itemIndex, isConcluido) => {
         const budget = budgetsAprovados.find(b => b.id === budgetId);
@@ -511,6 +663,21 @@ const Producao = ({ readOnly }) => {
     const budgetsPendentes = budgetsAprovados.filter(b => !isBudgetConcluido(b));
     const budgetsFinalizados = budgetsAprovados.filter(b => isBudgetConcluido(b));
 
+    // Ordena os pedidos pendentes com base na prioridade definida exclusivamente por Daniel
+    const sortedPendentes = [...budgetsPendentes].sort((a, b) => {
+        const indexA = priorityOrder.indexOf(a.id);
+        const indexB = priorityOrder.indexOf(b.id);
+
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+
+        // Fallback por data de entrega mais próxima ou data do pedido
+        const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : (a.date ? new Date(a.date).getTime() : 0);
+        const dateB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : (b.date ? new Date(b.date).getTime() : 0);
+        return dateA - dateB;
+    });
+
     const totalConcluidosCount = budgetsFinalizados.length;
 
     return (
@@ -599,15 +766,53 @@ const Producao = ({ readOnly }) => {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {(viewTab === 'pendentes' ? budgetsPendentes : budgetsFinalizados).map(budget => (
+                    {viewTab === 'pendentes' && sortedPendentes.length > 0 && (
+                        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-sm shrink-0">
+                                    <Flame size={20} className="fill-amber-100" />
+                                </div>
+                                <div>
+                                    <h4 className="font-extrabold text-amber-950 text-sm flex items-center gap-2 flex-wrap">
+                                        Fila de Produção por Prioridades
+                                        {isDaniel ? (
+                                            <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full flex items-center gap-1 border border-emerald-300">
+                                                <ShieldCheck size={12} /> Daniel (Controle de Prioridade Ativo)
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 text-[11px] font-medium rounded-full flex items-center gap-1 border border-gray-300">
+                                                <Lock size={12} /> Somente Leitura (Ordem definida pelo Daniel)
+                                            </span>
+                                        )}
+                                    </h4>
+                                    <p className="text-xs text-amber-900/80 mt-0.5">
+                                        {isDaniel 
+                                            ? "Você pode reordenar a prioridade de qualquer pedido usando as setas ▲ ▼, botão Topo ou escolhendo a posição direta."
+                                            : "A ordem de fabricação abaixo é controlada exclusivamente pelo Daniel para atender pedidos prioritários e prazos."}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="shrink-0 text-xs font-bold text-amber-900 bg-amber-200/70 px-3 py-1.5 rounded-xl border border-amber-300">
+                                {sortedPendentes.length} {sortedPendentes.length === 1 ? 'pedido a produzir' : 'pedidos a produzir'}
+                            </span>
+                        </div>
+                    )}
+
+                    {(viewTab === 'pendentes' ? sortedPendentes : budgetsFinalizados).map((budget, index) => (
                         <ProducaoCard
                             key={budget.id}
                             budget={budget}
+                            priorityRank={viewTab === 'pendentes' ? index + 1 : undefined}
+                            priorityIndex={viewTab === 'pendentes' ? index : undefined}
+                            totalPendentes={sortedPendentes.length}
+                            isDaniel={isDaniel}
+                            onMovePriority={handleMovePriority}
                             onUpdateItemStatus={handleUpdateItemStatus}
                             onUpdateObs={handleUpdateObs}
                             onUpdateDeliveryDate={handleUpdateDeliveryDate}
                             onUpdateFinishedBy={handleUpdateFinishedBy}
                             readOnly={readOnly}
+                            showPriority={viewTab === 'pendentes'}
                         />
                     ))}
                 </div>
