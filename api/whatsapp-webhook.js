@@ -177,14 +177,49 @@ export default async function handler(req, res) {
               {
                 method: 'POST',
                 headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: { key } })
+                body: JSON.stringify({ message: { key: { id: messageId } } })
               }
             );
             if (mediaResp.ok) {
               const mediaData = await mediaResp.json();
               if (mediaData?.base64) {
-                const mimeType = mediaData.mimetype || mediaMimeType;
-                mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
+                const mimeType = mediaData.mimetype || mediaMimeType || 'application/octet-stream';
+                const base64Len = mediaData.base64.length;
+
+                // Para arquivos grandes ou documentos (.zip, etc.), salva no Supabase Storage
+                // para evitar statement timeout de PostgreSQL e limites de payload
+                if (base64Len > 300 * 1024 || messageType === 'document') {
+                  try {
+                    const cleanFileName = (text || 'arquivo').replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const storagePath = `whatsapp/${messageId}_${cleanFileName}`;
+                    const buffer = Buffer.from(mediaData.base64, 'base64');
+
+                    const { error: upErr } = await supabase.storage
+                      .from('orcamentos')
+                      .upload(storagePath, buffer, {
+                        contentType: mimeType,
+                        upsert: true
+                      });
+
+                    if (!upErr) {
+                      const { data: pubData } = supabase.storage
+                        .from('orcamentos')
+                        .getPublicUrl(storagePath);
+                      if (pubData?.publicUrl) {
+                        mediaUrl = pubData.publicUrl;
+                      }
+                    } else if (base64Len < 2 * 1024 * 1024) {
+                      mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
+                    }
+                  } catch (storageErr) {
+                    console.warn('Storage upload error:', storageErr.message);
+                    if (base64Len < 2 * 1024 * 1024) {
+                      mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
+                    }
+                  }
+                } else {
+                  mediaUrl = `data:${mimeType};base64,${mediaData.base64}`;
+                }
               }
             }
           }
@@ -234,26 +269,44 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, error: 'chat upsert failed' });
       }
 
-      // Insert the message
+      // Insert/update the message
       const messageId = key?.id;
-      await supabase
-        .from('whatsapp_messages')
-        .upsert({
-          chat_id: chatData.id,
-          remote_jid: remoteJid,
-          message_id: messageId,
-          from_me: fromMe,
-          sender_name: fromMe ? 'Lume Acr\u00EDlicos' : pushName || phone,
-          text,
-          message_type: messageType,
-          media_url: mediaUrl,
-          media_caption: mediaCaption,
-          media_mime_type: mediaMimeType,
-          timestamp: typeof messageTimestamp === 'number' ? messageTimestamp * 1000 : Date.now()
-        }, {
-          onConflict: 'message_id',
-          ignoreDuplicates: true
-        });
+      if (messageId) {
+        const { data: existingMsg } = await supabase
+          .from('whatsapp_messages')
+          .select('id, media_url')
+          .eq('message_id', messageId)
+          .maybeSingle();
+
+        if (existingMsg) {
+          if (mediaUrl && !existingMsg.media_url) {
+            await supabase
+              .from('whatsapp_messages')
+              .update({
+                media_url: mediaUrl,
+                media_caption: mediaCaption,
+                media_mime_type: mediaMimeType
+              })
+              .eq('id', existingMsg.id);
+          }
+        } else {
+          await supabase
+            .from('whatsapp_messages')
+            .insert({
+              chat_id: chatData.id,
+              remote_jid: remoteJid,
+              message_id: messageId,
+              from_me: fromMe,
+              sender_name: fromMe ? 'Lume Acr\u00EDlicos' : pushName || phone,
+              text,
+              message_type: messageType,
+              media_url: mediaUrl,
+              media_caption: mediaCaption,
+              media_mime_type: mediaMimeType,
+              timestamp: typeof messageTimestamp === 'number' ? messageTimestamp * 1000 : Date.now()
+            });
+        }
+      }
 
       return res.status(200).json({ ok: true });
     }

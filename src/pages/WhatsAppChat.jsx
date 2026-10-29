@@ -123,6 +123,7 @@ function WhatsAppChatInner() {
   const [sending, setSending] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [downloadingMsgId, setDownloadingMsgId] = useState(null);
   const [newChatPhone, setNewChatPhone] = useState('');
   const [newChatName, setNewChatName] = useState('');
   const [transferTab, setTransferTab] = useState('setor'); // 'setor' or 'usuario'
@@ -304,9 +305,7 @@ function WhatsAppChatInner() {
   const handlePaste = (e) => {
     if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
       const file = e.clipboardData.files[0];
-      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-        setSelectedFile(file);
-      }
+      setSelectedFile(file);
     }
   };
 
@@ -1041,13 +1040,61 @@ function WhatsAppChatInner() {
                   const safeUrl = getSafeUrl(msg.media_url, msgType, msg.media_mime_type);
 
 
-                const handleDownload = (base64Url, defaultName) => {
+                const handleDownload = async (fileUrl, defaultName) => {
+                  try {
+                    if (fileUrl && fileUrl.startsWith('http')) {
+                      const response = await fetch(fileUrl);
+                      const blob = await response.blob();
+                      const blobUrl = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = blobUrl;
+                      link.download = defaultName || 'arquivo';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(blobUrl);
+                      return;
+                    }
+                  } catch (e) {
+                    console.warn('Direct blob download failed, falling back:', e);
+                  }
                   const link = document.createElement('a');
-                  link.href = base64Url;
-                  link.download = defaultName;
+                  link.href = fileUrl;
+                  link.download = defaultName || 'arquivo';
+                  link.target = '_blank';
                   document.body.appendChild(link);
                   link.click();
                   document.body.removeChild(link);
+                };
+
+                const fetchAndDownloadMedia = async (msg) => {
+                  if (!msg.message_id) return;
+                  setDownloadingMsgId(msg.id);
+                  try {
+                    const res = await fetch('/api/whatsapp-media', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        messageId: msg.message_id,
+                        chatId: activeChat?.id,
+                        fileName: msg.text || 'arquivo'
+                      })
+                    });
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => ({}));
+                      throw new Error(err.error || 'Falha ao buscar arquivo');
+                    }
+                    const data = await res.json();
+                    if (data.url) {
+                      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, media_url: data.url } : m));
+                      await handleDownload(data.url, msg.text || 'arquivo');
+                    }
+                  } catch (err) {
+                    console.error('Erro ao baixar mídia sob demanda:', err);
+                    alert('Não foi possível baixar o arquivo: ' + err.message);
+                  } finally {
+                    setDownloadingMsgId(null);
+                  }
                 };
 
                 const renderContent = () => {
@@ -1114,8 +1161,11 @@ function WhatsAppChatInner() {
                     }
                   if (msgType === 'document') {
                       const isPdf = msg.media_mime_type === 'application/pdf' || (msg.text && msg.text.toLowerCase().endsWith('.pdf'));
+                      const isZip = (msg.text && (msg.text.toLowerCase().endsWith('.zip') || msg.text.toLowerCase().endsWith('.rar') || msg.text.toLowerCase().endsWith('.7z'))) || (msg.media_mime_type && msg.media_mime_type.includes('zip'));
+                      const isDownloading = downloadingMsgId === msg.id;
+
                       return (
-                        <div className="flex flex-col gap-2 relative group">
+                        <div className="flex flex-col gap-2 relative group min-w-[200px]">
                           {isPdf && msg.media_url ? (
                             <div className="w-full max-w-[240px] h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 cursor-pointer relative" onClick={() => openMediaInNewTab(safeUrl)}>
                               <embed src={`${safeUrl}#toolbar=0&navpanes=0&scrollbar=0`} type="application/pdf" className="w-full h-full pointer-events-none" />
@@ -1123,19 +1173,41 @@ function WhatsAppChatInner() {
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span>📎</span>
-                              <span className="text-xs font-semibold break-all">{msg.text || 'Documento'}</span>
+                              <span className="text-xl shrink-0">{isZip ? '📦' : isPdf ? '📄' : '📎'}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold break-all">{msg.text || 'Documento'}</span>
+                                {isZip && <span className="text-[10px] text-amber-600 font-semibold">Arquivo Compactado (ZIP)</span>}
+                              </div>
                             </div>
                           )}
                           
-                          {msg.media_url && (
+                          {msg.media_url ? (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDownload(safeUrl, msg.text || 'documento.pdf'); }}
-                              className="self-start text-[10px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 flex items-center gap-1 transition-colors z-20"
+                              onClick={(e) => { e.stopPropagation(); handleDownload(safeUrl, msg.text || (isZip ? 'arquivo.zip' : isPdf ? 'documento.pdf' : 'arquivo')); }}
+                              className="self-start text-[11px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 flex items-center gap-1.5 transition-colors z-20 shadow-sm border border-indigo-100"
                             >
-                              Baixar {isPdf ? 'PDF' : 'Arquivo'}
+                              <Download className="w-3.5 h-3.5" />
+                              Baixar {isZip ? 'ZIP' : isPdf ? 'PDF' : 'Arquivo'}
                             </button>
-                          )}
+                          ) : msg.message_id ? (
+                            <button
+                              disabled={isDownloading}
+                              onClick={(e) => { e.stopPropagation(); fetchAndDownloadMedia(msg); }}
+                              className="self-start text-[11px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors z-20 shadow-sm border border-amber-200 disabled:opacity-50"
+                            >
+                              {isDownloading ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                                  Baixando arquivo...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-3.5 h-3.5" />
+                                  Baixar {isZip ? 'ZIP' : isPdf ? 'PDF' : 'Arquivo'}
+                                </>
+                              )}
+                            </button>
+                          ) : null}
                         </div>
                       );
                     }
@@ -1308,7 +1380,7 @@ function WhatsAppChatInner() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors"
-                    title="Anexar Imagem ou PDF"
+                    title="Anexar Arquivo, Imagem ou PDF"
                   >
                     <Paperclip className="w-4 h-4" />
                   </button>
@@ -1341,7 +1413,7 @@ function WhatsAppChatInner() {
                     ref={fileInputRef} 
                     className="hidden" 
                     onChange={handleFileSelect} 
-                    accept="image/*,application/pdf"
+                    accept="image/*,application/pdf,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.cdr,.ai,.psd,.txt"
                   />
 
                   <textarea
