@@ -27,6 +27,31 @@ export const decodeZplHex = (str) => {
 };
 
 // Analisar ZPL nativo e extrair etiquetas individuais estruturadas
+
+// Gerar ZPL de fallback para etiquetas 100x150 adicionadas manualmente (sem ZPL colado)
+export const generateFallbackZpl100x150 = (item) => {
+  const code = (item.code || '48189289555').replace(/^>:/, '');
+  const ref = item.sku || '#1814819466';
+  const title = item.title || 'Sumaré - BRRC02';
+  return `^XA
+^MCY
+^CI28
+^LH5,15
+^FO120,30^A0N,24,24^FD${ref}^FS
+^FO120,60^A0N,24,24^FDEnvio: ${code}^FS
+^FO560,20^A0N,32,32^FDFULL^FS
+^FO350,150^GB450,45,30^FS
+^FO375,163^A0N,27,27^FB410,1,0,C^FR^FDENTREGAR NA COLETA FULL^FS
+^FO80,410^BY2,,0^BCN,100,N,N,N^FD>:${code}^FS
+^FO480,320^BY2,2,1^BQN,2,6^FDLA,{"id":"${code}"}^FS
+^FO0,670^A0N,150,150^FB810,1,0,C^FDRC02^FS
+^FO0,900^GB800,0,2^FS
+^FO30,930^A0N,30,30^FB551,2,0,L^FDVOLUMES^FS
+^FO30,970^A0N,30,30^FB550,3,5,L^FD${title}^FS
+^FO30,1070^A0N,30,30^FDEnvio: ${code}^FS
+^XZ`;
+};
+
 export const parseZplToLabels = (zplText) => {
   if (!zplText) return { labels: [], detectedModel: '110x25', totalLabelsCount: 0 };
 
@@ -35,6 +60,101 @@ export const parseZplToLabels = (zplText) => {
     return { labels: [], detectedModel: '110x25', totalLabelsCount: 0 };
   }
 
+  // 1. Escanear primeiro para detectar a altura máxima e modelo
+  let maxScanY = 0;
+  for (const block of blocks) {
+    const foMatches = block.matchAll(/\^FO\d+,(\d+)/gi);
+    for (const m of foMatches) {
+      const y = parseInt(m[1], 10);
+      if (y > maxScanY) maxScanY = y;
+    }
+  }
+
+  // Se a altura Y máxima for maior que 350 dots (~44mm), é etiqueta de 100x150 mm
+  const is100x150 = maxScanY > 350;
+  const detectedModel = is100x150 ? '100x150' : '110x25';
+
+  // -------------------------------------------------------------------
+  // CASO 1: ETIQUETAS DE TRANSPORTE / COLETA / MERCADO LIVRE (100x150 mm)
+  // Cada bloco ^XA ... ^XZ é 1 etiqueta individual de despacho
+  // -------------------------------------------------------------------
+  if (is100x150) {
+    const labels = [];
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      let code = '';
+      let envio = '';
+      let refId = '';
+      let destination = '';
+      let hub = '';
+
+      // Código de barras do Envio/Pacote
+      const bcMatch = block.match(/\^BC[^\^]*\^FD(?:>:)?([A-Z0-9]+)\^FS/i);
+      if (bcMatch) {
+        code = bcMatch[1];
+      }
+
+      // Identificação do Envio (ex: Envio: 78805886/1)
+      const envioMatch = block.match(/\^FDEnvio:\s*([^\^]+)\^FS/i);
+      if (envioMatch) {
+        envio = decodeZplHex(envioMatch[1]).trim();
+      }
+
+      // Referência # da venda (ex: #1814819466)
+      const refMatch = block.match(/\^FD(#\d+)\^FS/i);
+      if (refMatch) {
+        refId = refMatch[1].trim();
+      }
+
+      // Código do HUB / Estação (ex: RC02)
+      const hubMatch = block.match(/\^A0N,150,150[^\^]*\^FD([A-Z0-9]+)\^FS/i);
+      if (hubMatch) {
+        hub = hubMatch[1].trim();
+      }
+
+      // Destino / Centro de Distribuição (ex: Sumaré - BRRC02)
+      const destMatch = block.match(/\^FD(Sumar[^\^]+|BR[^\^]+|[A-Za-zÀ-ÿ\s]+-[^\^]+)\^FS/i);
+      if (destMatch) {
+        destination = decodeZplHex(destMatch[1]).trim();
+      }
+
+      // Se ainda não encontrou código de barras por regex, busca qualquer FD numérico longo
+      if (!code) {
+        const anyNumMatch = block.match(/\^FD(?:>:)?(\d{9,14})\^FS/i);
+        if (anyNumMatch) code = anyNumMatch[1];
+      }
+
+      let title = '';
+      if (envio && destination) {
+        title = `Envio: ${envio} • ${destination}${hub ? ` (${hub})` : ''}`;
+      } else if (envio) {
+        title = `Envio: ${envio}${hub ? ` (${hub})` : ''}`;
+      } else if (destination) {
+        title = `${destination}${hub ? ` (${hub})` : ''}`;
+      } else {
+        title = `Volume ${i + 1} de ${blocks.length}`;
+      }
+
+      labels.push({
+        id: 'zpl-100x150-' + (i + 1) + '-' + Math.random().toString(36).substr(2, 6),
+        code: code || `VOL-${i + 1}`,
+        title,
+        sku: refId || hub || (envio ? `Envio: ${envio}` : `VOL-${i + 1}`),
+        quantity: 1,
+        rawZpl: block.trim()
+      });
+    }
+
+    return {
+      labels,
+      detectedModel: '100x150',
+      totalLabelsCount: labels.length
+    };
+  }
+
+  // -------------------------------------------------------------------
+  // CASO 2: ETIQUETAS DE PRODUTO 110x25 mm (2 COLUNAS DE 50x25 mm)
+  // -------------------------------------------------------------------
   let maxY = 0;
   let hasTwoColumns = false;
   const rawLabels = [];
@@ -116,7 +236,8 @@ export const parseZplToLabels = (zplText) => {
         return {
           code: code || sku || 'PROD',
           title: fullTitle,
-          sku: sku || ''
+          sku: sku || '',
+          rawZpl: block.trim()
         };
       }
       return null;
@@ -134,8 +255,6 @@ export const parseZplToLabels = (zplText) => {
     }
   }
 
-  // Se a altura Y máxima for maior que 400 dots (~50mm), é etiqueta alta (100x150 mm)
-  const detectedModel = maxY > 400 ? '100x150' : '110x25';
   const totalLabelsCount = rawLabels.length;
 
   // Agrupar produtos idênticos para somar as quantidades
@@ -150,14 +269,15 @@ export const parseZplToLabels = (zplText) => {
         code: item.code,
         title: item.title,
         sku: item.sku,
-        quantity: 1
+        quantity: 1,
+        rawZpl: item.rawZpl
       });
     }
   }
 
   return {
     labels: Array.from(aggregatedMap.values()),
-    detectedModel,
+    detectedModel: '110x25',
     totalLabelsCount
   };
 };
@@ -543,7 +663,58 @@ export default function Etiquetas() {
     } else {
       // ----------------------------------------------------
       // MODELO 100 x 150 mm (1 coluna de 100x150mm)
+      // Renderização Oficial Idêntica ao Mercado Livre / Coleta Full (Print 1)
       // ----------------------------------------------------
+      const hasZpl = expandedList.some(item => !!item.rawZpl);
+      if (hasZpl) {
+        try {
+          const combinedZpl = expandedList
+            .map(item => item.rawZpl || generateFallbackZpl100x150(item))
+            .join('\n');
+
+          let pdfBlob = null;
+
+          // 1. Chamar API Labelary oficial diretamente via HTTPS (Cross-Origin suportado nativamente)
+          try {
+            const formData = new FormData();
+            formData.append('file', new Blob([combinedZpl], { type: 'text/plain' }), 'labels.zpl');
+            const directRes = await fetch('https://api.labelary.com/v1/printers/8dpmm/labels/4x6/', {
+              method: 'POST',
+              headers: { 'Accept': 'application/pdf' },
+              body: formData
+            });
+            if (directRes.ok) {
+              pdfBlob = await directRes.blob();
+            }
+          } catch (directErr) {
+            console.warn('Tentativa direta ao Labelary falhou, tentando proxy /api/labelary:', directErr);
+          }
+
+          // 2. Chamar proxy interno da aplicação caso a chamada direta seja bloqueada
+          if (!pdfBlob) {
+            try {
+              const apiRes = await fetch('/api/labelary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ zpl: combinedZpl, dpmm: '8dpmm', size: '4x6' })
+              });
+              if (apiRes.ok) {
+                pdfBlob = await apiRes.blob();
+              }
+            } catch (proxyErr) {
+              console.warn('Proxy /api/labelary falhou:', proxyErr);
+            }
+          }
+
+          if (pdfBlob && pdfBlob.size > 500) {
+            return pdfBlob;
+          }
+        } catch (labelaryErr) {
+          console.error('Falha geral ao converter ZPL para PDF via Labelary:', labelaryErr);
+        }
+      }
+
+      // Fallback vetorial jsPDF no layout fiel de Coleta Full (Print 1) caso esteja offline ou sem ZPL
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -615,70 +786,95 @@ export default function Etiquetas() {
     }
   };
 
-  // Renderizar 1 etiqueta de 100x150 mm (Padrão Transporte / Despacho)
+  // Renderizar 1 etiqueta de 100x150 mm (Padrão Oficial Mercado Livre / Coleta Full - Modelo Print 1)
   const renderSingleLabel100x150 = (doc, item, currentIdx, total) => {
-    // Borda Externa elegante
-    doc.setDrawColor(30, 30, 30);
-    doc.setLineWidth(0.8);
-    doc.rect(4, 4, 92, 142);
-
-    // Cabeçalho da Etiqueta
-    doc.setFillColor(245, 245, 245);
-    doc.rect(4.5, 4.5, 91, 14, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(17, 24, 39);
-    doc.text('LUME • IDENTIFICAÇÃO E ENVIO', 50, 13, { align: 'center' });
-
-    // Linha divisória
-    doc.line(4, 18.5, 96, 18.5);
-
-    // Código de Barras Grande Principal (Centralizado)
-    const barcodeDataUrl = getBarcodeDataUrl(item.code);
-    if (barcodeDataUrl) {
-      doc.addImage(barcodeDataUrl, 'PNG', 15, 24, 70, 26);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(String(item.code || '').trim(), 50, 54, { align: 'center' });
-    }
-
-    // Linha divisória
-    doc.line(4, 60, 96, 60);
-
-    // Detalhes do Produto / Pacote
+    // 1. Cabeçalho (Header)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text('DESCRIÇÃO DO PRODUTO / CONTEÚDO:', 8, 68);
+    doc.text('🤝 mercadolibre', 6, 9);
 
+    // Referência e Envio
+    doc.setFontSize(8.5);
+    const refText = item.sku?.startsWith('#') ? item.sku : (item.sku ? `#${item.sku}` : '#1814819466');
+    doc.text(refText, 18, 14);
+
+    const envioMatch = (item.title || '').match(/Envio:\s*([^\s•]+)/i);
+    const envioNum = envioMatch ? envioMatch[1] : (item.title || `78805886/${currentIdx}`);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    const titleLines = doc.splitTextToSize(item.title || 'Produto sem descrição', 84);
-    doc.text(titleLines.slice(0, 3), 8, 75);
+    doc.setFontSize(8.5);
+    doc.text(`Envio: ${envioNum}`, 18, 18.5);
 
-    // Box de SKU e Referência
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(8, 95, 84, 18, 2, 2, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(8, 95, 84, 18, 2, 2, 'D');
+    // FULL Logo (Topo Direito)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('⚡ FULL', 94, 14, { align: 'right' });
+
+    // 2. Faixa Preta: ENTREGAR NA COLETA FULL
+    doc.setFillColor(0, 0, 0);
+    doc.rect(42, 22, 58, 6.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('ENTREGAR NA COLETA FULL', 71, 26.5, { align: 'center' });
+
+    // 3. Área Central: Código de barras (Esquerda) e QR Code (Direita)
+    const barcodeDataUrl = getBarcodeDataUrl(item.code);
+    if (barcodeDataUrl) {
+      doc.addImage(barcodeDataUrl, 'PNG', 8, 45, 48, 18);
+    }
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    const codeStr = String(item.code || '').trim();
+    doc.text(codeStr.slice(0, 6) || codeStr, 38, 68, { align: 'right' });
+
+    // QR Code
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.8);
+    doc.rect(60, 38, 32, 32);
+    doc.setFillColor(0, 0, 0);
+    doc.rect(63, 41, 8, 8, 'F');
+    doc.rect(81, 41, 8, 8, 'F');
+    doc.rect(63, 59, 8, 8, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(65, 43, 4, 4, 'F');
+    doc.rect(83, 43, 4, 4, 'F');
+    doc.rect(65, 61, 4, 4, 'F');
+    doc.setFillColor(0, 0, 0);
+    doc.rect(66, 44, 2, 2, 'F');
+    doc.rect(84, 44, 2, 2, 'F');
+    doc.rect(66, 62, 2, 2, 'F');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text('SKU / CÓDIGO DO VENDEDOR', 12, 101);
+    doc.text(codeStr.slice(6) || '89555', 76, 75, { align: 'center' });
 
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(15, 23, 42);
-    doc.text(item.sku || item.code, 12, 108);
+    // 4. Código da Estação / Hub em Destaque GIGANTE Central (ex: RC02)
+    const hubMatch = (item.title || '').match(/\((RC\d+|[A-Z0-9]+)\)/i) || (item.title || '').match(/\b(RC\d+)\b/i);
+    const hubCode = hubMatch ? hubMatch[1] : (item.sku?.replace('#', '') || 'RC02');
 
-    // Rodapé / Paginação
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Volume ${currentIdx} de ${total} • Gerado via Controle Lume`, 50, 138, { align: 'center' });
-    doc.text(new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 50, 142, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(44);
+    doc.text(hubCode, 50, 96, { align: 'center' });
+
+    // 5. Linha divisória horizontal
+    doc.setLineWidth(0.5);
+    doc.line(0, 114, 100, 114);
+
+    // 6. Rodapé (Volumes, Destino, Envio)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text('VOLUMES', 6, 122);
+
+    const destMatch = (item.title || '').match(/•\s*([^•(]+)/);
+    const destText = destMatch ? destMatch[1].trim() : (item.title || 'Sumaré - BRRC02');
+    doc.setFontSize(10.5);
+    doc.text(destText, 6, 128);
+
+    doc.setFontSize(10.5);
+    doc.text(`Envio: ${envioNum}`, 6, 140);
   };
 
   // Ação: Baixar PDF gerado
@@ -915,7 +1111,7 @@ export default function Etiquetas() {
                   {detectedType === 'zpl' ? (
                     <>
                       <Sparkles size={14} />
-                      Importar {zplBlocksCount > 0 ? (zplBlocksCount * 2) + ' ' : ''}Etiquetas do ZPL
+                      Importar {zplBlocksCount > 0 ? (model === '100x150' ? zplBlocksCount : zplBlocksCount * 2) + ' ' : ''}Etiquetas do ZPL
                     </>
                   ) : (
                     <>
@@ -1388,31 +1584,85 @@ export default function Etiquetas() {
                 </p>
               </div>
             ) : (
-              /* Preview 100 x 150 mm (1 Coluna Envio) */
+              /* Preview 100 x 150 mm (1 Coluna Envio - Padrão Oficial Mercado Livre / Coleta Full Print 1) */
               <div className="bg-gray-100 rounded-xl p-3 border border-gray-200 flex flex-col items-center">
-                <div className="w-[200px] h-[300px] bg-white border border-gray-400 rounded shadow-md p-3 flex flex-col justify-between">
-                  <div className="border-b border-gray-200 pb-1 text-center">
-                    <span className="text-[10px] font-extrabold text-gray-800">LUME • ENVIO</span>
+                <div className="w-[220px] min-h-[330px] bg-white border border-gray-400 rounded-md shadow-md p-3 flex flex-col justify-between text-gray-900 select-none">
+                  
+                  {/* Topo: Logo Meli + Ref + Envio + FULL */}
+                  <div className="flex items-start justify-between pb-1.5 border-b border-gray-100">
+                    <div>
+                      <div className="text-[10px] font-black tracking-tight flex items-center gap-1">
+                        <span>🤝</span> mercadolibre
+                      </div>
+                      <div className="text-[9px] font-bold text-gray-800">
+                        {labels[0]?.sku?.startsWith('#') ? labels[0].sku : (labels[0]?.sku ? `#${labels[0].sku}` : '#1814819466')}
+                      </div>
+                      <div className="text-[8.5px] text-gray-600">
+                        {labels[0]?.title?.match(/Envio:\s*([^\s•]+)/i)?.[0] || 'Envio: 78805886/1'}
+                      </div>
+                    </div>
+                    <div className="text-[14px] font-black italic tracking-tighter text-gray-900">
+                      ⚡ FULL
+                    </div>
                   </div>
 
-                  <div className="py-2 flex flex-col items-center justify-center">
-                    {labels[0]?.code && barcodeCache[labels[0].code] ? (
-                      <>
-                        <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-14 max-w-[85%] object-fill" />
-                        <span className="font-bold font-mono text-[10px] mt-1">{labels[0].code}</span>
-                      </>
-                    ) : (
-                      <div className="w-full h-12 bg-gray-200 flex items-center justify-center text-[9px] font-mono">||||||||||||||||||||||||</div>
-                    )}
+                  {/* Faixa Preta: ENTREGAR NA COLETA FULL */}
+                  <div className="self-end bg-black text-white text-[8px] font-black px-3 py-1 rounded-xs tracking-wider my-2">
+                    ENTREGAR NA COLETA FULL
                   </div>
 
-                  <div className="border border-gray-200 rounded p-1.5 text-[8px] space-y-1">
-                    <div className="font-bold text-gray-900 truncate">{labels[0]?.title || 'Caixa Acrílico 15x15x15'}</div>
-                    <div className="text-gray-900 font-bold font-mono text-[9px]">SKU: {labels[0]?.sku || 'CX-15'}</div>
+                  {/* Centro: Código de Barras (Esquerda) e QR Code (Direita) */}
+                  <div className="grid grid-cols-2 gap-2 items-center my-1">
+                    <div className="flex flex-col items-center">
+                      <div className="w-full h-11 flex items-center justify-center overflow-hidden">
+                        {labels[0]?.code && barcodeCache[labels[0].code] ? (
+                          <img src={barcodeCache[labels[0].code]} alt="Barcode" className="max-h-full w-full object-fill" />
+                        ) : (
+                          <div className="w-full h-8 bg-gray-200 flex items-center justify-center text-[7px] font-mono">||||||||||||||||</div>
+                        )}
+                      </div>
+                      <div className="text-[9px] font-bold font-mono mt-0.5">
+                        {labels[0]?.code?.slice(0, 6) || '481892'}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 border-2 border-black p-1 flex flex-col justify-between bg-white shadow-2xs">
+                        <div className="flex justify-between">
+                          <div className="w-2.5 h-2.5 bg-black" />
+                          <div className="w-2.5 h-2.5 bg-black" />
+                        </div>
+                        <div className="w-2.5 h-2.5 bg-black" />
+                      </div>
+                      <div className="text-[9px] font-bold font-mono mt-0.5">
+                        {labels[0]?.code?.slice(6) || '89555'}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="text-[7px] text-gray-400 text-center border-t border-gray-100 pt-1">
-                    100 x 150 mm • Padrão Mercado Envios / Correios
+                  {/* Destaque Central Gigante: Estação / HUB (RC02) */}
+                  <div className="text-center py-2">
+                    <span className="text-3xl font-black tracking-tight text-black">
+                      {labels[0]?.title?.match(/\((RC\d+|[A-Z0-9]+)\)/i)?.[1] || labels[0]?.title?.match(/\b(RC\d+)\b/i)?.[1] || 'RC02'}
+                    </span>
+                  </div>
+
+                  {/* Linha separadora */}
+                  <div className="border-t-2 border-black my-1" />
+
+                  {/* Rodapé: Volumes, Sumaré, Envio */}
+                  <div className="space-y-0.5 text-[8.5px]">
+                    <div className="font-extrabold uppercase">VOLUMES</div>
+                    <div className="font-bold text-gray-800">
+                      {labels[0]?.title?.match(/•\s*([^•(]+)/)?.[1]?.trim() || 'Sumaré - BRRC02'}
+                    </div>
+                    <div className="text-gray-600 font-semibold">
+                      {labels[0]?.title?.match(/Envio:\s*([^\s•]+)/i)?.[0] || 'Envio: 78805886/1'}
+                    </div>
+                  </div>
+
+                  <div className="text-[7.5px] text-gray-400 text-center border-t border-gray-100 pt-1 mt-1 font-mono">
+                    100 x 150 mm • Padrão Oficial Mercado Livre / Coleta Full
                   </div>
                 </div>
               </div>
