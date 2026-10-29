@@ -34,7 +34,19 @@ export const whatsappService = {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.error('Error fetching whatsapp_messages:', err);
+      console.error('Error fetching whatsapp_messages (tentando fallback):', err);
+      try {
+        if (chat.remote_jid) {
+          const { data: fallbackData } = await supabase
+            .from('whatsapp_messages')
+            .select('*')
+            .eq('remote_jid', chat.remote_jid)
+            .order('created_at', { ascending: true });
+          if (fallbackData?.length) return fallbackData;
+        }
+      } catch (fbErr) {
+        console.error('Fallback query error:', fbErr);
+      }
       return [];
     }
   },
@@ -105,8 +117,37 @@ export const whatsappService = {
       };
 
       if (mediaBase64) {
+        let storedMediaUrl = mediaBase64;
+        if (mediaBase64.startsWith('data:')) {
+          try {
+            const match = mediaBase64.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              const mime = match[1];
+              const ext = mime.split('/')[1]?.split('+')[0] || (mediaType === 'document' ? 'bin' : 'jpg');
+              const fileName = `whatsapp/sent_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+              const byteCharacters = atob(match[2]);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: mime });
+              const { error: upErr } = await supabase.storage
+                .from('orcamentos')
+                .upload(fileName, blob, { contentType: mime, upsert: true });
+              if (!upErr) {
+                const { data: pubData } = supabase.storage
+                  .from('orcamentos')
+                  .getPublicUrl(fileName);
+                storedMediaUrl = pubData.publicUrl;
+              }
+            }
+          } catch (uploadErr) {
+            console.warn('Erro ao salvar mídia no storage:', uploadErr);
+          }
+        }
         newMsgObj.message_type = mediaType === 'document' ? 'document' : 'image';
-        newMsgObj.media_url = mediaBase64;
+        newMsgObj.media_url = storedMediaUrl;
         newMsgObj.media_caption = formattedText;
         newMsgObj.text = formattedText;
       }
