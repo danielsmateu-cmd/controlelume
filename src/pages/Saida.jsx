@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Check, X, Trash2, Copy } from 'lucide-react';
+import { Plus, Check, X, Trash2, Copy, Send, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { isDefaultLumeCategory, getTargetEcommerceMonth, buildLumeExpensesFromFixed } from '../utils/lumeSync';
 
 const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const [activeTab, setActiveTab] = useState('fixos');
@@ -29,6 +30,98 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
     const [confirmingId, setConfirmingId] = useState(null);
     const [paymentDateStr, setPaymentDateStr] = useState('');
+
+    const [lumeExpenseOverrides, setLumeExpenseOverrides] = useState({});
+    const [isSyncingLume, setIsSyncingLume] = useState(false);
+
+    useEffect(() => {
+        api.getSettings('lume_expense_overrides').then(saved => {
+            if (saved && typeof saved === 'object') {
+                setLumeExpenseOverrides(saved);
+            }
+        }).catch(err => console.error('Erro ao carregar lume_expense_overrides:', err));
+    }, []);
+
+    const isExpenseLumeChecked = (expense) => {
+        if (lumeExpenseOverrides && lumeExpenseOverrides[expense.id] !== undefined) {
+            return Boolean(lumeExpenseOverrides[expense.id]);
+        }
+        return isDefaultLumeCategory(expense.category || expense.description || '');
+    };
+
+    const toggleExpenseLume = async (expense) => {
+        const current = isExpenseLumeChecked(expense);
+        const updated = { ...lumeExpenseOverrides, [expense.id]: !current };
+        setLumeExpenseOverrides(updated);
+        try {
+            await api.saveSettings('lume_expense_overrides', updated);
+        } catch (err) {
+            console.error('Erro ao salvar marcação da LUME:', err);
+        }
+    };
+
+    const targetEcommerce = getTargetEcommerceMonth(selectedYear, selectedMonth);
+
+    const handleSyncToLume = async () => {
+        const currentFixed = expenses.filter(e => 
+            (e.type === 'fixos' || e.type === 'fixos_extra') && 
+            e.month === selectedMonth && 
+            e.year === selectedYear
+        );
+        const selectedForLume = currentFixed.filter(isExpenseLumeChecked);
+
+        if (selectedForLume.length === 0) {
+            alert('Nenhuma despesa fixa está marcada para a LUME neste mês.');
+            return;
+        }
+
+        const confirmSync = window.confirm(
+            `Deseja sincronizar ${selectedForLume.length} despesas de ${months[selectedMonth]} para a empresa LUME no E-commerce?\n\nReferência no E-commerce: ${targetEcommerce.monthName}/${targetEcommerce.year} (${targetEcommerce.monthStr})`
+        );
+        if (!confirmSync) return;
+
+        setIsSyncingLume(true);
+        try {
+            const allCosts = await api.getMonthlyCosts();
+            const currentTargetCosts = allCosts[targetEcommerce.monthStr] || { 
+                empresas: [{ id: 'emp-1', name: 'LUME', expenses: [], productionFactor: 1 }],
+                ads: [],
+                gastosExtras: []
+            };
+
+            const existingEmpresas = Array.isArray(currentTargetCosts.empresas) && currentTargetCosts.empresas.length > 0
+                ? currentTargetCosts.empresas
+                : [{ id: 'emp-1', name: 'LUME', expenses: [], productionFactor: 1 }];
+
+            const emp1 = existingEmpresas[0];
+            const newExpenses = buildLumeExpensesFromFixed(selectedForLume, emp1.expenses || []);
+
+            const updatedData = {
+                ...currentTargetCosts,
+                empresas: [
+                    {
+                        ...emp1,
+                        name: 'LUME',
+                        expenses: newExpenses
+                    },
+                    ...existingEmpresas.slice(1)
+                ]
+            };
+
+            const saved = await api.saveMonthlyCosts(targetEcommerce.monthStr, updatedData);
+            if (saved) {
+                const total = newExpenses.reduce((sum, item) => sum + (parseFloat(item.value) || 0), 0);
+                alert(`✅ Sucesso!\n\n${selectedForLume.length} despesas de ${months[selectedMonth]} foram enviadas para a LUME (Referência: ${targetEcommerce.monthName}/${targetEcommerce.year}).\n\nTotal lançado na LUME: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            } else {
+                alert('❌ Erro ao salvar dados no E-commerce. Verifique a conexão.');
+            }
+        } catch (err) {
+            console.error('Erro na sincronização para LUME:', err);
+            alert('❌ Erro ao sincronizar: ' + err.message);
+        } finally {
+            setIsSyncingLume(false);
+        }
+    };
 
     const startPaymentConfirmation = async (expense) => {
         if (expense.paid) {
@@ -782,17 +875,32 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between mb-3 border-t pt-4">
-                                <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos - {months[selectedMonth]}</h3>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-t pt-4">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-gray-800">Gastos Fixos - {months[selectedMonth]}</h3>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && !e.paid).length === 0 && expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear).length > 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                     {expenses.filter(e => (e.type === 'fixos' || e.type === 'fixos_extra') && e.month === selectedMonth && e.year === selectedYear && e.paid).length} Pagos
-                                </span>
+                                    </span>
+                                </div>
+                                {!readOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={handleSyncToLume}
+                                        disabled={isSyncingLume}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                        title={`Enviar despesas marcadas para a empresa LUME no E-commerce (Referência: ${targetEcommerce.monthName}/${targetEcommerce.year})`}
+                                    >
+                                        {isSyncingLume ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                                        <span>Enviar p/ LUME (Ref: {targetEcommerce.monthName})</span>
+                                    </button>
+                                )}
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead className="bg-gray-50 border-b border-gray-200">
                                         <tr>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Categoria</th>
+                                            <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase text-center" title="Marcar despesa para enviar à empresa LUME no E-commerce">LUME</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Cód. Barras</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
                                             <th className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Valor (R$)</th>
@@ -834,6 +942,17 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                                 placeholder="Nome do Gasto"
                                                             />
                                                         </div>
+                                                    </td>
+                                                    <td className="px-2 py-2 text-center">
+                                                        <label className="inline-flex items-center justify-center cursor-pointer p-1" title={isExpenseLumeChecked(expense) ? "Marcado para enviar à LUME (E-commerce)" : "Não marcado para LUME"}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isExpenseLumeChecked(expense)}
+                                                                onChange={() => !readOnly && toggleExpenseLume(expense)}
+                                                                disabled={readOnly}
+                                                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                                            />
+                                                        </label>
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <div className="flex items-center gap-1">

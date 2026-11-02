@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Trash2, Loader2, Megaphone, Package, BarChart3 } from 'lucide-react';
+import { Building2, Plus, Trash2, Loader2, Megaphone, Package, BarChart3, ArrowDownToLine } from 'lucide-react';
 import { api } from '../../services/api';
+import { getSourceExpensesMonth, buildLumeExpensesFromFixed, isDefaultLumeCategory } from '../../utils/lumeSync';
 
 const MARKETPLACES = [
     { id: 'meli', label: '🛒 Mercado Livre' },
@@ -121,6 +122,55 @@ const getWorkHoursInMonth = (monthStr) => {
 // ─── Sub-componentes por aba ───────────────────────────────────────────────
 
 const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasData, ftsData, mktFtsData }) => {
+    const [isPulling, setIsPulling] = useState(false);
+    const source = getSourceExpensesMonth(currentMonth);
+
+    const handlePullFromFixed = async (emp) => {
+        setIsPulling(true);
+        try {
+            const [allExpenses, overrides] = await Promise.all([
+                api.getExpenses(),
+                api.getSettings('lume_expense_overrides').catch(() => ({}))
+            ]);
+
+            const fixedExpenses = (allExpenses || []).filter(e => 
+                (e.type === 'fixos' || e.type === 'fixos_extra') &&
+                e.month === source.month &&
+                e.year === source.year
+            );
+
+            if (fixedExpenses.length === 0) {
+                alert(`Nenhuma despesa fixa encontrada para ${source.monthName}/${source.year} na aba Saída.`);
+                return;
+            }
+
+            const selectedForLume = fixedExpenses.filter(e => {
+                if (overrides && overrides[e.id] !== undefined) {
+                    return Boolean(overrides[e.id]);
+                }
+                return isDefaultLumeCategory(e.category || e.description || '');
+            });
+
+            if (selectedForLume.length === 0) {
+                alert(`Nenhuma despesa fixa está marcada para a LUME em ${source.monthName}/${source.year}.`);
+                return;
+            }
+
+            const updatedExpenses = buildLumeExpensesFromFixed(selectedForLume, emp.expenses || []);
+            mutateData(d => ({
+                ...d,
+                empresas: d.empresas.map(x => x.id === emp.id ? { ...x, expenses: updatedExpenses } : x)
+            }));
+
+            const total = updatedExpenses.reduce((sum, item) => sum + (parseFloat(item.value) || 0), 0);
+            alert(`✅ Sucesso!\n\n${selectedForLume.length} despesas de ${source.monthName}/${source.year} foram puxadas para a LUME.\n\nNovo total da LUME: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        } catch (err) {
+            console.error('Erro ao puxar despesas fixas:', err);
+            alert('❌ Erro ao puxar despesas fixas: ' + err.message);
+        } finally {
+            setIsPulling(false);
+        }
+    };
     const monthHours = getWorkHoursInMonth(currentMonth);
     const mktsAtivos = MARKETPLACES.filter(m => m.id !== 'geral');
 
@@ -265,6 +315,18 @@ const TabEmpresas = ({ empresas, mutateData, getEmpTotal, currentMonth, vendasDa
                             }
                         })()}
 
+                        {idx === 0 && (
+                            <button
+                                type="button"
+                                onClick={() => handlePullFromFixed(emp)}
+                                disabled={isPulling}
+                                className="w-full mb-2 py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors print:hidden shadow-xs cursor-pointer disabled:opacity-50"
+                                title={`Puxar despesas de ${source.monthName} cadastradas na aba Saída -> Gastos Fixos`}
+                            >
+                                {isPulling ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} />}
+                                <span>Puxar Gastos de {source.monthName} (Saídas)</span>
+                            </button>
+                        )}
                         <div className="space-y-1 flex-grow max-h-[40vh] overflow-y-auto pr-1">
                             {(emp.expenses || []).map(exp => (
                                 <div key={exp.id} className="flex gap-1 items-center pb-1 border-b border-gray-50 group">
