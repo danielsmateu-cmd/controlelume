@@ -21,6 +21,7 @@ import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
 import VisaoGeral from './ecommerce/VisaoGeral';
 import MercadoLivreIntegracao from './ecommerce/MercadoLivreIntegracao';
+import ResumoVendas from './ecommerce/ResumoVendas';
 
 const PLATFORMS = [
     {
@@ -159,10 +160,28 @@ const ECommerce = ({ readOnly }) => {
                                         {p.label}
                                     </button>
                                 ))}
+                                <button
+                                    key="resumo_vendas"
+                                    onClick={() => setActivePlatform('resumo_vendas')}
+                                    className={clsx(
+                                        'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer',
+                                        'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white',
+                                        activePlatform === 'resumo_vendas'
+                                            ? 'ring-2 ring-purple-300 ring-offset-2 shadow-lg scale-105'
+                                            : 'opacity-80 hover:opacity-100'
+                                    )}
+                                >
+                                    <span className="text-base">📊</span>
+                                    Resumo Geral de Vendas
+                                </button>
                             </div>
                         </div>
 
                         {/* Tabs por plataforma */}
+                        {activePlatform === 'resumo_vendas' && (
+                            <ResumoVendas />
+                        )}
+
                         {activePlatform === 'meli' && (
                             <div className="space-y-4">
                                 <div className="flex gap-2 border-b border-gray-100 pb-2">
@@ -180,7 +199,7 @@ const ECommerce = ({ readOnly }) => {
                             </div>
                         )}
 
-                        {activePlatform !== 'meli' && (
+                        {activePlatform !== 'meli' && activePlatform !== 'resumo_vendas' && (
                             <Vendas marketplace={activePlatform} readOnly={isCurrentSubReadOnly} />
                         )}
                     </div>
