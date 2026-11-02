@@ -52,18 +52,69 @@ const calculateCost = (ft) => {
     return mat + dir + perc;
 };
 
+// Retorna informações do mês de vendas real a partir da chave de referência (ex: '2026-11' -> Vendas de Outubro de 2026)
+const getSalesPeriodInfo = (refMonthStr) => {
+    if (!refMonthStr) {
+        const now = new Date();
+        return {
+            salesYear: now.getFullYear(),
+            salesMonthIndex: now.getMonth(),
+            salesMonthName: MONTH_NAMES[now.getMonth()],
+            salesMonthShort: MONTH_SHORT[now.getMonth()],
+            lastDay: 30,
+            formattedTitle: ''
+        };
+    }
+    const [yearStr, monthStrPart] = refMonthStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStrPart, 10);
+
+    // Mês anterior (m - 2 no Date constructor com base 0)
+    const salesDate = new Date(year, month - 2, 1);
+    const salesMonthIndex = salesDate.getMonth();
+    const salesMonthName = MONTH_NAMES[salesMonthIndex];
+    const salesMonthShort = MONTH_SHORT[salesMonthIndex];
+    const salesYear = salesDate.getFullYear();
+    const lastDay = new Date(year, month - 1, 0).getDate();
+
+    return {
+        salesYear,
+        salesMonthIndex,
+        salesMonthName,
+        salesMonthShort,
+        lastDay,
+        formattedTitle: `VENDAS DE 01 A ${lastDay} DE ${salesMonthName.toUpperCase()} DE ${salesYear}`
+    };
+};
+
+// Retorna a chave de referência do sistema onde as vendas do mês 'salesMonthIndex' do ano 'salesYear' são armazenadas
+// (Regra de negócio: as vendas de Janeiro são lançadas na referência de Fevereiro (2026-02), etc.)
+const getRefMonthForSalesMonth = (salesYear, salesMonthIndex) => {
+    const targetDate = new Date(salesYear, salesMonthIndex + 1, 1);
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+};
+
 const ResumoVendas = () => {
     // Modo de visualização: 'mes' ou 'ano'
     const [viewMode, setViewMode] = useState('mes');
 
-    // Mês selecionado atualmente (ex: "2026-11")
+    // Mês de referência de lançamento selecionado atualmente (ex: "2026-11" para vendas de Outubro)
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
-    // Ano selecionado atualmente (ex: 2026)
-    const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+    // Informações do período de vendas correspondente ao mês de lançamento selecionado
+    const currentSalesInfo = useMemo(() => getSalesPeriodInfo(currentMonth), [currentMonth]);
+
+    // Ano selecionado atualmente para o gráfico e consolidação anual
+    const [currentYear, setCurrentYear] = useState(() => {
+        const now = new Date();
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return prev.getFullYear();
+    });
 
     const [monthlySales, setMonthlySales] = useState({});
     const [fts, setFts] = useState([]);
@@ -73,6 +124,15 @@ const ResumoVendas = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPlatformFilter, setSelectedPlatformFilter] = useState('all');
     const [sortBy, setSortBy] = useState('val_desc'); // val_desc, val_asc, profit_desc, margin_desc, qtd_desc, code_asc, name_asc
+
+    // Sincroniza a mudança de mês garantindo alinhamento de ano
+    const handleMonthChange = (newRefMonth) => {
+        setCurrentMonth(newRefMonth);
+        const info = getSalesPeriodInfo(newRefMonth);
+        if (info.salesYear && info.salesYear !== currentYear) {
+            setCurrentYear(info.salesYear);
+        }
+    };
 
     // Carrega dados do Supabase
     useEffect(() => {
@@ -98,21 +158,6 @@ const ResumoVendas = () => {
         loadData();
     }, []);
 
-    // Formatação do título do período
-    const formatMonthDisplay = (monthStr) => {
-        if (!monthStr) return '';
-        const [yearStr, monthStrPart] = monthStr.split('-');
-        const year = parseInt(yearStr, 10);
-        const month = parseInt(monthStrPart, 10);
-
-        const prevDate = new Date(year, month - 2);
-        const prevMonthName = prevDate.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
-        const prevYear = prevDate.getFullYear();
-        const lastDayPrev = new Date(year, month - 1, 0).getDate();
-
-        return `VENDAS DE 01 A ${lastDayPrev} DE ${prevMonthName} DE ${prevYear}`;
-    };
-
     const formatCurrency = (val) => {
         return `R$ ${(val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
@@ -127,18 +172,18 @@ const ResumoVendas = () => {
         return map;
     }, [fts]);
 
-    // Dados agregados do Ano inteiro (mês a mês para gráficos e visão anual)
+    // Dados agregados do Ano inteiro (12 meses de vendas reais de currentYear)
     const yearAggregation = useMemo(() => {
-        const monthsList = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-        const monthStats = monthsList.map((mNum, idx) => {
-            const monthStr = `${currentYear}-${mNum}`;
+        const monthStats = MONTH_NAMES.map((fullLabel, salesMonthIdx) => {
+            // Chave de referência onde as vendas deste mês real de vendas estão guardadas
+            const refMonthStr = getRefMonthForSalesMonth(currentYear, salesMonthIdx);
             let val = 0;
             let qtd = 0;
             let cost = 0;
             const mkts = {};
 
             PLATFORMS.forEach(pObj => {
-                const key = `${pObj.id}_${monthStr}`;
+                const key = `${pObj.id}_${refMonthStr}`;
                 const rows = Array.isArray(monthlySales[key]) ? monthlySales[key] : [];
 
                 rows.forEach(row => {
@@ -167,11 +212,11 @@ const ResumoVendas = () => {
             const margin = val > 0 ? (profit / val) * 100 : 0;
 
             return {
-                monthIndex: idx,
-                monthNum: mNum,
-                monthStr,
-                label: MONTH_SHORT[idx],
-                fullLabel: MONTH_NAMES[idx],
+                salesMonthIndex: salesMonthIdx,
+                salesYear: currentYear,
+                refMonthStr,
+                label: MONTH_SHORT[salesMonthIdx],
+                fullLabel,
                 val,
                 qtd,
                 cost,
@@ -199,7 +244,7 @@ const ResumoVendas = () => {
         };
     }, [currentYear, monthlySales, ftsMap]);
 
-    // Consolidação de vendas do período ativo (Mês específico ou Ano inteiro)
+    // Consolidação de vendas do período ativo (Mês específico ou Ano inteiro de vendas reais)
     const summaryData = useMemo(() => {
         const itemsMap = {};
         let grandTotalQtd = 0;
@@ -217,7 +262,7 @@ const ResumoVendas = () => {
         // Define quais chaves de meses consultar
         const monthsToInclude = viewMode === 'mes'
             ? [currentMonth]
-            : Array.from({ length: 12 }, (_, i) => `${currentYear}-${String(i + 1).padStart(2, '0')}`);
+            : Array.from({ length: 12 }, (_, i) => getRefMonthForSalesMonth(currentYear, i));
 
         monthsToInclude.forEach(mStr => {
             PLATFORMS.forEach(pObj => {
@@ -341,7 +386,7 @@ const ResumoVendas = () => {
         };
     }, [viewMode, currentMonth, currentYear, monthlySales, ftsMap, searchQuery, selectedPlatformFilter, sortBy]);
 
-    // Status de fechamento do mês (quando em visualização mensal)
+    // Status de fechamento do mês (apenas no modo mensal)
     const lockStatusSummary = useMemo(() => {
         if (viewMode !== 'mes') return null;
         const lockedList = PLATFORMS.filter(p => lockedMonths.includes(`${p.id}_${currentMonth}`));
@@ -365,7 +410,7 @@ const ResumoVendas = () => {
                         <p className="text-xs text-gray-500 mt-1">
                             {viewMode === 'mes'
                                 ? 'Consolidação das vendas de todos os marketplaces para o mês selecionado.'
-                                : `Consolidação anual completa de todos os 12 meses de ${currentYear}.`}
+                                : `Consolidação anual completa de todos os 12 meses de vendas de ${currentYear}.`}
                         </p>
                     </div>
 
@@ -389,22 +434,49 @@ const ResumoVendas = () => {
 
                     {/* Mês Formatado ou Ano */}
                     <div className="bg-indigo-600 text-white px-5 py-2 rounded-full font-bold shadow-sm text-sm text-center whitespace-nowrap">
-                        {viewMode === 'mes' ? formatMonthDisplay(currentMonth) : `ANO DE ${currentYear}`}
+                        {viewMode === 'mes' ? currentSalesInfo.formattedTitle : `VENDAS DO ANO DE ${currentYear}`}
                     </div>
 
                     {/* Controles de Navegação (Mês ou Ano) */}
                     <div className="flex items-center gap-2 print:hidden">
                         {viewMode === 'mes' ? (
                             <div className="flex items-center gap-1.5">
-                                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                                    <Calendar size={14} /> Mês:
+                                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1" title="Mês de referência onde as vendas foram lançadas no sistema">
+                                    <Calendar size={14} /> Ref:
                                 </label>
-                                <input
-                                    type="month"
-                                    value={currentMonth}
-                                    onChange={(e) => setCurrentMonth(e.target.value)}
-                                    className="text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                />
+                                <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const [y, m] = currentMonth.split('-').map(Number);
+                                            const prev = new Date(y, m - 2, 1);
+                                            handleMonthChange(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+                                        }}
+                                        className="p-1 hover:bg-gray-200 rounded transition-colors text-gray-600 cursor-pointer"
+                                        title="Mês anterior"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <input
+                                        type="month"
+                                        value={currentMonth}
+                                        onChange={(e) => handleMonthChange(e.target.value)}
+                                        className="text-xs bg-transparent border-none font-bold text-gray-800 outline-none cursor-pointer px-1 py-1"
+                                        title="Mês de referência onde as vendas foram salvas"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const [y, m] = currentMonth.split('-').map(Number);
+                                            const next = new Date(y, m, 1);
+                                            handleMonthChange(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+                                        }}
+                                        className="p-1 hover:bg-gray-200 rounded transition-colors text-gray-600 cursor-pointer"
+                                        title="Próximo mês"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
@@ -456,8 +528,10 @@ const ResumoVendas = () => {
                                 </span>
                             )}
                         </div>
-                        <div className="text-gray-400 text-[11px]">
-                            Referência: <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">{currentMonth}</code>
+                        <div className="text-gray-500 text-[11px] flex items-center gap-1.5">
+                            <span>Lançado na Referência:</span>
+                            <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded font-mono font-bold">{currentMonth}</code>
+                            <span className="text-indigo-600 font-semibold">↳ Vendas reais de {currentSalesInfo.salesMonthName}/{currentSalesInfo.salesYear}</span>
                         </div>
                     </div>
                 )}
@@ -527,7 +601,7 @@ const ResumoVendas = () => {
 
             {/* SEÇÃO DE GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Gráfico 1: Evolução Mensal do Ano (12 meses) */}
+                {/* Gráfico 1: Evolução Mensal do Ano (12 meses de vendas reais) */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -547,17 +621,17 @@ const ResumoVendas = () => {
                             const heightPercent = yearAggregation.maxMonthVal > 0
                                 ? (mStat.val / yearAggregation.maxMonthVal) * 100
                                 : 0;
-                            const isCurrentSelected = viewMode === 'mes' && mStat.monthStr === currentMonth;
+                            const isCurrentSelected = viewMode === 'mes' && mStat.refMonthStr === currentMonth;
 
                             return (
                                 <div
-                                    key={mStat.monthStr}
+                                    key={mStat.refMonthStr}
                                     onClick={() => {
-                                        setCurrentMonth(mStat.monthStr);
+                                        handleMonthChange(mStat.refMonthStr);
                                         setViewMode('mes');
                                     }}
                                     className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
-                                    title={`${mStat.fullLabel}/${currentYear}: ${formatCurrency(mStat.val)} (${mStat.qtd} un | Lucro: ${formatCurrency(mStat.profit)})`}
+                                    title={`${mStat.fullLabel} de ${currentYear} (Lançado em ${mStat.refMonthStr}): ${formatCurrency(mStat.val)} (${mStat.qtd} un | Lucro: ${formatCurrency(mStat.profit)})`}
                                 >
                                     {/* Tooltip / Valor acima da barra */}
                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-indigo-700 mb-1 whitespace-nowrap pointer-events-none">
@@ -588,7 +662,7 @@ const ResumoVendas = () => {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
-                        <span>💡 Dica: Clique em qualquer barra para abrir os detalhes daquele mês.</span>
+                        <span>💡 Dica: Clique em qualquer barra para abrir os detalhes das vendas daquele mês.</span>
                         <span className="flex items-center gap-2">
                             <span className="inline-block w-2.5 h-2.5 rounded bg-indigo-600" /> Mês Selecionado
                             <span className="inline-block w-2.5 h-2.5 rounded bg-indigo-400" /> Outros Meses
