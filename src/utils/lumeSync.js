@@ -63,151 +63,92 @@ export const getSourceExpensesMonth = (monthStr) => {
 
 /**
  * Constrói ou atualiza o array de despesas da LUME a partir das despesas fixas selecionadas,
- * preservando todas as despesas separadas (ex: múltiplos funcionários ficam separados).
+ * puxando nome e valor reais diretamente da Saída para funcionários e outras despesas.
  */
 export const buildLumeExpensesFromFixed = (selectedFixedExpenses, existingExpenses = []) => {
+    // Contas de consumo e utilidades padrão da empresa
     const baseStandard = [
-        { id: '1-e', name: 'Energia', key: 'energia' },
-        { id: '1-a', name: 'Agua', key: 'agua' },
-        { id: '1-i', name: 'Internet', key: 'internet' },
-        { id: '1-c', name: 'Contador', key: 'contador' },
-        { id: '1-ip', name: 'IPTU', key: 'iptu' },
-        { id: '1-l', name: 'Limpeza', key: 'limpeza' },
-        { id: '1-f', name: 'Folha', key: 'folha' },
-        { id: '1-al', name: 'Aluguel', key: 'aluguel' },
-    ];
-
-    const expensesMap = {};
-    (existingExpenses || []).forEach(exp => {
-        const norm = normalize(exp.name);
-        expensesMap[norm] = { ...exp };
-    });
-
-    baseStandard.forEach(b => {
-        if (!expensesMap[b.key]) {
-            const existingById = (existingExpenses || []).find(e => e.id === b.id);
-            if (existingById) {
-                expensesMap[b.key] = { ...existingById };
-            } else {
-                expensesMap[b.key] = { id: b.id, name: b.name, value: 0 };
-            }
-        }
-    });
-
-    const employees = [];
-    const otherExpenses = [];
-
-    (selectedFixedExpenses || []).forEach(exp => {
-        const cat = normalize(exp.category || exp.description || '');
-        const amount = Number(exp.amount) || 0;
-        if (cat.includes('funcionario') || cat.includes('folha')) {
-            employees.push({ ...exp, amount, normName: cat });
-        } else {
-            otherExpenses.push({ ...exp, amount, normName: cat });
-        }
-    });
-
-    const categoryMappings = [
-        { key: 'energia', match: (n) => n.includes('energia') },
-        { key: 'agua', match: (n) => n.includes('agua') },
-        { key: 'internet', match: (n) => n.includes('internet') },
-        { key: 'contador', match: (n) => n.includes('contador') },
-        { key: 'iptu', match: (n) => n.includes('iptu') },
-        { key: 'limpeza', match: (n) => n.includes('limpeza') || n.includes('faxina') },
-        { key: 'aluguel', match: (n) => n.includes('aluguel') },
+        { id: '1-e', name: 'Energia', match: (n) => n.includes('energia') },
+        { id: '1-a', name: 'Agua', match: (n) => n.includes('agua') },
+        { id: '1-i', name: 'Internet', match: (n) => n.includes('internet') },
+        { id: '1-c', name: 'Contador', match: (n) => n.includes('contador') },
+        { id: '1-ip', name: 'IPTU', match: (n) => n.includes('iptu') },
+        { id: '1-l', name: 'Limpeza', match: (n) => n.includes('limpeza') || n.includes('faxina') },
+        { id: '1-al', name: 'Aluguel', match: (n) => n.includes('aluguel') },
     ];
 
     const handledExpenseIds = new Set();
+    const result = [];
 
-    categoryMappings.forEach(mapping => {
-        const matched = otherExpenses.filter(e => mapping.match(e.normName));
-        if (matched.length > 0) {
-            const totalVal = matched.reduce((sum, item) => sum + item.amount, 0);
-            matched.forEach(m => handledExpenseIds.add(m.id));
-            if (expensesMap[mapping.key]) {
-                expensesMap[mapping.key].value = totalVal;
-            }
-        }
-    });
-
-    // Funcionários: Todos separados
-    if (employees.length > 0) {
-        const emp1 = employees[0];
-        handledExpenseIds.add(emp1.id);
-        if (expensesMap['folha']) {
-            expensesMap['folha'].value = emp1.amount;
-        }
-    }
-
-    const additionalExpenses = [];
-    if (employees.length > 1) {
-        const emp2 = employees[1];
-        handledExpenseIds.add(emp2.id);
-        if (expensesMap['extra folha']) {
-            expensesMap['extra folha'].value = emp2.amount;
-        } else {
-            const extraFolhaExisting = (existingExpenses || []).find(e => normalize(e.name) === 'extra folha');
-            if (extraFolhaExisting) {
-                expensesMap['extra folha'] = { ...extraFolhaExisting, value: emp2.amount };
-            } else {
-                additionalExpenses.push({
-                    id: `emp-1-extra-folha-${Date.now()}`,
-                    name: 'extra folha',
-                    value: emp2.amount
-                });
-            }
-        }
-    }
-
-    // Se houver mais de 2 funcionários, adiciona linhas separadas com o nome de cada um
-    for (let i = 2; i < employees.length; i++) {
-        const empN = employees[i];
-        handledExpenseIds.add(empN.id);
-        const name = empN.category || empN.description || `Funcionário ${i + 1}`;
-        additionalExpenses.push({
-            id: `emp-1-func-${Date.now()}-${i}`,
-            name: name,
-            value: empN.amount
+    // 1. Preenche as contas de consumo padrão
+    baseStandard.forEach(std => {
+        const existing = (existingExpenses || []).find(e => 
+            e.id === std.id || std.match(normalize(e.name))
+        );
+        const matchedFixed = (selectedFixedExpenses || []).filter(e => {
+            const norm = normalize(e.category || e.description || '');
+            return std.match(norm);
         });
-    }
 
-    // Demais despesas marcadas avulsas (ex: GPT, ADONAI, etc.)
-    otherExpenses.forEach(exp => {
-        if (!handledExpenseIds.has(exp.id)) {
-            const existing = (existingExpenses || []).find(e => normalize(e.name) === exp.normName);
-            if (existing) {
-                if (expensesMap[exp.normName]) {
-                    expensesMap[exp.normName].value = exp.amount;
-                } else {
-                    expensesMap[exp.normName] = { ...existing, value: exp.amount };
-                }
-            } else {
-                additionalExpenses.push({
-                    id: `emp-1-custom-${Date.now()}-${exp.id}`,
-                    name: exp.category || exp.description || 'Outro',
-                    value: exp.amount
-                });
-            }
+        let val = existing ? existing.value : 0;
+        if (matchedFixed.length > 0) {
+            val = matchedFixed.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            matchedFixed.forEach(m => handledExpenseIds.add(m.id));
         }
+
+        result.push({
+            id: existing ? existing.id : std.id,
+            name: existing ? existing.name : std.name,
+            value: val
+        });
     });
 
-    const result = baseStandard.map(b => expensesMap[b.key] || { id: b.id, name: b.name, value: 0 });
+    // 2. Todos os demais gastos selecionados (Funcionários e despesas extras):
+    // Puxa o NOME e o VALOR exatos vindos da aba Saída!
+    const remainingFixed = (selectedFixedExpenses || []).filter(e => !handledExpenseIds.has(e.id));
 
-    if (expensesMap['extra folha']) {
-        result.push(expensesMap['extra folha']);
-    }
+    remainingFixed.forEach(exp => {
+        const exactName = (exp.category || exp.description || 'Despesa').trim();
+        const normName = normalize(exactName);
+        const amount = Number(exp.amount) || 0;
+
+        const existing = (existingExpenses || []).find(e => normalize(e.name) === normName);
+
+        if (existing) {
+            result.push({
+                ...existing,
+                name: exactName,
+                value: amount
+            });
+        } else {
+            result.push({
+                id: `emp-1-${exp.id || Date.now()}`,
+                name: exactName,
+                value: amount
+            });
+        }
+        handledExpenseIds.add(exp.id);
+    });
+
+    // 3. Mantém despesas manuais extras pré-existentes na LUME que não sejam folha genérica
+    const hasEmployeeFromSaida = remainingFixed.some(e => {
+        const n = normalize(e.category || e.description || '');
+        return n.includes('funcionario') || n.includes('folha');
+    });
 
     (existingExpenses || []).forEach(e => {
         const norm = normalize(e.name);
-        const isStandard = baseStandard.some(b => b.key === norm) || norm === 'extra folha';
-        if (!isStandard && !result.some(r => r.id === e.id)) {
-            result.push(expensesMap[norm] || e);
-        }
-    });
+        const isStandard = baseStandard.some(std => std.id === e.id || std.match(norm));
+        const isGenericFolha = norm === 'folha' || norm === 'extra folha';
+        const alreadyInResult = result.some(r => r.id === e.id || normalize(r.name) === norm);
 
-    additionalExpenses.forEach(add => {
-        if (!result.some(r => r.name.toLowerCase() === add.name.toLowerCase())) {
-            result.push(add);
+        if (!isStandard && !alreadyInResult) {
+            // Se já puxamos funcionários reais com seus nomes (ex: Bordim, Brenno),
+            // descarta as antigas linhas genéricas "Folha" e "extra folha"
+            if (isGenericFolha && hasEmployeeFromSaida) {
+                return;
+            }
+            result.push(e);
         }
     });
 
