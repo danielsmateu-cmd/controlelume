@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check, Printer, Zap } from 'lucide-react';
+import { Plus, Edit2, Save, X, Search, CalendarDays, Users, Bus, Clock, Check, Printer, Zap, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
 function Funcionarios() {
@@ -26,6 +26,24 @@ function Funcionarios() {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [registros, setRegistros] = useState([]);
     const [savingPonto, setSavingPonto] = useState(false);
+
+    // Print config: { blank: boolean, noName: boolean }
+    const [printConfig, setPrintConfig] = useState({ blank: false, noName: false });
+
+    const handlePrint = (config = { blank: false, noName: false }) => {
+        setPrintConfig(config);
+        setTimeout(() => {
+            window.print();
+        }, 80);
+    };
+
+    useEffect(() => {
+        const handleAfterPrint = () => {
+            setPrintConfig({ blank: false, noName: false });
+        };
+        window.addEventListener('afterprint', handleAfterPrint);
+        return () => window.removeEventListener('afterprint', handleAfterPrint);
+    }, []);
 
     // Auto-fill state
     const [defaultTimes, setDefaultTimes] = useState(() => {
@@ -368,9 +386,9 @@ function Funcionarios() {
     const filteredFts = funcionarios.filter(f => f.nome.toLowerCase().includes(searchFunc.toLowerCase()));
 
     return (
-        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+        <div className="h-full flex flex-col bg-gray-50 overflow-hidden print:h-auto print:overflow-visible print:bg-white">
             {/* Header */}
-            <div className="bg-white px-6 py-4 border-b border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="bg-white px-6 py-4 border-b border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <Users className="text-indigo-600" />
@@ -615,13 +633,44 @@ function Funcionarios() {
                                 </div>
                             </div>
                             
-                            {selectedFuncId && (
+                            {selectedFuncId ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button 
+                                        type="button"
+                                        onClick={() => handlePrint({ blank: false, noName: false })}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-xs sm:text-sm transition-colors shadow-sm cursor-pointer"
+                                        title="Imprime a folha deste mês com todos os horários e cálculos já salvos no sistema"
+                                    >
+                                        <Printer size={16} />
+                                        <span>Imprimir Preenchida</span>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handlePrint({ blank: true, noName: false })}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm cursor-pointer"
+                                        title={`Imprime a folha deste mês em branco com os dados de ${selectedFunc?.nome || 'colaborador'} para preenchimento manual`}
+                                    >
+                                        <FileText size={16} />
+                                        <span>Folha em Branco</span>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handlePrint({ blank: true, noName: true })}
+                                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-50 border border-gray-300 text-gray-600 hover:bg-gray-100 rounded-lg font-medium text-xs transition-colors cursor-pointer"
+                                        title="Imprime a folha de ponto deste mês em branco avulsa (sem nome de funcionário)"
+                                    >
+                                        <span>(Sem Nome)</span>
+                                    </button>
+                                </div>
+                            ) : (
                                 <button 
-                                    onClick={() => window.print()}
-                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm"
+                                    type="button"
+                                    onClick={() => handlePrint({ blank: true, noName: true })}
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm cursor-pointer"
+                                    title="Imprime folha de ponto em branco avulsa para preenchimento manual"
                                 >
-                                    <Printer size={16} />
-                                    Imprimir Folha
+                                    <FileText size={16} />
+                                    <span>Imprimir Folha em Branco Avulsa</span>
                                 </button>
                             )}
                         </div>
@@ -869,65 +918,90 @@ function Funcionarios() {
 
                                 {/* Printable Area - Visible only on Print */}
                                 <div className="hidden print:block font-sans text-gray-900 bg-white" style={{ pageBreakInside: 'avoid' }}>
-                                    <div className="text-center mb-2">
-                                        <h2 className="text-xl font-bold uppercase tracking-wider">Folha de Ponto Mensal</h2>
-                                        <p className="text-base mt-0.5">{String(selectedMonth).padStart(2, '0')} / {selectedYear}</p>
+                                    <div className="text-center mb-2 pb-1 border-b border-gray-300">
+                                        <h1 className="text-lg font-black uppercase tracking-wider text-gray-900">
+                                            LUME — CONTROLE DE PONTO INDIVIDUAL
+                                        </h1>
+                                        <p className="text-xs font-bold text-gray-600 uppercase">
+                                            MÊS DE REFERÊNCIA: {new Date(selectedYear, selectedMonth - 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()} DE {selectedYear}
+                                        </p>
                                     </div>
 
-                                    <div className="mb-2 grid grid-cols-2 gap-2 border border-gray-400 p-2 rounded-lg bg-gray-50">
+                                    <div className="mb-2 grid grid-cols-3 gap-2 border border-gray-400 p-2 rounded bg-gray-50 text-[10px]">
                                         <div>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Nome do Funcionário</p>
-                                            <p className="text-sm font-semibold">{selectedFunc.nome}</p>
+                                            <span className="font-bold text-gray-500 uppercase block text-[9px]">Funcionário(a):</span>
+                                            <span className="text-xs font-bold text-gray-900">
+                                                {printConfig.noName ? '________________________________________' : (selectedFunc?.nome || '________________________________________')}
+                                            </span>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Cargo / Função</p>
-                                            <p className="text-sm font-semibold">{selectedFunc.cargo || 'Não informado'}</p>
+                                            <span className="font-bold text-gray-500 uppercase block text-[9px]">Cargo / Função:</span>
+                                            <span className="text-xs font-semibold text-gray-900">
+                                                {printConfig.noName ? '____________________' : (selectedFunc?.cargo || 'Geral')}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-gray-500 uppercase block text-[9px]">Horário Padrão / Contratual:</span>
+                                            <span className="text-xs font-mono font-medium text-gray-800">
+                                                {defaultTimes.entrada} às {defaultTimes.inicio_descanso} • {defaultTimes.fim_descanso} às {defaultTimes.saida}
+                                            </span>
                                         </div>
                                     </div>
 
                                     <table className="w-full border-collapse border border-gray-400 text-[10px] mb-2">
                                         <thead>
-                                            <tr className="bg-gray-100">
+                                            <tr className="bg-gray-100 font-bold uppercase text-[9px]">
                                                 <th className="border border-gray-400 px-1 py-1 w-12 text-center">Data</th>
-                                                <th className="border border-gray-400 px-1 py-1 w-16">Dia</th>
-                                                <th className="border border-gray-400 px-1 py-1 text-center">Entrada</th>
-                                                <th className="border border-gray-400 px-1 py-1 text-center">Pausa (Saída)</th>
-                                                <th className="border border-gray-400 px-1 py-1 text-center">Pausa (Retorno)</th>
-                                                <th className="border border-gray-400 px-1 py-1 text-center">Saída</th>
+                                                <th className="border border-gray-400 px-1 py-1 w-12 text-center">Dia</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center w-20">Entrada</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center w-20">Intervalo (Saída)</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center w-20">Intervalo (Retorno)</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-center w-20">Saída</th>
                                                 <th className="border border-gray-400 px-1 py-1 text-center w-16">Total H.</th>
-                                                <th className="border border-gray-400 px-1 py-1">Observações</th>
-                                                <th className="border border-gray-400 px-1 py-1 w-20">Assinatura</th>
+                                                <th className="border border-gray-400 px-1 py-1 text-left">Observações / Motivo</th>
+                                                <th className="border border-gray-400 px-1 py-1 w-24 text-center">Rubrica / Visto</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {daysArray.map((day) => {
-                                                const reg = registros.find(r => r.data === day.dateStr) || {};
-                                                const hrs = calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida);
+                                                const reg = !printConfig.blank ? (registros.find(r => r.data === day.dateStr) || {}) : {};
+                                                const hrs = !printConfig.blank ? calculateHours(reg.horario_entrada, reg.inicio_descanso, reg.fim_descanso, reg.horario_saida) : 0;
+                                                
                                                 return (
-                                                    <tr key={day.dateStr} className={clsx(day.isWeekend && "bg-gray-50")}>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
+                                                    <tr 
+                                                        key={day.dateStr} 
+                                                        className={clsx(day.isWeekend ? (printConfig.blank ? "bg-gray-100/70" : "bg-gray-50") : "")}
+                                                        style={{ height: printConfig.blank ? '21px' : 'auto' }}
+                                                    >
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono font-bold">
                                                             {String(day.dayNum).padStart(2, '0')}/{String(selectedMonth).padStart(2, '0')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-[9px] uppercase">
+                                                        <td className={clsx(
+                                                            "border border-gray-400 px-1 py-0.5 text-[9px] uppercase text-center",
+                                                            day.isWeekend ? "font-bold text-gray-700" : "font-medium text-gray-600"
+                                                        )}>
                                                             {day.weekDay}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
-                                                            {reg.horario_entrada || ''}
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-[11px]">
+                                                            {printConfig.blank ? '' : (reg.horario_entrada || '')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-gray-500">
-                                                            {reg.inicio_descanso || ''}
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-[11px] text-gray-600">
+                                                            {printConfig.blank ? '' : (reg.inicio_descanso || '')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-gray-500">
-                                                            {reg.fim_descanso || ''}
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-[11px] text-gray-600">
+                                                            {printConfig.blank ? '' : (reg.fim_descanso || '')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono">
-                                                            {reg.horario_saida || ''}
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-mono text-[11px]">
+                                                            {printConfig.blank ? '' : (reg.horario_saida || '')}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-bold">
-                                                            {reg.falta ? <span className="text-gray-500">FALTA</span> : formatHours(hrs)}
+                                                        <td className="border border-gray-400 px-1 py-0.5 text-center font-bold text-[10px]">
+                                                            {printConfig.blank ? '' : (reg.falta ? <span className="text-gray-500">FALTA</span> : formatHours(hrs))}
                                                         </td>
-                                                        <td className="border border-gray-400 px-1 py-0.5 text-[9px]">
-                                                            {reg.observacoes || ''}
+                                                        <td className="border border-gray-400 px-1.5 py-0.5 text-[9px]">
+                                                            {printConfig.blank 
+                                                                ? (day.isWeekend ? <span className="text-gray-400 italic">Fim de Semana / DSR</span> : '') 
+                                                                : (reg.observacoes || '')
+                                                            }
                                                         </td>
                                                         <td className="border border-gray-400 px-1 py-0.5"></td>
                                                     </tr>
@@ -935,31 +1009,41 @@ function Funcionarios() {
                                             })}
                                         </tbody>
                                         <tfoot>
-                                            <tr className="bg-gray-100 font-bold">
-                                                <td colSpan={6} className="border border-gray-400 px-1 py-1 text-right">TOTAL ACUMULADO:</td>
-                                                <td className="border border-gray-400 px-1 py-1 text-center">{formatHours(totalHoursWorked)}</td>
-                                                <td colSpan={2} className="border border-gray-400 px-1 py-1"></td>
+                                            <tr className="bg-gray-100 font-bold text-[10px]">
+                                                <td colSpan={6} className="border border-gray-400 px-2 py-1 text-right uppercase">TOTAL HORAS DO MÊS:</td>
+                                                <td className="border border-gray-400 px-1 py-1 text-center font-bold">
+                                                    {printConfig.blank ? '_____h _____m' : formatHours(totalHoursWorked)}
+                                                </td>
+                                                <td colSpan={2} className="border border-gray-400 px-1 py-1 text-[9px] text-gray-500 font-normal">
+                                                    {printConfig.blank ? 'Espaço reservado para apuração final' : ''}
+                                                </td>
                                             </tr>
                                         </tfoot>
                                     </table>
 
-                                    <div className="mt-6 flex justify-between gap-8 px-8">
+                                    <div className="text-[9px] text-gray-600 italic mb-3 px-2">
+                                        "Reconheço a exatidão das anotações constantes neste documento, as quais refletem fielmente a minha jornada de trabalho no período."
+                                    </div>
+
+                                    <div className="flex justify-between gap-12 px-8 pt-2">
                                         <div className="flex-1 text-center">
                                             <div className="border-t border-gray-800 pt-1 font-bold uppercase text-[10px]">
                                                 Assinatura do Funcionário
                                             </div>
-                                            <div className="text-[9px] text-gray-500 mt-0.5">{selectedFunc.nome}</div>
+                                            <div className="text-[9px] text-gray-600 mt-0.5">
+                                                {printConfig.noName ? 'Colaborador' : (selectedFunc?.nome || 'Colaborador')}
+                                            </div>
                                         </div>
                                         <div className="flex-1 text-center">
                                             <div className="border-t border-gray-800 pt-1 font-bold uppercase text-[10px]">
                                                 Assinatura do Empregador
                                             </div>
-                                            <div className="text-[9px] text-gray-500 mt-0.5">Responsável / Gerência</div>
+                                            <div className="text-[9px] text-gray-600 mt-0.5">Lume Comunicação Visual / Gerência</div>
                                         </div>
                                     </div>
                                     
-                                    <div className="mt-8 text-center text-xs text-gray-400">
-                                        Documento gerado pelo sistema em {new Date().toLocaleDateString('pt-BR')}
+                                    <div className="mt-4 text-center text-[9px] text-gray-400">
+                                        Folha de Ponto gerada em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                 </div>
                             </>
