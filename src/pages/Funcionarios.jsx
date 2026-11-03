@@ -17,7 +17,15 @@ function Funcionarios() {
     // Cadastro State
     const [isEditingFunc, setIsEditingFunc] = useState(false);
     const [currentFunc, setCurrentFunc] = useState(null);
-    const [funcForm, setFuncForm] = useState({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true });
+    const [funcForm, setFuncForm] = useState({ 
+        nome: '', 
+        cargo: '', 
+        tipo_remuneracao: 'hora', 
+        salario_mensal: 0, 
+        valor_vt_diario: 0, 
+        valor_hora: 0, 
+        ativo: true 
+    });
     const [searchFunc, setSearchFunc] = useState('');
 
     // Ponto State
@@ -93,13 +101,23 @@ function Funcionarios() {
                 ...(isEditingFunc ? { id: currentFunc.id } : {}),
                 nome: funcForm.nome,
                 cargo: funcForm.cargo,
+                tipo_remuneracao: funcForm.tipo_remuneracao || 'hora',
+                salario_mensal: parseFloat(funcForm.salario_mensal) || 0,
                 valor_vt_diario: parseFloat(funcForm.valor_vt_diario) || 0,
                 valor_hora: parseFloat(funcForm.valor_hora) || 0,
                 ativo: funcForm.ativo
             });
             await loadFuncionarios();
             setIsEditingFunc(false);
-            setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true });
+            setFuncForm({ 
+                nome: '', 
+                cargo: '', 
+                tipo_remuneracao: 'hora', 
+                salario_mensal: 0, 
+                valor_vt_diario: 0, 
+                valor_hora: 0, 
+                ativo: true 
+            });
         } catch (err) {
             alert('Erro ao salvar funcionário');
         } finally {
@@ -112,9 +130,11 @@ function Funcionarios() {
         setFuncForm({
             nome: func.nome,
             cargo: func.cargo,
-            valor_vt_diario: func.valor_vt_diario,
+            tipo_remuneracao: func.tipo_remuneracao || (func.salario_mensal > 0 ? 'fixo' : 'hora'),
+            salario_mensal: func.salario_mensal || 0,
+            valor_vt_diario: func.valor_vt_diario || 0,
             valor_hora: func.valor_hora || 0,
-            ativo: func.ativo
+            ativo: func.ativo !== false
         });
         setIsEditingFunc(true);
     };
@@ -347,6 +367,13 @@ function Funcionarios() {
 
     const selectedFunc = funcionarios.find(f => f.id === selectedFuncId);
     
+    // Remuneração do funcionário selecionado
+    const isFixedSalary = selectedFunc?.tipo_remuneracao === 'fixo';
+    // Se fixo, base horária para H.E. pode ser calculada com divisor CLT 220 horas ou valor_hora cadastrado
+    const hourlyBaseRate = isFixedSalary 
+        ? ((Number(selectedFunc?.salario_mensal) || 0) / 220 || selectedFunc?.valor_hora || 0)
+        : (selectedFunc?.valor_hora || 0);
+
     // Calculations for the month
     let totalDaysWorked = 0;
     let totalHoursWorked = 0;
@@ -367,12 +394,12 @@ function Funcionarios() {
                     if (extras > 0) {
                         totalExtraHours += extras;
                         const mult = Number(r.multiplicador_extra) || 1.5;
-                        extraSalaryPaid += extras * mult * (selectedFunc.valor_hora || 0);
+                        extraSalaryPaid += extras * mult * hourlyBaseRate;
                     }
                 }
                 
                 if (r.recebeu_vt) {
-                    totalVTPaid += selectedFunc.valor_vt_diario;
+                    totalVTPaid += Number(selectedFunc.valor_vt_diario) || 0;
                 }
             }
         });
@@ -380,7 +407,9 @@ function Funcionarios() {
 
     const valorHora = selectedFunc?.valor_hora || 0;
     const totalNormalHours = Math.max(0, totalHoursWorked - totalExtraHours);
-    const baseSalaryPaid = totalNormalHours * valorHora;
+    const baseSalaryPaid = isFixedSalary 
+        ? (Number(selectedFunc?.salario_mensal) || 0)
+        : (totalNormalHours * valorHora);
     const totalSalaryPaid = baseSalaryPaid + extraSalaryPaid;
 
     const filteredFts = funcionarios.filter(f => f.nome.toLowerCase().includes(searchFunc.toLowerCase()));
@@ -447,6 +476,75 @@ function Funcionarios() {
                                         />
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Remuneração</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setFuncForm({...funcForm, tipo_remuneracao: 'fixo'})}
+                                                className={clsx(
+                                                    "py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer",
+                                                    funcForm.tipo_remuneracao === 'fixo' 
+                                                        ? "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500 shadow-sm" 
+                                                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                )}
+                                                disabled={!canEdit}
+                                            >
+                                                💼 Salário Fixo Mensal
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setFuncForm({...funcForm, tipo_remuneracao: 'hora'})}
+                                                className={clsx(
+                                                    "py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer",
+                                                    funcForm.tipo_remuneracao === 'hora' 
+                                                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500 shadow-sm" 
+                                                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                )}
+                                                disabled={!canEdit}
+                                            >
+                                                ⏰ Por Hora (Horista)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {funcForm.tipo_remuneracao === 'fixo' ? (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Salário Fixo Mensal (R$)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={funcForm.salario_mensal} 
+                                                    onChange={e => setFuncForm({...funcForm, salario_mensal: e.target.value})}
+                                                    placeholder="Ex: 1500,00"
+                                                    className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-bold text-indigo-900"
+                                                    disabled={!canEdit}
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 mt-1">Ex: Brenno com R$ 1.500,00/mês + VT. A folha com horários continua normalmente.</p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Valor da Hora Trabalhada (R$)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={funcForm.valor_hora} 
+                                                    onChange={e => setFuncForm({...funcForm, valor_hora: e.target.value})}
+                                                    placeholder="Ex: 20,00"
+                                                    className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                                    disabled={!canEdit}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Valor do VT Diário (R$)</label>
                                         <div className="relative">
                                             <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
@@ -456,21 +554,6 @@ function Funcionarios() {
                                                 min="0"
                                                 value={funcForm.valor_vt_diario} 
                                                 onChange={e => setFuncForm({...funcForm, valor_vt_diario: e.target.value})}
-                                                className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                                                disabled={!canEdit}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Valor da Hora Trabalhada (R$)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
-                                            <input 
-                                                type="number" 
-                                                step="0.01"
-                                                min="0"
-                                                value={funcForm.valor_hora} 
-                                                onChange={e => setFuncForm({...funcForm, valor_hora: e.target.value})}
                                                 className="w-full text-sm pl-9 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                                                 disabled={!canEdit}
                                             />
@@ -491,7 +574,18 @@ function Funcionarios() {
                                         {isEditingFunc && (
                                             <button 
                                                 type="button"
-                                                onClick={() => { setIsEditingFunc(false); setFuncForm({ nome: '', cargo: '', valor_vt_diario: 0, valor_hora: 0, ativo: true }); }}
+                                                onClick={() => { 
+                                                    setIsEditingFunc(false); 
+                                                    setFuncForm({ 
+                                                        nome: '', 
+                                                        cargo: '', 
+                                                        tipo_remuneracao: 'hora', 
+                                                        salario_mensal: 0, 
+                                                        valor_vt_diario: 0, 
+                                                        valor_hora: 0, 
+                                                        ativo: true 
+                                                    }); 
+                                                }}
                                                 className="flex-1 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                                             >
                                                 Cancelar
@@ -532,7 +626,7 @@ function Funcionarios() {
                                             <tr>
                                                 <th className="px-6 py-3 font-medium">Nome</th>
                                                 <th className="px-6 py-3 font-medium">Cargo</th>
-                                                <th className="px-6 py-3 font-medium text-center">Valor Hora</th>
+                                                <th className="px-6 py-3 font-medium text-center">Remuneração</th>
                                                 <th className="px-6 py-3 font-medium text-center">VT Diário</th>
                                                 <th className="px-6 py-3 font-medium text-center">Status</th>
                                                 <th className="px-6 py-3 font-medium text-right">Ações</th>
@@ -540,17 +634,25 @@ function Funcionarios() {
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {filteredFts.length === 0 ? (
-                                                <tr><td colSpan={5} className="p-6 text-center text-gray-500">Nenhum funcionário encontrado.</td></tr>
+                                                <tr><td colSpan={6} className="p-6 text-center text-gray-500">Nenhum funcionário encontrado.</td></tr>
                                             ) : (
                                                 filteredFts.map(f => (
                                                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                                                         <td className="px-6 py-4 font-semibold text-gray-800">{f.nome}</td>
                                                         <td className="px-6 py-4 text-gray-600">{f.cargo || '-'}</td>
-                                                        <td className="px-6 py-4 text-center font-medium text-blue-600">
-                                                            R$ {parseFloat(f.valor_hora || 0).toFixed(2).replace('.', ',')}
+                                                        <td className="px-6 py-4 text-center font-medium">
+                                                            {f.tipo_remuneracao === 'fixo' ? (
+                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                    Fixo: R$ {parseFloat(f.salario_mensal || 0).toFixed(2).replace('.', ',')}/mês
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                                    R$ {parseFloat(f.valor_hora || 0).toFixed(2).replace('.', ',')}/hora
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="px-6 py-4 text-center font-medium text-emerald-600">
-                                                            R$ {parseFloat(f.valor_vt_diario).toFixed(2).replace('.', ',')}
+                                                            R$ {parseFloat(f.valor_vt_diario || 0).toFixed(2).replace('.', ',')}
                                                         </td>
                                                         <td className="px-6 py-4 text-center">
                                                             <span className={clsx("px-2 py-1 text-[10px] font-bold rounded-full uppercase", f.ativo ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
@@ -744,7 +846,16 @@ function Funcionarios() {
                                             <span className="font-bold text-xl">R$</span>
                                         </div>
                                         <div className="z-10">
-                                            <p className="text-sm font-medium text-blue-800">Salário (Normal)</p>
+                                            <div className="flex items-center gap-1.5">
+                                                <p className="text-sm font-medium text-blue-800">
+                                                    {isFixedSalary ? 'Salário Fixo Mensal' : 'Salário (Normal)'}
+                                                </p>
+                                                {isFixedSalary && (
+                                                    <span className="px-1.5 py-0.5 text-[9px] font-bold rounded uppercase bg-indigo-100 text-indigo-700">
+                                                        Fixo
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-2xl font-bold text-blue-700">R$ {baseSalaryPaid.toFixed(2).replace('.', ',')}</p>
                                         </div>
                                     </div>

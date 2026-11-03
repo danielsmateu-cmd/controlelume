@@ -1022,7 +1022,23 @@ const supabaseApi = {
                 .select('*')
                 .order('nome', { ascending: true });
             if (error) throw error;
-            return data;
+
+            let configMap = {};
+            try {
+                const configData = await this.getSettings('funcionarios_config');
+                if (configData && typeof configData === 'object') configMap = configData;
+            } catch (e) {
+                console.warn('Could not load funcionarios_config from settings:', e);
+            }
+
+            return (data || []).map(f => {
+                const cfg = configMap[f.id] || {};
+                return {
+                    ...f,
+                    tipo_remuneracao: cfg.tipo_remuneracao || (cfg.salario_mensal > 0 ? 'fixo' : (f.valor_hora > 0 ? 'hora' : 'fixo')),
+                    salario_mensal: cfg.salario_mensal !== undefined ? Number(cfg.salario_mensal) : 0
+                };
+            });
         } catch (err) {
             console.error('Supabase getFuncionarios error:', err);
             return [];
@@ -1031,24 +1047,51 @@ const supabaseApi = {
     
     async saveFuncionario(funcionario) {
         try {
+            const dbPayload = {
+                nome: funcionario.nome,
+                cargo: funcionario.cargo || '',
+                valor_vt_diario: funcionario.valor_vt_diario !== undefined ? Number(funcionario.valor_vt_diario) : 0,
+                valor_hora: funcionario.valor_hora !== undefined ? Number(funcionario.valor_hora) : 0,
+                ativo: funcionario.ativo !== undefined ? funcionario.ativo : true
+            };
+
+            let savedData;
             if (funcionario.id) {
                 const { data, error } = await supabase
                     .from('funcionarios')
-                    .update(funcionario)
+                    .update(dbPayload)
                     .eq('id', funcionario.id)
                     .select()
                     .single();
                 if (error) throw error;
-                return data;
+                savedData = data;
             } else {
                 const { data, error } = await supabase
                     .from('funcionarios')
-                    .insert([funcionario])
+                    .insert([dbPayload])
                     .select()
                     .single();
                 if (error) throw error;
-                return data;
+                savedData = data;
             }
+
+            // Salva configurações estendidas (tipo_remuneracao e salario_mensal) na tabela settings
+            try {
+                let currentConfig = await this.getSettings('funcionarios_config') || {};
+                currentConfig[savedData.id] = {
+                    tipo_remuneracao: funcionario.tipo_remuneracao || 'hora',
+                    salario_mensal: funcionario.salario_mensal !== undefined ? Number(funcionario.salario_mensal) : 0
+                };
+                await this.saveSettings('funcionarios_config', currentConfig);
+            } catch (cfgErr) {
+                console.warn('Erro ao salvar config estendida de funcionarios:', cfgErr);
+            }
+
+            return {
+                ...savedData,
+                tipo_remuneracao: funcionario.tipo_remuneracao || 'hora',
+                salario_mensal: funcionario.salario_mensal !== undefined ? Number(funcionario.salario_mensal) : 0
+            };
         } catch (err) {
             console.error('Supabase saveFuncionario error:', err);
             throw err;
