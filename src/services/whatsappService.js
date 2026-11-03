@@ -161,12 +161,17 @@ export const whatsappService = {
       if (msgErr) console.error('Error inserting msg in Supabase:', msgErr);
 
       // 3. Atualizar resumo na conversa
+      const chatUpdate = {
+        last_message: formattedText,
+        updated_at: new Date().toISOString()
+      };
+      if (chat.status === 'aguardando_retorno') {
+        chatUpdate.status = 'em_atendimento';
+      }
+
       await supabase
         .from('whatsapp_chats')
-        .update({
-          last_message: formattedText,
-          updated_at: new Date().toISOString()
-        })
+        .update(chatUpdate)
         .eq('id', chat.id);
 
       return newMsg;
@@ -236,13 +241,13 @@ export const whatsappService = {
   },
 
   // Transferir conversa diretamente para um atendente específico
-  async transferToUser(chatId, userName) {
+  async transferToUser(chatId, userName, newStatus = 'em_atendimento') {
     try {
       const { error } = await supabase
         .from('whatsapp_chats')
         .update({
           assigned_to: userName,
-          status: 'em_atendimento',
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', chatId);

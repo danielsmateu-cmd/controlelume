@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, Search, Send, UserCheck, CheckCircle2, 
   Clock, User, RefreshCw, Filter, CheckCheck, ArrowRightLeft,
-  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText, MessageSquarePlus, ALargeSmall
+  AlertCircle, Building, Phone, ChevronRight, Download, Paperclip, X, Zap, Smile, Plus, Trash2, Copy, Edit2, Check, MessageSquareText, MessageSquarePlus, ALargeSmall, CornerUpLeft
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import clsx from 'clsx';
@@ -127,6 +127,7 @@ function WhatsAppChatInner() {
   const [newChatPhone, setNewChatPhone] = useState('');
   const [newChatName, setNewChatName] = useState('');
   const [transferTab, setTransferTab] = useState('setor'); // 'setor' or 'usuario'
+  const [transferMarkReturn, setTransferMarkReturn] = useState(true);
 
 
   const messagesEndRef = useRef(null);
@@ -178,10 +179,14 @@ function WhatsAppChatInner() {
 
   // 1. Carregar Chats
   const fetchChats = async () => {
-    setLoadingChats(true);
     const data = await whatsappService.getChats();
     setChats(data);
     setLoadingChats(false);
+    setActiveChat(prev => {
+      if (!prev) return null;
+      const updated = data.find(c => c.id === prev.id);
+      return updated ? { ...prev, ...updated } : prev;
+    });
   };
 
   useEffect(() => {
@@ -368,6 +373,11 @@ function WhatsAppChatInner() {
 
       await whatsappService.sendMessage(activeChat, textToSend, signMessage ? (currentUser?.name || 'Atendente') : null, mediaBase64, mediaName, mediaType);
       
+      if (activeChat.status === 'aguardando_retorno') {
+        setActiveChat(prev => ({ ...prev, status: 'em_atendimento' }));
+        setChats(prev => prev.map(c => c.id === activeChat.id ? { ...c, status: 'em_atendimento' } : c));
+      }
+
       const refreshed = await whatsappService.getMessages(activeChat);
       setMessages(refreshed);
       scrollToBottom();
@@ -529,9 +539,10 @@ function WhatsAppChatInner() {
   // Transferir para Atendente específico
   const handleTransferToUser = async (userName) => {
     if (!activeChat) return;
-    const success = await whatsappService.transferToUser(activeChat.id, userName);
+    const targetStatus = transferMarkReturn ? 'aguardando_retorno' : 'em_atendimento';
+    const success = await whatsappService.transferToUser(activeChat.id, userName, targetStatus);
     if (success) {
-      setActiveChat({ ...activeChat, assigned_to: userName, status: 'em_atendimento' });
+      setActiveChat({ ...activeChat, assigned_to: userName, status: targetStatus });
       setTransferModalOpen(false);
       fetchChats();
     }
@@ -562,8 +573,8 @@ function WhatsAppChatInner() {
       if (attendantFilter !== 'todos' && chat.assigned_to !== attendantFilter) return false;
     } else {
       // filterTab === 'todas'
-      // 2ª Linha: Sub-Filtros de Atendimento
-      if (subFilter === 'em_atendimento' && chat.status !== 'em_atendimento') return false;
+      // 2ª Linha: Sub-Filtros de Atendimento (em_atendimento exibe tanto ativos quanto pendentes de retorno)
+      if (subFilter === 'em_atendimento' && chat.status !== 'em_atendimento' && chat.status !== 'aguardando_retorno') return false;
       if (subFilter === 'aguardando_retorno' && chat.status !== 'aguardando_retorno') return false;
       if (subFilter === 'finalizado' && chat.status !== 'finalizado') return false;
 
@@ -578,11 +589,20 @@ function WhatsAppChatInner() {
     aguardando: 0,
     todas: 0,
     em_atendimento: 0,
-    aguardando_retorno: 0,
-    attendants: {}
+    attendants: {},
+    attendantReturns: {}
   };
 
+  const returnCounts = chats.filter(c => 
+    c.status === 'aguardando_retorno' && 
+    (attendantFilter === 'todos' || c.assigned_to === attendantFilter)
+  ).length;
+
   chats.forEach(chat => {
+    if (chat.status === 'aguardando_retorno' && chat.assigned_to) {
+      unreadCounts.attendantReturns[chat.assigned_to] = (unreadCounts.attendantReturns[chat.assigned_to] || 0) + 1;
+    }
+
     const unread = chat.unread_count || 0;
     if (unread > 0 && chat.status !== 'finalizado') {
       unreadCounts.todas += unread;
@@ -592,14 +612,11 @@ function WhatsAppChatInner() {
       }
       
       if (chat.assigned_to) {
-          unreadCounts.attendants[chat.assigned_to] = (unreadCounts.attendants[chat.assigned_to] || 0) + unread;
-        }
-        if (chat.status === 'em_atendimento') {
-          unreadCounts.em_atendimento += unread;
-        }
-        if (chat.status === 'aguardando_retorno') {
-          unreadCounts.aguardando_retorno += unread;
-        }
+        unreadCounts.attendants[chat.assigned_to] = (unreadCounts.attendants[chat.assigned_to] || 0) + unread;
+      }
+      if (chat.status === 'em_atendimento') {
+        unreadCounts.em_atendimento += unread;
+      }
     }
   });
 
@@ -617,7 +634,7 @@ function WhatsAppChatInner() {
       case 'em_atendimento':
         return { label: 'Em Atendimento', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold' };
       case 'aguardando_retorno':
-        return { label: 'Aguardando Retorno', color: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold' };
+        return { label: '↩️ Retornar', color: 'bg-amber-500 text-white border-amber-600 font-bold shadow-2xs' };
       case 'finalizado':
         return { label: 'Finalizado', color: 'bg-gray-100 text-gray-600 border-gray-200' };
       default:
@@ -743,10 +760,10 @@ function WhatsAppChatInner() {
                     : 'hover:text-amber-700'
                 )}
               >
-                Aguard. Retorno
-                {unreadCounts.aguardando_retorno > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full shadow-sm">
-                    {unreadCounts.aguardando_retorno}
+                ↩️ Retornar
+                {returnCounts > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-sm animate-pulse border border-white">
+                    {returnCounts}
                   </span>
                 )}
               </button>
@@ -780,6 +797,7 @@ function WhatsAppChatInner() {
               const displayName = u.name || u.login;
               const isActive = attendantFilter === displayName;
               const hasUnread = unreadCounts.attendants[displayName] > 0;
+              const hasReturns = (unreadCounts.attendantReturns[displayName] || 0) > 0;
               return (
                 <button
                   key={u.id || u.login}
@@ -795,6 +813,11 @@ function WhatsAppChatInner() {
                   {hasUnread && (
                     <span className="bg-red-500 text-white text-[9px] px-1.5 rounded-full shadow-sm animate-pulse">
                       {unreadCounts.attendants[displayName]}
+                    </span>
+                  )}
+                  {hasReturns && (
+                    <span className="bg-amber-500 text-white text-[9px] px-1.5 rounded-full shadow-sm" title={`${unreadCounts.attendantReturns[displayName]} retorno(s) pendente(s)`}>
+                      ↩️ {unreadCounts.attendantReturns[displayName]}
                     </span>
                   )}
                 </button>
@@ -819,6 +842,7 @@ function WhatsAppChatInner() {
           ) : (
             filteredChats.map((chat) => {
               const isSelected = activeChat?.id === chat.id;
+              const isReturn = chat.status === 'aguardando_retorno';
               const setorBadge = getSetorBadge(chat.setor);
               const statusBadge = getStatusBadge(chat.status);
 
@@ -827,12 +851,14 @@ function WhatsAppChatInner() {
                   key={chat.id}
                   onClick={() => setActiveChat(chat)}
                   className={clsx(
-                    'p-3.5 cursor-pointer transition-all flex items-start gap-3 relative border-l-4',
+                    'p-3.5 cursor-pointer transition-all flex items-start gap-3 relative border-l-4 group',
                     isSelected
                       ? 'bg-emerald-50/60 border-emerald-500'
-                      : chat.unread_count > 0
-                        ? 'bg-yellow-50 hover:bg-yellow-100 border-yellow-400'
-                        : 'hover:bg-gray-50/80 border-transparent'
+                      : isReturn
+                        ? 'bg-amber-50/50 hover:bg-amber-100/60 border-amber-500'
+                        : chat.unread_count > 0
+                          ? 'bg-yellow-50 hover:bg-yellow-100 border-yellow-400'
+                          : 'hover:bg-gray-50/80 border-transparent'
                   )}
                 >
                     {/* Avatar (Foto ou Inicial) */}
@@ -862,7 +888,7 @@ function WhatsAppChatInner() {
                       </span>
                     </div>
 
-                    <p className={clsx("text-[11px] truncate mb-1.5", chat.unread_count > 0 ? "text-gray-800 font-bold" : "text-gray-500")}>
+                    <p className={clsx("text-[11px] truncate mb-1.5", chat.unread_count > 0 ? "text-gray-800 font-bold" : isReturn ? "text-amber-900 font-medium" : "text-gray-500")}>
                       {chat.last_message || 'Sem mensagens'}
                     </p>
 
@@ -881,6 +907,32 @@ function WhatsAppChatInner() {
                           <User className="w-2.5 h-2.5" />
                           {chat.assigned_to}
                         </span>
+                      )}
+
+                      {/* Botão rápido para marcar/desmarcar retorno direto da lista */}
+                      {chat.status !== 'finalizado' && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const newStatus = isReturn ? 'em_atendimento' : 'aguardando_retorno';
+                            await whatsappService.updateStatus(chat.id, newStatus);
+                            setChats(prev => prev.map(c => c.id === chat.id ? { ...c, status: newStatus } : c));
+                            if (activeChat?.id === chat.id) {
+                              setActiveChat(prev => ({ ...prev, status: newStatus }));
+                            }
+                          }}
+                          title={isReturn ? "Marcado para retorno. Clique para desmarcar." : "Marcar para retornar"}
+                          className={clsx(
+                            "text-[9px] px-1.5 py-0.5 rounded border transition-colors flex items-center gap-0.5 ml-1",
+                            isReturn
+                              ? "bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 font-bold"
+                              : "opacity-0 group-hover:opacity-100 bg-white hover:bg-amber-50 text-gray-500 hover:text-amber-700 border-gray-200 shadow-2xs"
+                          )}
+                        >
+                          <CornerUpLeft className="w-2.5 h-2.5" />
+                          <span>{isReturn ? 'Desmarcar' : 'Retornar'}</span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -933,15 +985,16 @@ function WhatsAppChatInner() {
             </div>
 
             {/* Ações do Header */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {(() => {
                 const currentUserLogin = currentUser?.name || currentUser?.login || '';
                 const isOwnedByOther = activeChat.assigned_to && activeChat.assigned_to !== currentUserLogin;
                 const canAssign = isOwnedByOther || (activeChat.status !== 'em_atendimento' && activeChat.status !== 'aguardando_retorno');
-                const canInteract = !isOwnedByOther && activeChat.status !== 'finalizado';
+                const isMarkedForReturn = activeChat.status === 'aguardando_retorno';
 
                 return (
                   <>
+                    {/* Botão de Puxar/Reabrir Atendimento */}
                     {canAssign && (
                       <button
                         onClick={handleAssign}
@@ -952,64 +1005,91 @@ function WhatsAppChatInner() {
                       </button>
                     )}
 
-                    {canInteract && (
-                      <>
-                        {activeChat.status === 'em_atendimento' ? (
-                          <button
-                            onClick={() => handleSetStatus('aguardando_retorno')}
-                            title="Marcar que enviou orçamento/resposta e aguarda cliente"
-                            className="px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                          >
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            Aguardando Retorno
-                          </button>
-                        ) : activeChat.status === 'aguardando_retorno' ? (
-                          <button
-                            onClick={() => handleSetStatus('em_atendimento')}
-                            className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                          >
-                            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            Em Atendimento
-                          </button>
-                        ) : null}
+                    {/* Botão Marcar/Desmarcar Retorno - QUALQUER USUÁRIO PODE CLICAR! */}
+                    {activeChat.status !== 'finalizado' && (
+                      isMarkedForReturn ? (
+                        <button
+                          onClick={() => handleSetStatus('em_atendimento')}
+                          title="Esta conversa está marcada para retorno. Clique para desmarcar."
+                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all animate-pulse"
+                        >
+                          <CornerUpLeft className="w-3.5 h-3.5" />
+                          <span>Pendente Retorno (Desmarcar)</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSetStatus('aguardando_retorno')}
+                          title="Marcar que esta conversa precisa de retorno (mensagem lida mas não respondida)"
+                          className="px-3 py-1.5 bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <CornerUpLeft className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Marcar Retornar</span>
+                        </button>
+                      )
+                    )}
 
-                        <button
-                          onClick={cycleFontSize}
-                          title={`Tamanho do texto (chat e digitação): ${
-                            chatFontSize === 'text-xs' ? 'Pequeno (P)' :
-                            chatFontSize === 'text-sm' ? 'Médio (M)' :
-                            chatFontSize === 'text-base' ? 'Grande (G)' : 'Extra Grande (GG)'
-                          }. Clique para alterar.`}
-                          className="px-3 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all mr-1"
-                        >
-                          <ALargeSmall className="w-3.5 h-3.5 text-gray-600" />
-                          <span>Texto</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-bold uppercase">
-                            {chatFontSize === 'text-xs' ? 'P' : chatFontSize === 'text-sm' ? 'M' : chatFontSize === 'text-base' ? 'G' : 'GG'}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => setTransferModalOpen(true)}
-                          className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                        >
-                          <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
-                          Transferir
-                        </button>
+                    {/* Botão Tamanho da Fonte */}
+                    <button
+                      onClick={cycleFontSize}
+                      title={`Tamanho do texto (chat e digitação): ${
+                        chatFontSize === 'text-xs' ? 'Pequeno (P)' :
+                        chatFontSize === 'text-sm' ? 'Médio (M)' :
+                        chatFontSize === 'text-base' ? 'Grande (G)' : 'Extra Grande (GG)'
+                      }. Clique para alterar.`}
+                      className="px-3 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <ALargeSmall className="w-3.5 h-3.5 text-gray-600" />
+                      <span>Texto</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-bold uppercase">
+                        {chatFontSize === 'text-xs' ? 'P' : chatFontSize === 'text-sm' ? 'M' : chatFontSize === 'text-base' ? 'G' : 'GG'}
+                      </span>
+                    </button>
 
-                        <button
-                          onClick={handleClose}
-                          className="px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-red-600" />
-                          Finalizar
-                        </button>
-                      </>
+                    {/* Botão Transferir - QUALQUER USUÁRIO PODE CLICAR! */}
+                    {activeChat.status !== 'finalizado' && (
+                      <button
+                        onClick={() => setTransferModalOpen(true)}
+                        className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                        Transferir
+                      </button>
+                    )}
+
+                    {/* Botão Finalizar Atendimento */}
+                    {!isOwnedByOther && activeChat.status !== 'finalizado' && (
+                      <button
+                        onClick={handleClose}
+                        className="px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-red-600" />
+                        Finalizar
+                      </button>
                     )}
                   </>
                 );
               })()}
             </div>
           </div>
+
+          {/* Banner de Aviso quando Marcado para Retorno */}
+          {activeChat.status === 'aguardando_retorno' && (
+            <div className="bg-amber-100/90 border-b border-amber-300 px-4 py-2 flex items-center justify-between text-xs text-amber-900 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <span className="text-base">↩️</span>
+                <div>
+                  <span className="font-bold">Aguardando Retorno:</span>{' '}
+                  <span className="text-amber-800">Mensagem lida que ainda necessita de resposta ao cliente.</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleSetStatus('em_atendimento')}
+                className="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-900 font-semibold rounded-lg border border-amber-300 shadow-2xs text-[11px] transition-colors"
+              >
+                Desmarcar Retorno
+              </button>
+            </div>
+          )}
 
           {/* Feed de Mensagens */}
           <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#efeae2]/40">
@@ -1264,6 +1344,25 @@ function WhatsAppChatInner() {
                       {isMe && <span className="font-semibold text-emerald-700">{msg.sender_name || 'Atendente'} • </span>}
                       <span>{(() => { try { const d = new Date(msg.created_at || msg.timestamp); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } })()}</span>
                       {isMe && <CheckCheck className="w-3 h-3 text-emerald-600" />}
+                      {!isMe && activeChat.status !== 'finalizado' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetStatus(activeChat.status === 'aguardando_retorno' ? 'em_atendimento' : 'aguardando_retorno');
+                          }}
+                          className={clsx(
+                            "text-[9px] flex items-center gap-0.5 px-1.5 py-0.5 rounded transition-all ml-1.5 font-medium border",
+                            activeChat.status === 'aguardando_retorno'
+                              ? "bg-amber-100 text-amber-800 border-amber-300 font-bold"
+                              : "text-gray-400 hover:text-amber-800 hover:bg-amber-50 border-transparent hover:border-amber-200"
+                          )}
+                          title={activeChat.status === 'aguardando_retorno' ? "Conversa já marcada para retorno. Clique para desmarcar." : "Marcar esta conversa para retornar"}
+                        >
+                          <CornerUpLeft className="w-2.5 h-2.5" />
+                          <span>{activeChat.status === 'aguardando_retorno' ? 'Pendente Retorno' : 'Retornar'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1522,8 +1621,22 @@ function WhatsAppChatInner() {
               </button>
             </div>
 
+            {/* Opção Marcar Retornar na Transferência */}
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-900">
+              <input
+                type="checkbox"
+                id="transferMarkReturnCheckbox"
+                checked={transferMarkReturn}
+                onChange={(e) => setTransferMarkReturn(e.target.checked)}
+                className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+              />
+              <label htmlFor="transferMarkReturnCheckbox" className="cursor-pointer font-medium select-none flex-1 leading-snug">
+                Marcar como <strong>"Retornar"</strong> ao transferir (destaca em amarelo para o atendente que há retorno pendente)
+              </label>
+            </div>
+
             {/* Listagem de Usuários */}
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-64 overflow-y-auto">
                 <p className="text-xs text-gray-500">Passe o chat diretamente para um atendente — ele assumirá imediatamente:</p>
                 {(usersList || [])
                   .filter(u => u.name || u.login)
