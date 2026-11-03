@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil, CheckCircle2, ArrowUpDown, ShieldCheck, Lock, Flame, Star } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Factory, ChevronDown, ChevronUp, User, Package, Calendar, Pencil, CheckCircle2, ArrowUpDown, ShieldCheck, Lock, Flame, Star, Search, X } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -448,6 +448,7 @@ const Producao = ({ readOnly }) => {
     const [loading, setLoading] = useState(true);
     const [viewTab, setViewTab] = useState('pendentes'); // 'pendentes' ou 'finalizados'
     const [completionModal, setCompletionModal] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         Promise.allSettled([
@@ -680,6 +681,52 @@ const Producao = ({ readOnly }) => {
 
     const totalConcluidosCount = budgetsFinalizados.length;
 
+    const matchesSearch = (b, term) => {
+        if (!term) return true;
+        const q = term.toLowerCase().trim();
+        if (!q) return true;
+
+        const clientName = (b.clientData?.name || b.clientName || '').toLowerCase();
+        if (clientName.includes(q)) return true;
+
+        const idStr = String(b.id || '').toLowerCase();
+        if (idStr.includes(q)) return true;
+
+        const codeStr = String(b.code || b.budgetId || '').toLowerCase();
+        if (codeStr.includes(q)) return true;
+
+        const obs = (b.clientData?.productionObs || '').toLowerCase();
+        if (obs.includes(q)) return true;
+
+        const finishedBy = (b.clientData?.finishedBy || '').toLowerCase();
+        if (finishedBy.includes(q)) return true;
+
+        const seller = (b.seller || b.clientData?.seller || '').toLowerCase();
+        if (seller.includes(q)) return true;
+
+        // Busca em itens (descrição, nome, material, notas)
+        const hasItemMatch = (b.items || []).some(item => 
+            (item.description || item.name || '').toLowerCase().includes(q) ||
+            (item.material || '').toLowerCase().includes(q) ||
+            (item.notes || '').toLowerCase().includes(q)
+        );
+        if (hasItemMatch) return true;
+
+        return false;
+    };
+
+    const filteredPendentes = useMemo(() => {
+        if (!searchQuery.trim()) return sortedPendentes;
+        return sortedPendentes.filter(b => matchesSearch(b, searchQuery));
+    }, [sortedPendentes, searchQuery]);
+
+    const filteredFinalizados = useMemo(() => {
+        if (!searchQuery.trim()) return budgetsFinalizados;
+        return budgetsFinalizados.filter(b => matchesSearch(b, searchQuery));
+    }, [budgetsFinalizados, searchQuery]);
+
+    const activeList = viewTab === 'pendentes' ? filteredPendentes : filteredFinalizados;
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -703,41 +750,64 @@ const Producao = ({ readOnly }) => {
             </div>
 
             {!loading && budgetsAprovados.length > 0 && (
-                <div className="flex border-b border-gray-200">
-                    <button
-                        onClick={() => setViewTab('pendentes')}
-                        className={clsx(
-                            "py-3 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
-                            viewTab === 'pendentes'
-                                ? "border-indigo-600 text-indigo-600 font-extrabold"
-                                : "border-transparent text-gray-500 hover:text-gray-700"
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-gray-200 pb-2">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setViewTab('pendentes')}
+                            className={clsx(
+                                "py-2.5 px-5 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer",
+                                viewTab === 'pendentes'
+                                    ? "border-indigo-600 text-indigo-600 font-extrabold"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                            )}
+                        >
+                            A Produzir
+                            <span className={clsx(
+                                "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
+                                viewTab === 'pendentes' ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
+                            )}>
+                                {budgetsPendentes.length}
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setViewTab('finalizados')}
+                            className={clsx(
+                                "py-2.5 px-5 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer",
+                                viewTab === 'finalizados'
+                                    ? "border-green-600 text-green-600 font-extrabold"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                            )}
+                        >
+                            Finalizados
+                            <span className={clsx(
+                                "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
+                                viewTab === 'finalizados' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                            )}>
+                                {budgetsFinalizados.length}
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Campo de Busca na Produção */}
+                    <div className="relative w-full sm:w-80">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar cliente, item, material..."
+                            className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full cursor-pointer"
+                                title="Limpar busca"
+                            >
+                                <X size={14} />
+                            </button>
                         )}
-                    >
-                        A Produzir
-                        <span className={clsx(
-                            "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
-                            viewTab === 'pendentes' ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
-                        )}>
-                            {budgetsPendentes.length}
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => setViewTab('finalizados')}
-                        className={clsx(
-                            "py-3 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
-                            viewTab === 'finalizados'
-                                ? "border-green-600 text-green-600 font-extrabold"
-                                : "border-transparent text-gray-500 hover:text-gray-700"
-                        )}
-                    >
-                        Finalizados
-                        <span className={clsx(
-                            "text-xs px-2.5 py-0.5 rounded-full font-bold transition-colors",
-                            viewTab === 'finalizados' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                        )}>
-                            {budgetsFinalizados.length}
-                        </span>
-                    </button>
+                    </div>
                 </div>
             )}
 
@@ -763,6 +833,18 @@ const Producao = ({ readOnly }) => {
                     <Factory size={48} className="mx-auto mb-4 text-gray-200" />
                     <p className="text-gray-500 font-medium">Nenhum item finalizado ainda.</p>
                     <p className="text-sm text-gray-400 mt-1">Marque os itens dos pedidos em produção como concluídos para finalizá-los.</p>
+                </div>
+            ) : searchQuery.trim() && activeList.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <Search size={40} className="mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-700 font-bold text-base">Nenhum pedido encontrado para "{searchQuery}"</p>
+                    <p className="text-sm text-gray-400 mt-1">Verifique a ortografia ou tente buscar por outro termo.</p>
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="mt-4 px-4 py-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                    >
+                        Limpar busca
+                    </button>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -793,28 +875,33 @@ const Producao = ({ readOnly }) => {
                                 </div>
                             </div>
                             <span className="shrink-0 text-xs font-bold text-amber-900 bg-amber-200/70 px-3 py-1.5 rounded-xl border border-amber-300">
-                                {sortedPendentes.length} {sortedPendentes.length === 1 ? 'pedido a produzir' : 'pedidos a produzir'}
+                                {searchQuery.trim() ? `${filteredPendentes.length} de ${sortedPendentes.length} pedidos` : (sortedPendentes.length === 1 ? '1 pedido a produzir' : `${sortedPendentes.length} pedidos a produzir`)}
                             </span>
                         </div>
                     )}
 
-                    {(viewTab === 'pendentes' ? sortedPendentes : budgetsFinalizados).map((budget, index) => (
-                        <ProducaoCard
-                            key={budget.id}
-                            budget={budget}
-                            priorityRank={viewTab === 'pendentes' ? index + 1 : undefined}
-                            priorityIndex={viewTab === 'pendentes' ? index : undefined}
-                            totalPendentes={sortedPendentes.length}
-                            isDaniel={isDaniel}
-                            onMovePriority={handleMovePriority}
-                            onUpdateItemStatus={handleUpdateItemStatus}
-                            onUpdateObs={handleUpdateObs}
-                            onUpdateDeliveryDate={handleUpdateDeliveryDate}
-                            onUpdateFinishedBy={handleUpdateFinishedBy}
-                            readOnly={readOnly}
-                            showPriority={viewTab === 'pendentes'}
-                        />
-                    ))}
+                    {activeList.map((budget, index) => {
+                        const priorityIndex = sortedPendentes.findIndex(b => b.id === budget.id);
+                        const priorityRank = priorityIndex !== -1 ? priorityIndex + 1 : index + 1;
+
+                        return (
+                            <ProducaoCard
+                                key={budget.id}
+                                budget={budget}
+                                priorityRank={viewTab === 'pendentes' ? priorityRank : undefined}
+                                priorityIndex={viewTab === 'pendentes' ? priorityIndex : undefined}
+                                totalPendentes={sortedPendentes.length}
+                                isDaniel={isDaniel}
+                                onMovePriority={handleMovePriority}
+                                onUpdateItemStatus={handleUpdateItemStatus}
+                                onUpdateObs={handleUpdateObs}
+                                onUpdateDeliveryDate={handleUpdateDeliveryDate}
+                                onUpdateFinishedBy={handleUpdateFinishedBy}
+                                readOnly={readOnly}
+                                showPriority={viewTab === 'pendentes'}
+                            />
+                        );
+                    })}
                 </div>
             )}
 
