@@ -171,7 +171,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [dbFts, dbModels, dbMaterials, meliOvr, shopeeOvr, tiktokOvr, amazonOvr, siteOvr] = await Promise.all([
+            const [dbFts, dbModels, dbMaterials, meliOvr, shopeeOvr, tiktokOvr, amazonOvr, siteOvr, ftVariationsSetting] = await Promise.all([
                 api.getFts(),
                 api.getFtCostModels(),
                 api.getMaterials(),
@@ -179,8 +179,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 api.getSettings('ft_overrides_shopee'),
                 api.getSettings('ft_overrides_tiktok'),
                 api.getSettings('ft_overrides_amazon'),
-                api.getSettings('ft_overrides_site')
+                api.getSettings('ft_overrides_site'),
+                api.getSettings('ft_variations')
             ]);
+            const ftVariationsData = ftVariationsSetting || {};
 
             setRegisteredMaterials(dbMaterials || []);
 
