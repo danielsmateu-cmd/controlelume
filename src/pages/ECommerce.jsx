@@ -19,6 +19,7 @@ import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
 import VisaoGeral from './ecommerce/VisaoGeral';
 import MercadoLivreIntegracao from './ecommerce/MercadoLivreIntegracao';
+import ShopeeIntegracao from './ecommerce/ShopeeIntegracao';
 import ResumoVendas from './ecommerce/ResumoVendas';
 
 const PLATFORMS = [

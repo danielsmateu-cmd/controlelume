@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Download, Upload, CheckCircle, AlertTriangle, ArrowRight, FileSpreadsheet, X, RefreshCw } from "lucide-react";
+import { Download, Upload, CheckCircle, AlertTriangle, ArrowRight, FileSpreadsheet, X, RefreshCw, Zap, Link2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { api } from "../../services/api";
+import { shopeeAuth, shopeeApi } from "../../services/shopeeApi";
 
 const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
     const [loading, setLoading] = useState(false);
@@ -10,6 +11,7 @@ const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
     const [tally, setTally] = useState({});
     const [shopeeOverrides, setShopeeOverrides] = useState({});
     const [ftVariations, setFtVariations] = useState({});
+    const [isApiConnected, setIsApiConnected] = useState(false);
 
     useEffect(() => {
         loadSettings();
@@ -21,12 +23,39 @@ const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
             setShopeeOverrides(ovr);
             const varsData = await api.getSettings('ft_variations') || {};
             setFtVariations(varsData);
+            const connected = await shopeeAuth.isConnected();
+            setIsApiConnected(connected);
         } catch (err) {
             console.error("Erro ao carregar configurações da Shopee:", err);
         }
     };
 
-    // Função para normalizar texto de cabeçalho
+    // Sincronização direta via API Oficial da Shopee (1-Clique)
+    const fetchApiMonthlyOrders = async () => {
+        setLoading(true);
+        try {
+            const [yearStr, monthStr] = currentMonth.split('-');
+            const currentTally = await shopeeApi.getMonthlyOrders(yearStr, monthStr);
+
+            if (!currentTally || Object.keys(currentTally).length === 0) {
+                alert("Nenhum pedido encontrado na Shopee para este mês.");
+                setLoading(false);
+                return;
+            }
+
+            await loadSettings();
+            setTally(currentTally);
+            setFileName("API Oficial Shopee");
+            setStep(2);
+        } catch (err) {
+            console.error("Erro ao sincronizar Shopee via API:", err);
+            alert("Erro ao buscar vendas da Shopee via API: " + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Função para normalizar texto de cabeçalho da planilha
     const normalizeHeader = (header) => {
         return String(header || "")
             .toLowerCase()
@@ -292,27 +321,47 @@ const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
                 <div>
                     <h3 className="text-sm font-bold text-orange-950 flex items-center gap-2">
                         <span className="p-1.5 bg-orange-100 text-orange-600 rounded-lg">
-                            <FileSpreadsheet className="w-4 h-4" />
+                            <Zap className="w-4 h-4" />
                         </span>
-                        Importação de Vendas Shopee (Planilha / Relatório)
+                        Sincronização de Vendas Shopee
+                        {isApiConnected && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                                API 1-Clique Ativa
+                            </span>
+                        )}
                     </h3>
                     <p className="text-xs text-orange-700/80 mt-1">
-                        Exporte o relatório de pedidos da Shopee (.xlsx) e importe aqui para alimentar as vendas do mês com auto-match por SKU.
+                        {isApiConnected
+                            ? 'Sua loja Shopee está conectada via API! Clique no botão abaixo para buscar as vendas do mês instantaneamente.'
+                            : 'Busque as vendas do mês com 1 clique (quando a API estiver conectada) ou importe a planilha de pedidos da Shopee.'}
                     </p>
                 </div>
 
                 {step === 0 && (
-                    <label className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm">
-                        {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        <span>Importar Planilha Shopee (.xlsx)</span>
-                        <input
-                            type="file"
-                            accept=".xlsx, .xls, .csv"
-                            onChange={handleFileUpload}
-                            disabled={loading}
-                            className="hidden"
-                        />
-                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {isApiConnected ? (
+                            <button
+                                onClick={fetchApiMonthlyOrders}
+                                disabled={loading}
+                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-all cursor-pointer shadow-sm hover:shadow"
+                            >
+                                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                <span>Sincronizar Vendas do Mês (1-Clique API)</span>
+                            </button>
+                        ) : (
+                            <label className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow-sm">
+                                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                <span>Importar Planilha Shopee (.xlsx)</span>
+                                <input
+                                    type="file"
+                                    accept=".xlsx, .xls, .csv"
+                                    onChange={handleFileUpload}
+                                    disabled={loading}
+                                    className="hidden"
+                                />
+                            </label>
+                        )}
+                    </div>
                 )}
 
                 {step === 3 && (
@@ -326,8 +375,8 @@ const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
             {step === 2 && (
                 <div className="border-t border-orange-100 pt-4 mt-2">
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3 bg-orange-50/50 p-2.5 rounded-lg border border-orange-100">
-                        <span>Arquivo: <strong className="text-gray-800">{fileName}</strong></span>
-                        <span>Total de itens vendidos no arquivo: <strong className="text-orange-600 font-bold">{totalUnits} un</strong></span>
+                        <span>Origem: <strong className="text-gray-800">{fileName}</strong></span>
+                        <span>Total de itens vendidos no período: <strong className="text-orange-600 font-bold">{totalUnits} un</strong></span>
                     </div>
 
                     {unmappedItems.length > 0 ? (
@@ -397,20 +446,20 @@ const ImportacaoVendasShopee = ({ currentMonth, onImported, fts }) => {
                     ) : (
                         <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            Todos os itens vendidos na planilha foram identificados e vinculados com sucesso!
+                            Todos os itens vendidos foram identificados e vinculados com sucesso!
                         </div>
                     )}
 
                     <div className="flex justify-end gap-3 mt-4">
                         <button
                             onClick={() => setStep(0)}
-                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors"
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                         >
                             Cancelar
                         </button>
                         <button
                             onClick={handleApply}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
                         >
                             <ArrowRight className="w-4 h-4" />
                             Aplicar Vendas ({totalUnits} itens)
