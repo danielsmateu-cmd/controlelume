@@ -9,6 +9,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
     
     const [tally, setTally] = useState({});
     const [listings, setListings] = useState([]);
+    const [meliOverrides, setMeliOverrides] = useState({});
     
     
 
@@ -39,6 +40,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                     const variationId = item.item?.variation_id;
                     const qty = item.quantity || 1;
                     const title = item.item?.title || "Produto Desconhecido";
+                    const sellerSku = item.item?.seller_sku || item.item?.seller_custom_field || "";
                     
                     if (mlId) {
                         const tallyKey = variationId ? `${mlId}_${variationId}` : mlId;
@@ -49,8 +51,11 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                                 title: title + (variationId ? ` (Var: ${variationId})` : ''), 
                                 mlId, 
                                 variationId,
+                                sellerSku,
                                 tallyKey 
                             };
+                        } else if (!currentTally[tallyKey].sellerSku && sellerSku) {
+                            currentTally[tallyKey].sellerSku = sellerSku;
                         }
                         currentTally[tallyKey].total += qty;
                         currentTally[tallyKey].revenue += (qty * (item.unit_price || 0));
@@ -62,6 +67,8 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             
             const existingListings = await mlListings.getListings();
             setListings(existingListings);
+            const ovr = await api.getSettings('ft_overrides_meli') || {};
+            setMeliOverrides(ovr);
             
             setStep(2);
         } catch (err) {
@@ -101,6 +108,20 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                     setListings(prev => prev.map(l => l.id === listing.id ? { ...l, ft_id: ftId } : l));
                 }
             }
+
+            // Salva o SKU na FT dentro do sistema (ft_overrides_meli) para ficar salvo permanentemente
+            const skuToSave = item.sellerSku || listing?.sku || '';
+            const targetFt = fts.find(f => f.id === ftId);
+            if (targetFt && skuToSave) {
+                const currentOvr = await api.getSettings('ft_overrides_meli') || {};
+                currentOvr[targetFt.ftCode] = {
+                    ...(currentOvr[targetFt.ftCode] || {}),
+                    sku: skuToSave,
+                    updatedAt: new Date().toISOString()
+                };
+                await api.saveSettings('ft_overrides_meli', currentOvr);
+                setMeliOverrides(currentOvr);
+            }
         } catch (err) {
             console.error(err);
             alert("Erro ao vincular FT");
@@ -109,19 +130,44 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
 
     const getMappedFtId = (tallyItem) => {
         const listing = listings.find(l => l.ml_item_id === tallyItem.mlId);
-        if (!listing) return null;
         
         let foundFtId = null;
-        if (tallyItem.variationId && listing.variations) {
-            const v = listing.variations.find(v => String(v.id) === String(tallyItem.variationId));
-            if (v && v.ft_id) foundFtId = v.ft_id;
+        if (listing) {
+            if (tallyItem.variationId && listing.variations) {
+                const v = listing.variations.find(v => String(v.id) === String(tallyItem.variationId));
+                if (v && v.ft_id) foundFtId = v.ft_id;
+            }
+            if (!foundFtId) foundFtId = listing.ft_id; // fallback to parent
         }
-        if (!foundFtId) foundFtId = listing.ft_id; // fallback to parent
         
         // IMPORTANT: Verify if the mapped ftId actually exists in the current active FTs!
-        // If the FT was deleted, we must treat it as unmapped so the user can remap it.
         if (foundFtId && fts.some(ft => ft.id === foundFtId)) {
             return foundFtId;
+        }
+
+        // Auto-match por SKU salvo na FT ou no override do ML
+        const itemSku = tallyItem.sellerSku || listing?.sku;
+        if (itemSku) {
+            const cleanSku = String(itemSku).trim().toLowerCase();
+            
+            // 1. Procura em ft_overrides_meli
+            const matchedCode = Object.keys(meliOverrides || {}).find(ftCode => {
+                const ovrSku = meliOverrides[ftCode]?.sku;
+                return ovrSku && String(ovrSku).trim().toLowerCase() === cleanSku;
+            });
+            if (matchedCode) {
+                const matchedFt = fts.find(f => f.ftCode.toLowerCase() === matchedCode.toLowerCase());
+                if (matchedFt) return matchedFt.id;
+            }
+
+            // 2. Procura nas FTs diretamente (ft.sku ou ft.skus.meli ou pelo proprio ftCode)
+            const matchedDirect = fts.find(f => {
+                const ftSku = f.sku || f.skus?.meli;
+                if (ftSku && String(ftSku).trim().toLowerCase() === cleanSku) return true;
+                if (f.ftCode && f.ftCode.toLowerCase() === cleanSku) return true;
+                return false;
+            });
+            if (matchedDirect) return matchedDirect.id;
         }
         
         return null;
@@ -188,7 +234,14 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                                 {unmappedItems.map(item => (
                                     <div key={item.tallyKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-white rounded border border-amber-100 gap-2">
                                         <div className="text-xs">
-                                            <div className="font-semibold text-gray-800 line-clamp-1" title={item.title}>{item.title}</div>
+                                            <div className="font-semibold text-gray-800 line-clamp-1 flex items-center gap-2" title={item.title}>
+                                                <span>{item.title}</span>
+                                                {item.sellerSku && (
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                        SKU: {item.sellerSku}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-gray-500 text-[10px]">
                                                 ID: {item.mlId} {item.variationId && `• Var: ${item.variationId}`} • Vendas: <span className="font-bold text-indigo-600">{item.total}</span>
                                             </div>

@@ -108,7 +108,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         salePrice: 0,
         materials: [],
         directCostsRS: [],
-        directCostsPercent: []
+        directCostsPercent: [],
+        sku: '',
+        skus: { meli: '', shopee: '', tiktok: '', amazon: '', site: '' }
     };
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: 'FT000' });
@@ -189,10 +191,19 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             }
 
             finalFts = finalFts.map(ft => {
-                if (overridesData[ft.ftCode]) {
-                    return { ...ft, ...overridesData[ft.ftCode], isOverride: true };
-                }
-                return ft;
+                const ovr = overridesData[ft.ftCode] || {};
+                const skus = {};
+                knownMkts.forEach(m => {
+                    skus[m] = mktOverridesMap[m]?.[ft.ftCode]?.sku || '';
+                });
+                const currentSku = ovr.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '';
+                return {
+                    ...ft,
+                    ...ovr,
+                    sku: currentSku,
+                    skus,
+                    isOverride: Boolean(overridesData[ft.ftCode])
+                };
             });
 
             finalFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
@@ -247,23 +258,24 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const res = await api.saveFt(formData);
 
                 if (res.success) {
-                    // Propagate physical changes to all overrides (Mercado Livre, Shopee, etc.)
+                    // Propagate physical changes and update SKUs across all marketplace overrides
                     const knownMkts = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
                     
                     await Promise.all(knownMkts.map(async (mkt) => {
                         try {
-                            const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`);
-                            if (mktOverrides && mktOverrides[form.ftCode]) {
-                                mktOverrides[form.ftCode] = {
-                                    ...mktOverrides[form.ftCode],
-                                    name: formData.name,
-                                    variation: formData.variation,
-                                    productionTime: formData.productionTime,
-                                    materials: formData.materials,
-                                    updatedAt: new Date().toISOString()
-                                };
-                                await api.saveSettings(`ft_overrides_${mkt}`, mktOverrides);
-                            }
+                            const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`) || {};
+                            const existingOvr = mktOverrides[form.ftCode] || {};
+                            const skuVal = form.skus?.[mkt] !== undefined ? form.skus[mkt] : existingOvr.sku;
+                            mktOverrides[form.ftCode] = {
+                                ...existingOvr,
+                                name: formData.name,
+                                variation: formData.variation,
+                                productionTime: formData.productionTime,
+                                materials: formData.materials,
+                                ...(skuVal ? { sku: skuVal } : {}),
+                                updatedAt: new Date().toISOString()
+                            };
+                            await api.saveSettings(`ft_overrides_${mkt}`, mktOverrides);
                         } catch (err) {
                             console.error(`Error propagating override to ${mkt}:`, err);
                         }
@@ -290,6 +302,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     materials: form.materials,
                     directCostsRS: form.directCostsRS,
                     directCostsPercent: form.directCostsPercent,
+                    sku: form.sku || '',
                     updatedAt: new Date().toISOString()
                 };
 
@@ -320,7 +333,16 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
     const handleEdit = (ft) => {
         if (readOnly) return;
-        setForm(ft);
+        const currentOvr = overrides[ft.ftCode] || {};
+        const skus = {};
+        ALL_MKT_PLATFORMS.forEach(m => {
+            skus[m] = allOverrides[m]?.[ft.ftCode]?.sku || '';
+        });
+        setForm({
+            ...ft,
+            sku: currentOvr.sku || ft.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '',
+            skus: ft.skus || skus
+        });
         setIsEditing(true);
         setIsModalOpen(true);
     };
@@ -1184,6 +1206,57 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </div>
                                 </div>
 
+                                {/* Campo de SKU(s) para vinculação automática de vendas */}
+                                {currentMarketplace !== 'geral' ? (
+                                    <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-200/80 shadow-sm">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                <span>🏷️ SKU na {PLATFORMS.find(p => p.id === currentMarketplace)?.label || currentMarketplace}</span>
+                                            </label>
+                                            <span className="text-[10px] text-amber-700 font-normal italic">Identificador para vincular vendas deste canal automaticamente</span>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={form.sku || ''}
+                                            onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                                            readOnly={readOnly}
+                                            className="w-full text-sm font-mono font-bold text-gray-800 border-amber-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 bg-white py-1.5 px-3 transition-colors"
+                                            placeholder={`Ex: ${form.ftCode || 'FT001'}-PRETO ou código cadastrado no marketplace`}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-50/80 p-3.5 rounded-xl border border-gray-200">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2.5">
+                                            <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                <span>🏷️ SKUs nos Marketplaces</span>
+                                                <span className="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">Auto-vínculo de vendas</span>
+                                            </label>
+                                            <span className="text-[10px] text-gray-500 italic">Preencha o SKU usado em cada plataforma</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                                            {PLATFORMS.map(pObj => (
+                                                <div key={pObj.id} className="bg-white p-2 rounded-lg border border-gray-200 shadow-2xs">
+                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1 flex items-center gap-1">
+                                                        <span>{pObj.emoji}</span>
+                                                        <span>{pObj.label}</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={form.skus?.[pObj.id] || ''}
+                                                        onChange={(e) => setForm({
+                                                            ...form,
+                                                            skus: { ...(form.skus || {}), [pObj.id]: e.target.value }
+                                                        })}
+                                                        readOnly={readOnly}
+                                                        className="w-full text-xs font-mono font-semibold text-gray-800 border border-gray-200 rounded p-1 focus:ring-1 focus:ring-indigo-500 bg-white"
+                                                        placeholder="SKU na loja"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Margem de contribuição */}
                                 <div className="p-3 bg-indigo-50/30 border border-indigo-100/80 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
                                     <div className="text-[11px] text-indigo-900">
@@ -1736,7 +1809,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                         <div className="flex items-center gap-4">
                             <h3 className="font-semibold text-gray-800">Fichas Técnicas Cadastradas</h3>
-                            <span className="text-xs font-medium bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">{fts.filter(ft => ft.name.toLowerCase().includes(ftSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(ftSearchTerm.toLowerCase())).length} itens</span>
+                            <span className="text-xs font-medium bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">{fts.filter(ft => 
+        ft.name.toLowerCase().includes(ftSearchTerm.toLowerCase()) || 
+        ft.ftCode.toLowerCase().includes(ftSearchTerm.toLowerCase()) ||
+        (ft.sku && String(ft.sku).toLowerCase().includes(ftSearchTerm.toLowerCase())) ||
+        (ft.skus && Object.values(ft.skus).some(s => s && String(s).toLowerCase().includes(ftSearchTerm.toLowerCase())))
+    ).length} itens</span>
                         </div>
                         <div className="relative">
                             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
@@ -1763,6 +1841,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <tr>
                                     <th className="w-10 px-4 py-3 text-center"></th>
                                     <th className="px-6 py-3 font-medium">Cód / Nome</th>
+                                    <th className="px-4 py-3 font-medium text-center whitespace-nowrap">
+                                        {currentMarketplace === 'geral' ? 'SKUs (Canais)' : `SKU (${PLATFORMS.find(p => p.id === currentMarketplace)?.label || currentMarketplace})`}
+                                    </th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Última Alt.</th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo Prod.</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
@@ -1818,6 +1899,42 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                     <span>{ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}</span>
                                                 </div>
+                                            </td>
+                                            {/* SKU Cell */}
+                                            <td className="px-4 py-4 text-center">
+                                                {currentMarketplace === 'geral' ? (
+                                                    <div className="flex flex-wrap gap-1 justify-center max-w-[190px]">
+                                                        {Object.entries(ft.skus || {}).filter(([_, skuVal]) => Boolean(skuVal)).length > 0 ? (
+                                                            Object.entries(ft.skus || {}).filter(([_, skuVal]) => Boolean(skuVal)).map(([mkt, skuVal]) => {
+                                                                const pObj = PLATFORMS.find(p => p.id === mkt);
+                                                                return (
+                                                                    <span key={mkt} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 border border-gray-200" title={`${pObj?.label || mkt}: ${skuVal}`}>
+                                                                        <span>{pObj?.emoji}</span>
+                                                                        <span className="font-bold truncate max-w-[65px]">{skuVal}</span>
+                                                                    </span>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <span className="text-gray-300 text-xs">—</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        {ft.sku ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
+                                                                {ft.sku}
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleEdit(ft)}
+                                                                className="text-[11px] text-gray-400 hover:text-indigo-600 hover:underline cursor-pointer italic"
+                                                                title="Clique para cadastrar o SKU deste produto nesta plataforma"
+                                                            >
+                                                                + SKU
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td 
                                                 className="px-6 py-4 text-center text-xs text-gray-500 whitespace-nowrap"
