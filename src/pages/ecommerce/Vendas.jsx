@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { api } from '../../services/api';
 
 import ImportacaoVendasML from './ImportacaoVendasML';
+import ImportacaoVendasShopee from './ImportacaoVendasShopee';
 
 const Vendas = ({ marketplace = 'geral', readOnly }) => {
     // Carregar opções de FTs

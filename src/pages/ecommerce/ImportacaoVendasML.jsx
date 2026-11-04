@@ -10,6 +10,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
     const [tally, setTally] = useState({});
     const [listings, setListings] = useState([]);
     const [meliOverrides, setMeliOverrides] = useState({});
+    const [ftVariations, setFtVariations] = useState({});
     
     
 
@@ -69,6 +70,8 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             setListings(existingListings);
             const ovr = await api.getSettings('ft_overrides_meli') || {};
             setMeliOverrides(ovr);
+            const varsData = await api.getSettings('ft_variations') || {};
+            setFtVariations(varsData);
             
             setStep(2);
         } catch (err) {
@@ -80,7 +83,7 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
         }
     };
 
-    const handleLinkFt = async (tallyKey, ftId) => {
+    const handleLinkFt = async (tallyKey, ftId, targetVarId = null) => {
         try {
             const item = tally[tallyKey];
             let listing = listings.find(l => l.ml_item_id === item.mlId);
@@ -109,18 +112,38 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                 }
             }
 
-            // Salva o SKU na FT dentro do sistema (ft_overrides_meli) para ficar salvo permanentemente
+            // Salva o SKU na FT ou na Variação da FT dentro do sistema para ficar permanente
             const skuToSave = item.sellerSku || listing?.sku || '';
             const targetFt = fts.find(f => f.id === ftId);
             if (targetFt && skuToSave) {
-                const currentOvr = await api.getSettings('ft_overrides_meli') || {};
-                currentOvr[targetFt.ftCode] = {
-                    ...(currentOvr[targetFt.ftCode] || {}),
-                    sku: skuToSave,
-                    updatedAt: new Date().toISOString()
-                };
-                await api.saveSettings('ft_overrides_meli', currentOvr);
-                setMeliOverrides(currentOvr);
+                // Se o usuário selecionou uma variação específica
+                if (targetVarId) {
+                    const currentVars = await api.getSettings('ft_variations') || {};
+                    const ftVarsList = currentVars[targetFt.ftCode] || targetFt.variations || [];
+                    const updatedList = ftVarsList.map(v => {
+                        if (v.id === targetVarId) {
+                            return {
+                                ...v,
+                                skus: { ...(v.skus || {}), meli: skuToSave },
+                                sku: skuToSave
+                            };
+                        }
+                        return v;
+                    });
+                    currentVars[targetFt.ftCode] = updatedList;
+                    await api.saveSettings('ft_variations', currentVars);
+                    setFtVariations(currentVars);
+                } else {
+                    // Salva no override principal
+                    const currentOvr = await api.getSettings('ft_overrides_meli') || {};
+                    currentOvr[targetFt.ftCode] = {
+                        ...(currentOvr[targetFt.ftCode] || {}),
+                        sku: skuToSave,
+                        updatedAt: new Date().toISOString()
+                    };
+                    await api.saveSettings('ft_overrides_meli', currentOvr);
+                    setMeliOverrides(currentOvr);
+                }
             }
         } catch (err) {
             console.error(err);
@@ -145,26 +168,48 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
             return foundFtId;
         }
 
-        // Auto-match por SKU salvo na FT ou no override do ML
+        // Auto-match por SKU salvo na FT, nas variações da FT ou no override do ML
         const itemSku = tallyItem.sellerSku || listing?.sku;
         if (itemSku) {
             const cleanSku = String(itemSku).trim().toLowerCase();
             
-            // 1. Procura em ft_overrides_meli
+            // 1. Procura em ft_overrides_meli (principal ou variações)
             const matchedCode = Object.keys(meliOverrides || {}).find(ftCode => {
-                const ovrSku = meliOverrides[ftCode]?.sku;
-                return ovrSku && String(ovrSku).trim().toLowerCase() === cleanSku;
+                const ovr = meliOverrides[ftCode] || {};
+                if (ovr.sku && String(ovr.sku).trim().toLowerCase() === cleanSku) return true;
+                if ((ovr.variations || []).some(v => v.sku && String(v.sku).trim().toLowerCase() === cleanSku)) return true;
+                return false;
             });
             if (matchedCode) {
                 const matchedFt = fts.find(f => f.ftCode.toLowerCase() === matchedCode.toLowerCase());
                 if (matchedFt) return matchedFt.id;
             }
 
-            // 2. Procura nas FTs diretamente (ft.sku ou ft.skus.meli ou pelo proprio ftCode)
+            // 2. Procura em ftVariations
+            const matchedVarCode = Object.keys(ftVariations || {}).find(ftCode => {
+                const list = ftVariations[ftCode] || [];
+                return list.some(v => {
+                    const skuMeli = v.skus?.meli || v.sku;
+                    return skuMeli && String(skuMeli).trim().toLowerCase() === cleanSku;
+                });
+            });
+            if (matchedVarCode) {
+                const matchedFt = fts.find(f => f.ftCode.toLowerCase() === matchedVarCode.toLowerCase());
+                if (matchedFt) return matchedFt.id;
+            }
+
+            // 3. Procura nas FTs diretamente (ft.sku, ftCode ou ft.variations)
             const matchedDirect = fts.find(f => {
                 const ftSku = f.sku || f.skus?.meli;
                 if (ftSku && String(ftSku).trim().toLowerCase() === cleanSku) return true;
                 if (f.ftCode && f.ftCode.toLowerCase() === cleanSku) return true;
+                
+                const vars = f.variations || ftVariations[f.ftCode] || [];
+                if (vars.some(v => {
+                    const vSku = v.skus?.meli || v.sku;
+                    return vSku && String(vSku).trim().toLowerCase() === cleanSku;
+                })) return true;
+
                 return false;
             });
             if (matchedDirect) return matchedDirect.id;
@@ -247,14 +292,38 @@ const ImportacaoVendasML = ({ currentMonth, onImported, fts }) => {
                                             </div>
                                         </div>
                                         <select 
-                                            onChange={(e) => { if(e.target.value) handleLinkFt(item.tallyKey, e.target.value) }}
-                                            className="text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-indigo-400 bg-gray-50 max-w-[200px]"
+                                            onChange={(e) => { 
+                                                if (e.target.value) {
+                                                    const [ftId, varId] = e.target.value.split('::');
+                                                    handleLinkFt(item.tallyKey, ftId, varId || null);
+                                                }
+                                            }}
+                                            className="text-xs border border-indigo-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500 bg-white font-medium max-w-[280px] shadow-2xs"
                                             defaultValue=""
                                         >
-                                            <option value="" disabled>Selecione a FT correspondente...</option>
-                                            {fts.map(ft => (
-                                                <option key={ft.id} value={ft.id}>{ft.ftCode} - {ft.name}</option>
-                                            ))}
+                                            <option value="" disabled>Vincular a uma FT...</option>
+                                            {fts.map(ft => {
+                                                const vars = ft.variations || ftVariations[ft.ftCode] || [];
+                                                if (vars.length > 0) {
+                                                    return (
+                                                        <optgroup key={ft.id} label={ft.ftCode + ' - ' + ft.name + ' (' + vars.length + ' variações)'}>
+                                                            <option value={ft.id + '::'}>
+                                                                {ft.ftCode} - Produto Principal (Geral)
+                                                            </option>
+                                                            {vars.map(v => (
+                                                                <option key={v.id} value={ft.id + '::' + v.id}>
+                                                                    ↳ {ft.ftCode} / {v.name || 'Variação'} {v.skus?.meli ? '(SKU: ' + v.skus.meli + ')' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    );
+                                                }
+                                                return (
+                                                    <option key={ft.id} value={ft.id + '::'}>
+                                                        {ft.ftCode} - {ft.name} {ft.sku ? '(SKU: ' + ft.sku + ')' : ''}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
                                 ))}

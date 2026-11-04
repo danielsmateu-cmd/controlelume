@@ -69,6 +69,44 @@ const PLATFORMS = [
 ];
 
 const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
+    // Funções para gerenciar variações dentro da FT
+    const handleAddVariationItem = () => {
+        const newVar = {
+            id: 'var_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            name: '',
+            sku: '',
+            skus: { meli: '', shopee: '', tiktok: '', amazon: '', site: '' }
+        };
+        setForm(prev => ({
+            ...prev,
+            variations: [...(prev.variations || []), newVar]
+        }));
+    };
+
+    const handleUpdateVariationItem = (varId, field, value) => {
+        setForm(prev => ({
+            ...prev,
+            variations: (prev.variations || []).map(v => {
+                if (v.id !== varId) return v;
+                if (field.startsWith('sku_')) {
+                    const mkt = field.replace('sku_', '');
+                    return {
+                        ...v,
+                        skus: { ...(v.skus || {}), [mkt]: value },
+                        ...(mkt === currentMarketplace ? { sku: value } : {})
+                    };
+                }
+                return { ...v, [field]: value };
+            })
+        }));
+    };
+
+    const handleRemoveVariationItem = (varId) => {
+        setForm(prev => ({
+            ...prev,
+            variations: (prev.variations || []).filter(v => v.id !== varId)
+        }));
+    };
     const [currentMarketplace, setCurrentMarketplace] = useState(marketplace);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [fts, setFts] = useState([]);
@@ -110,7 +148,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         directCostsRS: [],
         directCostsPercent: [],
         sku: '',
-        skus: { meli: '', shopee: '', tiktok: '', amazon: '', site: '' }
+        skus: { meli: '', shopee: '', tiktok: '', amazon: '', site: '' },
+        variations: []
     };
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: 'FT000' });
@@ -197,11 +236,13 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     skus[m] = mktOverridesMap[m]?.[ft.ftCode]?.sku || '';
                 });
                 const currentSku = ovr.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '';
+                const itemVariations = ftVariationsData[ft.ftCode] || ovr.variations || [];
                 return {
                     ...ft,
                     ...ovr,
                     sku: currentSku,
                     skus,
+                    variations: itemVariations,
                     isOverride: Boolean(overridesData[ft.ftCode])
                 };
             });
@@ -242,6 +283,13 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const res = await api.saveFt(formData);
 
                 if (res.success) {
+                    try {
+                        const allVariations = await api.getSettings('ft_variations') || {};
+                        allVariations[form.ftCode] = form.variations || [];
+                        await api.saveSettings('ft_variations', allVariations);
+                    } catch (varErr) {
+                        console.error('Error saving ft_variations:', varErr);
+                    }
                     const newFt = { ...formData, id: res.newId };
                     const updatedFts = [...fts, newFt];
                     updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
@@ -258,6 +306,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 const res = await api.saveFt(formData);
 
                 if (res.success) {
+                    // Save variations in settings
+                    try {
+                        const allVariations = await api.getSettings('ft_variations') || {};
+                        allVariations[form.ftCode] = form.variations || [];
+                        await api.saveSettings('ft_variations', allVariations);
+                    } catch (varErr) {
+                        console.error('Error saving ft_variations:', varErr);
+                    }
                     // Propagate physical changes and update SKUs across all marketplace overrides
                     const knownMkts = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
                     
@@ -303,8 +359,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     directCostsRS: form.directCostsRS,
                     directCostsPercent: form.directCostsPercent,
                     sku: form.sku || '',
+                    variations: form.variations || [],
                     updatedAt: new Date().toISOString()
                 };
+
+                // Also update ft_variations setting
+                try {
+                    const allVariations = await api.getSettings('ft_variations') || {};
+                    allVariations[form.ftCode] = form.variations || [];
+                    await api.saveSettings('ft_variations', allVariations);
+                } catch (varErr) {
+                    console.error('Error saving ft_variations:', varErr);
+                }
 
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
@@ -341,7 +407,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         setForm({
             ...ft,
             sku: currentOvr.sku || ft.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '',
-            skus: ft.skus || skus
+            skus: ft.skus || skus,
+            variations: ft.variations || currentOvr.variations || []
         });
         setIsEditing(true);
         setIsModalOpen(true);
@@ -1257,6 +1324,119 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </div>
                                 )}
 
+                                {/* Seção de Variações do Produto (Porta Luvas, Variações de Cores, Tamanhos) */}
+                                <div className="bg-gradient-to-r from-purple-50/50 via-indigo-50/40 to-blue-50/50 p-4 rounded-xl border border-indigo-100 shadow-2xs">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                        <div>
+                                            <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                <span>🏷️ Variações deste Produto</span>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                                    {(form.variations || []).length} { (form.variations || []).length === 1 ? 'variação' : 'variações' }
+                                                </span>
+                                            </h4>
+                                            <p className="text-[11px] text-gray-500 mt-0.5">
+                                                Se este produto possui cores, modelos ou tamanhos diferentes (ex: Cristal, Preto, Bancada, Parede), cadastre-os aqui. Todas as vendas somarão nesta FT ({form.ftCode}).
+                                            </p>
+                                        </div>
+                                        {!readOnly && (
+                                            <button
+                                                type="button"
+                                                onClick={handleAddVariationItem}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                                            >
+                                                <Plus size={14} />
+                                                <span>Adicionar Variação</span>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {(form.variations || []).length > 0 ? (
+                                        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                            {(form.variations || []).map((vItem, idx) => (
+                                                <div key={vItem.id || idx} className="bg-white p-3 rounded-lg border border-indigo-100 shadow-2xs space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                            <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                                                                #{idx + 1}
+                                                            </span>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Nome da Variação (ex: Cristal / Bancada, Preto 20cm, etc.)"
+                                                                value={vItem.name || ''}
+                                                                onChange={(e) => handleUpdateVariationItem(vItem.id, 'name', e.target.value)}
+                                                                readOnly={readOnly}
+                                                                className="w-full text-xs font-bold text-gray-800 border border-gray-200 rounded px-2.5 py-1 focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
+                                                            />
+                                                        </div>
+                                                        {!readOnly && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveVariationItem(vItem.id)}
+                                                                className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                                                                title="Remover esta variação"
+                                                            >
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* SKUs da Variação */}
+                                                    {currentMarketplace === 'geral' ? (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-1 border-t border-gray-100">
+                                                            {PLATFORMS.map(pObj => (
+                                                                <div key={pObj.id} className="bg-gray-50/70 p-1.5 rounded border border-gray-200/80">
+                                                                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5 flex items-center gap-1">
+                                                                        <span>{pObj.emoji}</span>
+                                                                        <span className="truncate">{pObj.label}</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="SKU no canal"
+                                                                        value={vItem.skus?.[pObj.id] || ''}
+                                                                        onChange={(e) => handleUpdateVariationItem(vItem.id, 'sku_' + pObj.id, e.target.value)}
+                                                                        readOnly={readOnly}
+                                                                        className="w-full text-[11px] font-mono font-semibold text-gray-800 border border-gray-200 rounded p-1 bg-white focus:ring-1 focus:ring-indigo-500"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                                                            <label className="text-[11px] font-bold text-gray-700 whitespace-nowrap flex items-center gap-1">
+                                                                <span>{currentPlatform?.emoji}</span>
+                                                                <span>SKU na {currentPlatform?.label}:</span>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder={`SKU cadastrado na ${currentPlatform?.label}`}
+                                                                value={vItem.skus?.[currentMarketplace] || vItem.sku || ''}
+                                                                onChange={(e) => handleUpdateVariationItem(vItem.id, 'sku_' + currentMarketplace, e.target.value)}
+                                                                readOnly={readOnly}
+                                                                className="flex-1 text-xs font-mono font-bold text-gray-800 border border-amber-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-amber-500"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white/80 border border-dashed border-indigo-200 rounded-lg p-3 text-center">
+                                            <p className="text-xs text-gray-500">
+                                                Nenhuma variação cadastrada para este produto (ele usa o SKU único principal acima).
+                                            </p>
+                                            {!readOnly && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddVariationItem}
+                                                    className="mt-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                                                >
+                                                    + Cadastrar primeira variação (ex: cores, modelos diferentes)
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 {/* Margem de contribuição */}
                                 <div className="p-3 bg-indigo-50/30 border border-indigo-100/80 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
                                     <div className="text-[11px] text-indigo-900">
@@ -1902,7 +2082,27 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             </td>
                                             {/* SKU Cell */}
                                             <td className="px-4 py-4 text-center">
-                                                {currentMarketplace === 'geral' ? (
+                                                {ft.variations && ft.variations.length > 0 ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span 
+                                                            onClick={() => handleEdit(ft)}
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 cursor-pointer hover:bg-purple-100 shadow-2xs"
+                                                            title={`${ft.variations.length} variações cadastradas: ${ft.variations.map(v => v.name || 'Sem nome').join(', ')}`}
+                                                        >
+                                                            <span>🏷️</span>
+                                                            <span>{ft.variations.length} variações</span>
+                                                        </span>
+                                                        {currentMarketplace === 'geral' ? (
+                                                            <span className="text-[10px] text-gray-400 font-mono">
+                                                                {ft.variations.filter(v => Object.values(v.skus || {}).some(Boolean)).length} c/ SKU
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                {ft.variations.filter(v => Boolean(v.skus?.[currentMarketplace] || v.sku)).length} de {ft.variations.length} SKUs
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : currentMarketplace === 'geral' ? (
                                                     <div className="flex flex-wrap gap-1 justify-center max-w-[190px]">
                                                         {Object.entries(ft.skus || {}).filter(([_, skuVal]) => Boolean(skuVal)).length > 0 ? (
                                                             Object.entries(ft.skus || {}).filter(([_, skuVal]) => Boolean(skuVal)).map(([mkt, skuVal]) => {
