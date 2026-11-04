@@ -34,8 +34,7 @@ const MODULES = [
             { id: 'marketplaces', label: 'Marketplaces (Vendas / FTs)' },
             { id: 'cadastros_fts', label: 'Cadastros de FTs' },
             { id: 'parcerias', label: 'Parcerias' },
-            { id: 'relatorio', label: 'Gerar Relatório PDF' },
-            { id: 'auditoria_ads', label: 'Auditoria Ads' }
+            { id: 'relatorio', label: 'Gerar Relatório PDF' }
         ]
     },
     { id: 'precificacao', label: 'Precificação' }

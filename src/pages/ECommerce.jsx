@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
 import {
     BarChart3,
-    Activity,
     Building2,
     Handshake,
     ListTodo,
@@ -15,7 +14,6 @@ import {
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';
 import Parcerias from './ecommerce/Parcerias';
-import AuditoriaAds from './ecommerce/AuditoriaAds';
 
 import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
@@ -99,10 +97,6 @@ const ECommerce = ({ readOnly }) => {
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
     ];
-
-    if (currentUser?.login === 'dsmateu' || currentUser?.role === 'admin' || (canView && canView('ecommerce', 'auditoria_ads'))) {
-        subTabs.push({ id: 'auditoria_ads', label: 'Auditoria Ads', icon: Activity });
-    }
 
     // Filtrar apenas as sub-abas liberadas para este usuário
     const availableSubTabs = subTabs.filter(tab => canView ? canView('ecommerce', tab.id) : true);
@@ -206,8 +200,6 @@ const ECommerce = ({ readOnly }) => {
                 );
             case 'cadastros_fts':
                 return <CadastrosFTs readOnly={isCurrentSubReadOnly} />;
-            case 'auditoria_ads':
-                return <AuditoriaAds readOnly={isCurrentSubReadOnly} />;
             case 'relatorio':
                 return (
                     <div className="space-y-6">

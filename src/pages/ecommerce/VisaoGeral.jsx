@@ -103,10 +103,11 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
     // Breakdown detalhado por marketplace / mês
     const getMktDetail = (platformId, month) => {
         const key = `${platformId}_${month}`;
-        const vendas = Array.isArray(vendasData[key]) ? vendasData[key] : [];
+        const rawVendas = vendasData[key];
+        const vendas = Array.isArray(rawVendas) ? rawVendas : (rawVendas && typeof rawVendas === 'object' ? Object.values(rawVendas) : []);
         const fts = mktFtsData[platformId] || ftsData;
 
-        let faturamento = 0, itens = 0, horasConsumidas = 0;
+        let faturamento = 0, itens = 0, horasConsumidas = 0, minutosProducao = 0;
         let custoMateriais = 0, custosDiretosRS = 0, custosDiretosPerc = 0;
 
         vendas.forEach(row => {
@@ -131,7 +132,8 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                 pct = dPerc;
             }
 
-            const tempoMin = parseFloat(resolvedFt.productionTime) || 0;
+            const tempoMin = parseFloat(resolvedFt.productionTime || row.productionTime) || 0;
+            minutosProducao += tempoMin * qtd;
             horasConsumidas += (tempoMin / 60) * qtd;
 
             itens += qtd;
@@ -154,7 +156,7 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                 .reduce((a, c) => a + p(c.value), 0);
 
         const totalCustosDiretos = custosDiretosRS + custosDiretosPerc;
-        return { faturamento, itens, custoMateriais, totalCustosDiretos, adsExtras, horasConsumidas, custoInevShare: 0 }; // Placeholder para evitar erro no return
+        return { faturamento, itens, minutosProducao, custoMateriais, totalCustosDiretos, adsExtras, horasConsumidas, custoInevShare: 0 };
     };
 
     // Helper para retornar a tabela enriquecida do mês com Custo Inevitável calculado por tempo/rateio
@@ -223,6 +225,7 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
         { key: 'platform', label: 'Marketplace', align: 'left' },
         { key: 'faturamento', label: 'Faturamento', align: 'right' },
         { key: 'itens', label: 'Qtd Vendas', align: 'right' },
+        { key: 'minutosProducao', label: 'Tempo Prod. (min)', align: 'right' },
         { key: 'custoMateriais', label: 'Custo Mater.', align: 'right' },
         { key: 'totalCustosDiretos', label: 'C. Diretos', align: 'right' },
         { key: 'adsExtras', label: 'Ads+Extras', align: 'right' },
@@ -260,21 +263,31 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                     const totals = rows.reduce((a, r) => ({
                         faturamento: a.faturamento + r.faturamento,
                         itens: a.itens + r.itens,
+                        minutosProducao: a.minutosProducao + (r.minutosProducao || 0),
                         custoMateriais: a.custoMateriais + r.custoMateriais,
                         totalCustosDiretos: a.totalCustosDiretos + r.totalCustosDiretos,
                         adsExtras: a.adsExtras + r.adsExtras,
                         custoInevLume: a.custoInevLume + r.custoInevLume,
                         custoInevShare: a.custoInevShare + r.custoInevShare,
                         lucroLiquido: a.lucroLiquido + r.lucroLiquido,
-                    }), { faturamento: 0, itens: 0, custoMateriais: 0, totalCustosDiretos: 0, adsExtras: 0, custoInevLume: 0, custoInevShare: 0, lucroLiquido: 0 });
+                    }), { faturamento: 0, itens: 0, minutosProducao: 0, custoMateriais: 0, totalCustosDiretos: 0, adsExtras: 0, custoInevLume: 0, custoInevShare: 0, lucroLiquido: 0 });
 
                     return (
                         <div key={month} className={clsx('bg-white rounded-xl overflow-hidden', isCurrent ? 'border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-xl' : 'border border-gray-200 shadow-sm')}>
 
                             {/* Cabeçalho */}
-                            <div className={clsx('p-4 border-b flex items-center gap-3', isCurrent ? 'bg-indigo-600 border-indigo-700' : 'bg-gray-50 border-gray-100')}>
-                                {isCurrent && <span className="px-2 py-0.5 bg-yellow-400 text-indigo-900 text-[10px] uppercase font-bold rounded">Mês Atual</span>}
-                                <h4 className={clsx('font-bold text-base', isCurrent ? 'text-white' : 'text-gray-700')}>{formatMonthName(month)}</h4>
+                            <div className={clsx('p-4 border-b flex flex-wrap items-center justify-between gap-3', isCurrent ? 'bg-indigo-600 border-indigo-700' : 'bg-gray-50 border-gray-100')}>
+                                <div className="flex items-center gap-3">
+                                    {isCurrent && <span className="px-2 py-0.5 bg-yellow-400 text-indigo-900 text-[10px] uppercase font-bold rounded">Mês Atual</span>}
+                                    <h4 className={clsx('font-bold text-base', isCurrent ? 'text-white' : 'text-gray-700')}>{formatMonthName(month)}</h4>
+                                </div>
+                                {totals.minutosProducao > 0 && (
+                                    <div className={clsx('text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm', isCurrent ? 'bg-indigo-700/80 text-white border border-indigo-400' : 'bg-blue-50 text-blue-800 border border-blue-200')}>
+                                        <span>⏱️ Tempo Total Produção:</span>
+                                        <span className="font-bold">{Math.round(totals.minutosProducao).toLocaleString('pt-BR')} min</span>
+                                        <span className="opacity-80 font-normal">({(totals.minutosProducao / 60).toFixed(1)}h)</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Tabela */}
@@ -292,7 +305,7 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {rows.map(r => {
-                                            const hasData = r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0;
+                                            const hasData = r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0 || r.minutosProducao > 0;
                                             return (
                                                 <tr key={r.id} className={clsx('transition-colors', r.rowBg, hasData ? 'opacity-100' : 'opacity-50')}>
                                                     {/* Nome */}
@@ -304,6 +317,19 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                                     <td className="px-4 py-3 text-right font-semibold text-gray-800">{fmtN(r.faturamento)}</td>
                                                     {/* Qtd */}
                                                     <td className="px-4 py-3 text-right font-semibold text-gray-700">{r.itens > 0 ? r.itens : '—'}</td>
+                                                    {/* Tempo Prod. (min) */}
+                                                    <td className="px-4 py-3 text-right font-semibold text-blue-700 whitespace-nowrap">
+                                                        {r.minutosProducao > 0 ? (
+                                                            <span>
+                                                                {Math.round(r.minutosProducao).toLocaleString('pt-BR')} min
+                                                                {r.minutosProducao >= 60 && (
+                                                                    <span className="block text-[10px] text-gray-400 font-normal">
+                                                                        {Math.floor(r.minutosProducao / 60)}h {Math.round(r.minutosProducao % 60)}m
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        ) : '—'}
+                                                    </td>
                                                     {/* Custo Materiais */}
                                                     <td className="px-4 py-3 text-right text-orange-600">{fmtN(r.custoMateriais)}</td>
                                                     {/* Total Custos Diretos */}
@@ -314,7 +340,7 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                                     <td className="px-4 py-3 text-right text-red-400">{fmtN(r.custoInevLume)}</td>
                                                     {/* Lucro Líquido */}
                                                     <td className={clsx('px-4 py-3 text-right font-bold', r.lucroLiquido >= 0 && (r.faturamento > 0 || hasData) ? 'text-emerald-600' : (r.lucroLiquido < 0 ? 'text-red-600' : 'text-gray-400'))}>
-                                                        {(r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0) ? fmt(r.lucroLiquido) : '—'}
+                                                        {(r.faturamento > 0 || r.custoInevShare > 0 || r.adsExtras > 0 || r.minutosProducao > 0) ? fmt(r.lucroLiquido) : '—'}
                                                     </td>
                                                 </tr>
                                             );
@@ -327,6 +353,18 @@ const VisaoGeral = ({ readOnly, printMonth }) => {
                                             <td className="px-4 py-3 uppercase text-xs tracking-wide">Total do Mês</td>
                                             <td className="px-4 py-3 text-right">{fmtN(totals.faturamento)}</td>
                                             <td className="px-4 py-3 text-right">{totals.itens > 0 ? totals.itens : '—'}</td>
+                                            <td className="px-4 py-3 text-right text-blue-100 whitespace-nowrap font-bold">
+                                                {totals.minutosProducao > 0 ? (
+                                                    <span>
+                                                        {Math.round(totals.minutosProducao).toLocaleString('pt-BR')} min
+                                                        {totals.minutosProducao >= 60 && (
+                                                            <span className="block text-[10px] text-blue-200 font-normal">
+                                                                {Math.floor(totals.minutosProducao / 60)}h {Math.round(totals.minutosProducao % 60)}m
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                ) : '—'}
+                                            </td>
                                             <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.custoMateriais)}</td>
                                             <td className="px-4 py-3 text-right text-orange-200">{fmtN(totals.totalCustosDiretos)}</td>
                                             <td className="px-4 py-3 text-right text-purple-200">{fmtN(totals.adsExtras)}</td>
