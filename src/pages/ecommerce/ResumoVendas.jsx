@@ -123,6 +123,7 @@ const ResumoVendas = () => {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPlatformFilter, setSelectedPlatformFilter] = useState('all');
+    const selectedPlatformObj = PLATFORMS.find(p => p.id === selectedPlatformFilter);
     const [sortBy, setSortBy] = useState('val_desc'); // val_desc, val_asc, profit_desc, margin_desc, qtd_desc, code_asc, name_asc
 
     // Sincroniza a mudança de mês garantindo alinhamento de ano
@@ -242,7 +243,7 @@ const ResumoVendas = () => {
             totalYearMargin,
             maxMonthVal
         };
-    }, [currentYear, monthlySales, ftsMap]);
+    }, [currentYear, monthlySales, ftsMap, selectedPlatformFilter]);
 
     // Consolidação de vendas do período ativo (Mês específico ou Ano inteiro de vendas reais)
     const summaryData = useMemo(() => {
@@ -331,21 +332,31 @@ const ResumoVendas = () => {
             });
         });
 
-        // Calcula Lucro e Margem de cada item
-        let itemsList = Object.values(itemsMap).map(item => {
-            const profit = item.totalVal - item.totalCost;
-            const margin = item.totalVal > 0 ? (profit / item.totalVal) * 100 : 0;
-            return {
-                ...item,
-                profit,
-                margin
-            };
-        });
+        // Filtra por Marketplace e calcula os valores correspondentes (canal selecionado ou geral)
+        const isChannelFiltered = selectedPlatformFilter !== 'all';
 
-        // Filtro por Marketplace
-        if (selectedPlatformFilter !== 'all') {
-            itemsList = itemsList.filter(item => Boolean(item.platforms[selectedPlatformFilter]));
-        }
+        let itemsList = Object.values(itemsMap)
+            .filter(item => {
+                if (!isChannelFiltered) return item.totalQtd > 0;
+                return Boolean(item.platforms[selectedPlatformFilter] && item.platforms[selectedPlatformFilter].qtd > 0);
+            })
+            .map(item => {
+                const target = isChannelFiltered ? item.platforms[selectedPlatformFilter] : item;
+                const displayQtd = target.qtd !== undefined ? target.qtd : item.totalQtd;
+                const displayVal = target.val !== undefined ? target.val : item.totalVal;
+                const displayCost = target.cost !== undefined ? target.cost : item.totalCost;
+                const profit = displayVal - displayCost;
+                const margin = displayVal > 0 ? (profit / displayVal) * 100 : 0;
+
+                return {
+                    ...item,
+                    totalQtd: displayQtd,
+                    totalVal: displayVal,
+                    totalCost: displayCost,
+                    profit,
+                    margin
+                };
+            });
 
         // Filtro por Busca
         if (searchQuery.trim()) {
@@ -371,17 +382,31 @@ const ResumoVendas = () => {
             return 0;
         });
 
-        const grandTotalProfit = grandTotalVal - grandTotalCost;
-        const grandTotalMargin = grandTotalVal > 0 ? (grandTotalProfit / grandTotalVal) * 100 : 0;
+        // Quando filtrado por canal, os totais refletem a soma daquele canal!
+        const effectiveQtd = isChannelFiltered
+            ? itemsList.reduce((acc, it) => acc + it.totalQtd, 0)
+            : grandTotalQtd;
+        const effectiveVal = isChannelFiltered
+            ? itemsList.reduce((acc, it) => acc + it.totalVal, 0)
+            : grandTotalVal;
+        const effectiveCost = isChannelFiltered
+            ? itemsList.reduce((acc, it) => acc + it.totalCost, 0)
+            : grandTotalCost;
+        const effectiveProfit = effectiveVal - effectiveCost;
+        const effectiveMargin = effectiveVal > 0 ? (effectiveProfit / effectiveVal) * 100 : 0;
+        const effectiveDistinctCount = isChannelFiltered
+            ? itemsList.length
+            : Object.keys(itemsMap).length;
 
         return {
             items: itemsList,
-            grandTotalQtd,
-            grandTotalVal,
-            grandTotalCost,
-            grandTotalProfit,
-            grandTotalMargin,
-            distinctCount: Object.keys(itemsMap).length,
+            grandTotalQtd: effectiveQtd,
+            grandTotalVal: effectiveVal,
+            grandTotalCost: effectiveCost,
+            grandTotalProfit: effectiveProfit,
+            grandTotalMargin: effectiveMargin,
+            distinctCount: effectiveDistinctCount,
+            allGrandTotalVal: grandTotalVal,
             platformTotals
         };
     }, [viewMode, currentMonth, currentYear, monthlySales, ftsMap, searchQuery, selectedPlatformFilter, sortBy]);
@@ -404,7 +429,9 @@ const ResumoVendas = () => {
                         <div className="flex items-center gap-2">
                             <BarChart3 className="w-6 h-6 text-indigo-600" />
                             <h2 className="text-xl font-bold text-gray-800">
-                                {viewMode === 'mes' ? 'Resumo Mensal de Vendas' : `Resumo Anual de Vendas — ${currentYear}`}
+                                {viewMode === 'mes'
+        ? `Resumo Mensal de Vendas${selectedPlatformFilter !== 'all' ? ` — ${selectedPlatformObj?.label}` : ''}`
+        : `Resumo Anual de Vendas — ${currentYear}${selectedPlatformFilter !== 'all' ? ` (${selectedPlatformObj?.label})` : ''}`}
                             </h2>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
@@ -545,7 +572,7 @@ const ResumoVendas = () => {
                         <TrendingUp size={22} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Faturamento</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Faturamento {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}</p>
                         <p className="text-lg font-bold text-emerald-700">{formatCurrency(summaryData.grandTotalVal)}</p>
                     </div>
                 </div>
@@ -556,7 +583,7 @@ const ResumoVendas = () => {
                         <DollarSign size={22} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Lucro Bruto</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Lucro Bruto {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}</p>
                         <p className="text-lg font-bold text-green-700">{formatCurrency(summaryData.grandTotalProfit)}</p>
                     </div>
                 </div>
@@ -567,7 +594,7 @@ const ResumoVendas = () => {
                         <Percent size={22} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Margem Média</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Margem Média {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}</p>
                         <p className="text-lg font-bold text-teal-700">{summaryData.grandTotalMargin.toFixed(1)}%</p>
                     </div>
                 </div>
@@ -578,7 +605,7 @@ const ResumoVendas = () => {
                         <Package size={22} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Total de Peças</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Total de Peças {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}</p>
                         <p className="text-lg font-bold text-indigo-700">
                             {summaryData.grandTotalQtd.toLocaleString('pt-BR')} <span className="text-[10px] font-normal text-gray-500">un</span>
                         </p>
@@ -591,7 +618,7 @@ const ResumoVendas = () => {
                         <ShoppingCart size={22} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Modelos Distintos</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Modelos Distintos {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}</p>
                         <p className="text-lg font-bold text-purple-700">
                             {summaryData.distinctCount} <span className="text-[10px] font-normal text-gray-500">itens</span>
                         </p>
@@ -607,11 +634,11 @@ const ResumoVendas = () => {
                         <div className="flex items-center gap-2">
                             <BarChart3 size={18} className="text-indigo-600" />
                             <h3 className="text-sm font-bold text-gray-800">
-                                Evolução Mensal das Vendas em {currentYear}
+                                Evolução Mensal das Vendas {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label}) ` : ''}em {currentYear}
                             </h3>
                         </div>
                         <span className="text-xs text-gray-400 font-medium">
-                            Total Ano: <strong className="text-gray-700">{formatCurrency(yearAggregation.totalYearVal)}</strong>
+                            Total Ano {selectedPlatformFilter !== 'all' ? `(${selectedPlatformObj?.label})` : ''}: <strong className="text-gray-700">{formatCurrency(yearAggregation.totalYearVal)}</strong>
                         </span>
                     </div>
 
@@ -859,16 +886,23 @@ const ResumoVendas = () => {
                                             {/* Plataformas onde vendeu */}
                                             <td className="px-3 py-2.5">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {Object.values(item.platforms).map(pData => (
-                                                        <span
-                                                            key={pData.platformId}
-                                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200"
-                                                            title={`${pData.label}: ${pData.qtd} un (${formatCurrency(pData.val)})`}
-                                                        >
-                                                            <span>{pData.emoji}</span>
-                                                            <span>{pData.qtd}</span>
-                                                        </span>
-                                                    ))}
+                                                    {Object.values(item.platforms).map(pData => {
+                                                        const isSelectedChannel = selectedPlatformFilter !== 'all' && selectedPlatformFilter === pData.platformId;
+                                                        return (
+                                                            <span
+                                                                key={pData.platformId}
+                                                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border transition-all ${
+                                                                    isSelectedChannel
+                                                                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm ring-1 ring-indigo-400'
+                                                                        : 'bg-gray-100 text-gray-700 border border-gray-200'
+                                                                }`}
+                                                                title={`${pData.label}: ${pData.qtd} un (${formatCurrency(pData.val)})`}
+                                                            >
+                                                                <span>{pData.emoji}</span>
+                                                                <span>{pData.qtd}</span>
+                                                            </span>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
 
@@ -926,13 +960,13 @@ const ResumoVendas = () => {
                             <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-bold text-gray-900">
                                 <tr>
                                     <td colSpan={3} className="px-3 py-3 text-right uppercase text-xs">
-                                        Total Geral:
+                                        {selectedPlatformFilter === 'all' ? 'Total Geral:' : `Total ${selectedPlatformObj?.label || 'Canal'}:`}
                                     </td>
                                     <td className="px-3 py-3 text-right text-indigo-700 text-sm">
                                         {summaryData.grandTotalQtd} un
                                     </td>
-                                    <td className="px-3 py-3 text-right text-gray-500">
-                                        —
+                                    <td className="px-3 py-3 text-right text-gray-600 font-semibold">
+                                        {summaryData.grandTotalQtd > 0 ? formatCurrency(summaryData.grandTotalVal / summaryData.grandTotalQtd) : '—'}
                                     </td>
                                     <td className="px-3 py-3 text-right text-gray-900 text-sm">
                                         {formatCurrency(summaryData.grandTotalVal)}
