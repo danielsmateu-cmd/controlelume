@@ -16,6 +16,8 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     // Form States
     const [extrasForm, setExtrasForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0], allMonths: false });
     const [mercadoForm, setMercadoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+    const [viewingSeries, setViewingSeries] = useState(null);
+    const [installmentInterval, setInstallmentInterval] = useState('monthly'); // 'monthly', 'biweekly', 'weekly'
     const [fornecedoresForm, setFornecedoresForm] = useState({
         description: '',
         value: '',
@@ -392,6 +394,29 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         }
     };
 
+    
+    // Função utilitária para gerar datas de parcelas com intervalo correto
+    const calculateInstallmentDates = (baseDateStr, count, interval = 'monthly') => {
+        if (!baseDateStr) return [];
+        const baseDate = new Date(baseDateStr + 'T00:00:00');
+        return Array.from({ length: count }, (_, i) => {
+            if (i === 0) return baseDateStr;
+            const d = new Date(baseDate);
+            if (interval === 'biweekly') {
+                d.setUTCDate(d.getUTCDate() + (i * 15));
+            } else if (interval === 'weekly') {
+                d.setUTCDate(d.getUTCDate() + (i * 7));
+            } else {
+                const targetMonth = d.getUTCMonth() + i;
+                d.setUTCMonth(targetMonth);
+                if (d.getUTCMonth() !== (targetMonth % 12)) {
+                    d.setUTCDate(0);
+                }
+            }
+            return d.toISOString().split('T')[0];
+        });
+    };
+
     const handleAddFornecedores = async (e) => {
         e.preventDefault();
         const totalValue = parseFloat(fornecedoresForm.value);
@@ -630,6 +655,16 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                             <td className="px-6 py-2 text-sm text-gray-900">
                                 {expense.category ? <span className="font-semibold text-indigo-600">{expense.category}</span> : expense.description}
                                 {expense.month !== undefined && <span className="ml-2 text-[10px] text-gray-400">({months[expense.month]})</span>}
+                                {activeTab === 'fornecedores' && expense.description && expense.description.match(/\((\d+)\/(\d+)\)/) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewingSeries(expense)}
+                                        className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
+                                        title="Clique para ver todas as parcelas deste lançamento"
+                                    >
+                                        Ver todas
+                                    </button>
+                                )}
                                 {expense.notes && <span className="block text-[10px] text-gray-400 mt-0.5 italic">{expense.notes}</span>}
                             </td>
                             {activeTab === 'fornecedores' && (
@@ -1180,15 +1215,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 value={fornecedoresForm.date}
                                                 onChange={(e) => {
                                                     const dateVal = e.target.value;
-                                                    const n = fornecedoresForm.installments;
-                                                    const baseDate = new Date(dateVal + 'T00:00:00');
-                                                    const dates = Array.from({ length: n }, (_, i) => {
-                                                        const d = new Date(baseDate);
-                                                        const targetMonth = d.getUTCMonth() + i;
-                                                        d.setUTCMonth(targetMonth);
-                                                        if (d.getUTCMonth() !== (targetMonth % 12)) d.setUTCDate(0);
-                                                        return d.toISOString().split('T')[0];
-                                                    });
+                                                    const dates = calculateInstallmentDates(dateVal, fornecedoresForm.installments, installmentInterval);
                                                     setFornecedoresForm({ ...fornecedoresForm, date: dateVal, installmentDates: dates });
                                                 }}
                                                 className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -1200,16 +1227,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 value={fornecedoresForm.installments}
                                                 onChange={(e) => {
                                                     const n = parseInt(e.target.value);
-                                                    const baseDate = new Date(fornecedoresForm.date + 'T00:00:00');
-                                                    const dates = Array.from({ length: n }, (_, i) => {
-                                                        const d = new Date(baseDate);
-                                                        const targetMonth = d.getUTCMonth() + i;
-                                                        d.setUTCMonth(targetMonth);
-                                                        if (d.getUTCMonth() !== (targetMonth % 12)) {
-                                                            d.setUTCDate(0);
-                                                        }
-                                                        return d.toISOString().split('T')[0];
-                                                    });
+                                                    const dates = calculateInstallmentDates(fornecedoresForm.date, n, installmentInterval);
                                                     setFornecedoresForm({ ...fornecedoresForm, installments: n, installmentDates: dates });
                                                 }}
                                                 className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -1219,7 +1237,26 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <div className="md:col-span-2">
+                                        {fornecedoresForm.installments > 1 && (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Intervalo</label>
+                                                <select
+                                                    value={installmentInterval}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setInstallmentInterval(val);
+                                                        const dates = calculateInstallmentDates(fornecedoresForm.date, fornecedoresForm.installments, val);
+                                                        setFornecedoresForm({ ...fornecedoresForm, installmentDates: dates });
+                                                    }}
+                                                    className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-semibold text-indigo-700 bg-indigo-50/50"
+                                                >
+                                                    <option value="monthly">Mensal (30 dias)</option>
+                                                    <option value="biweekly">Quinzenal (15 dias)</option>
+                                                    <option value="weekly">Semanal (7 dias)</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className={fornecedoresForm.installments > 1 ? "md:col-span-12 lg:col-span-2" : "md:col-span-2"}>
                                             <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
                                                 <Plus size={16} /> Adicionar
                                             </button>
@@ -1230,22 +1267,35 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                                             <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-wider">Vencimento das Parcelas</h4>
                                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                                {fornecedoresForm.installmentDates.map((date, index) => (
-                                                    <div key={index}>
-                                                        <label className="block text-[9px] text-gray-500 mb-0.5">{index + 1}ª Parcela</label>
-                                                        <input
-                                                            type="date"
-                                                            required
-                                                            value={date}
-                                                            onChange={(e) => {
-                                                                const newDates = [...fornecedoresForm.installmentDates];
-                                                                newDates[index] = e.target.value;
-                                                                setFornecedoresForm({ ...fornecedoresForm, installmentDates: newDates });
-                                                            }}
-                                                            className="w-full p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 text-[11px]"
-                                                        />
-                                                    </div>
-                                                ))}
+                                                {fornecedoresForm.installmentDates.map((date, index) => {
+                                                    const d = date ? new Date(date + 'T00:00:00') : null;
+                                                    const mName = d ? months[d.getUTCMonth()] : '';
+                                                    const yNum = d ? d.getUTCFullYear() : '';
+                                                    const isFutureYear = d && d.getUTCFullYear() > selectedYear;
+                                                    return (
+                                                        <div key={index} className="bg-white p-2 rounded-lg border border-gray-200 shadow-2xs">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-[10px] font-bold text-gray-700">{index + 1}ª Parcela</span>
+                                                                {d && (
+                                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isFutureYear ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-600'}`}>
+                                                                        {mName.substring(0, 3)}/{yNum}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <input
+                                                                type="date"
+                                                                required
+                                                                value={date}
+                                                                onChange={(e) => {
+                                                                    const newDates = [...fornecedoresForm.installmentDates];
+                                                                    newDates[index] = e.target.value;
+                                                                    setFornecedoresForm({ ...fornecedoresForm, installmentDates: newDates });
+                                                                }}
+                                                                className="w-full p-1 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 text-[11px]"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -1497,6 +1547,114 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
 
             {/* EXPENSE LIST */}
             {activeTab !== 'fixos' && ExpenseList()}
+
+            {/* MODAL PARA VISUALIZAR TODAS AS PARCELAS DO LANÇAMENTO */}
+            {viewingSeries && (() => {
+                const baseTitle = viewingSeries.description.replace(/\s*\(\d+\/\d+\)/, '').trim();
+                const seriesExpenses = expenses
+                    .filter(e => e.type === viewingSeries.type && e.description.replace(/\s*\(\d+\/\d+\)/, '').trim().toLowerCase() === baseTitle.toLowerCase())
+                    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+                const totalSeries = seriesExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+                const paidSeries = seriesExpenses.filter(e => e.paid).reduce((acc, curr) => acc + curr.amount, 0);
+                const pendingSeries = totalSeries - paidSeries;
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+                        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <span>Plano de Parcelamento:</span>
+                                        <span className="text-indigo-600">{baseTitle}</span>
+                                    </h3>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Total de {seriesExpenses.length} parcelas registradas
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setViewingSeries(null)}
+                                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Cards de Resumo */}
+                            <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50 border-b border-gray-100 text-center">
+                                <div className="bg-white p-2.5 rounded-xl border border-gray-200">
+                                    <span className="block text-[10px] text-gray-500 uppercase font-bold">Total Geral</span>
+                                    <span className="text-sm font-bold text-gray-900">
+                                        {totalSeries.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                </div>
+                                <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                                    <span className="block text-[10px] text-emerald-700 uppercase font-bold">Total Pago</span>
+                                    <span className="text-sm font-bold text-emerald-700">
+                                        {paidSeries.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                </div>
+                                <div className="bg-red-50 p-2.5 rounded-xl border border-red-200">
+                                    <span className="block text-[10px] text-red-700 uppercase font-bold">Total a Pagar</span>
+                                    <span className="text-sm font-bold text-red-700">
+                                        {pendingSeries.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Tabela de Parcelas */}
+                            <div className="p-4 overflow-y-auto flex-1">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-[10px]">
+                                        <tr>
+                                            <th className="px-3 py-2">Parcela</th>
+                                            <th className="px-3 py-2">Vencimento</th>
+                                            <th className="px-3 py-2 text-right">Valor</th>
+                                            <th className="px-3 py-2 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {seriesExpenses.map((p, idx) => (
+                                            <tr key={p.id || idx} className="hover:bg-gray-50">
+                                                <td className="px-3 py-2.5 font-bold text-gray-800">
+                                                    {p.description}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-gray-600 font-mono">
+                                                    {p.dueDate || p.date ? new Date((p.dueDate || p.date) + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right font-bold text-gray-900 font-mono">
+                                                    {p.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center">
+                                                    {p.paid ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                            <Check size={12} /> Pago
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                                            Pendente
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="px-6 py-3 border-t border-gray-100 flex justify-end bg-gray-50/50">
+                                <button
+                                    onClick={() => setViewingSeries(null)}
+                                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                >
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
         </div>
     );
 };
