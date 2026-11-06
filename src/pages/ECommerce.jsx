@@ -194,7 +194,24 @@ const ECommerce = ({ readOnly }) => {
                             </div>
                         )}
 
-                        {activePlatform !== 'meli' && activePlatform !== 'resumo_vendas' && (
+                        {activePlatform === 'shopee' && (
+                            <div className="space-y-4">
+                                <div className="flex gap-2 border-b border-gray-100 pb-2">
+                                    <button
+                                        onClick={() => setActiveMktTab('vendas')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${activeMktTab === 'vendas' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                                    >Vendas / FTs</button>
+                                    <button
+                                        onClick={() => setActiveMktTab('integracao')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${activeMktTab === 'integracao' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                                    >🔗 Integração API</button>
+                                </div>
+                                {activeMktTab === 'vendas' && <Vendas marketplace={activePlatform} readOnly={isCurrentSubReadOnly} />}
+                                {activeMktTab === 'integracao' && <ShopeeIntegracao readOnly={isCurrentSubReadOnly} />}
+                            </div>
+                        )}
+
+                        {activePlatform !== 'meli' && activePlatform !== 'shopee' && activePlatform !== 'resumo_vendas' && (
                             <Vendas marketplace={activePlatform} readOnly={isCurrentSubReadOnly} />
                         )}
                     </div>
