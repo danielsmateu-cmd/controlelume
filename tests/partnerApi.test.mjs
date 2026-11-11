@@ -32,7 +32,11 @@ function createMockSupabase(initialSettings = {}, initialFts = []) {
                 return {
                     _key: null,
                     select() { return this; },
-                    eq(col, val) { this._key = val; return this; },
+                    eq(col, val) {
+                        if (col !== 'id') throw new Error(`column settings.${col} does not exist`);
+                        this._key = val;
+                        return this;
+                    },
                     async maybeSingle() {
                         const val = Object.prototype.hasOwnProperty.call(store.settings, this._key)
                             ? { value: store.settings[this._key] }
@@ -40,7 +44,8 @@ function createMockSupabase(initialSettings = {}, initialFts = []) {
                         return { data: val, error: null };
                     },
                     async upsert(row) {
-                        store.settings[row.key] = row.value;
+                        if (!row || !row.id) throw new Error('settings.upsert requires id');
+                        store.settings[row.id] = row.value;
                         return { error: null };
                     },
                 };

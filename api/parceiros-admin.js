@@ -145,7 +145,10 @@ export default async function handler(req, res) {
                 revokedAt: null,
             };
 
-            await saveSetting(KEYS_SETTING, [record, ...list], client);
+            const saved = await saveSetting(KEYS_SETTING, [record, ...list], client);
+            if (!saved) {
+                return res.status(500).json({ error: 'Falha ao salvar a chave no banco de dados.' });
+            }
             // A chave completa é devolvida UMA ÚNICA VEZ agora e nunca é salva em texto puro
             return res.status(201).json({
                 rawKey,

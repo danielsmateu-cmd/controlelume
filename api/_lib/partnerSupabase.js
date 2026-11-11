@@ -20,7 +20,7 @@ export async function getSetting(key, fallback = null, client = null) {
     const { data, error } = await sb
         .from('settings')
         .select('value')
-        .eq('key', key)
+        .eq('id', key)
         .maybeSingle();
 
     if (error) {
@@ -35,10 +35,10 @@ export async function saveSetting(key, value, client = null) {
     const { error } = await sb
         .from('settings')
         .upsert({
-            key,
+            id: key,
             value,
             updated_at: new Date().toISOString()
-        }, { onConflict: 'key' });
+        }, { onConflict: 'id' });
 
     if (error) {
         console.error(`Error saving setting "${key}":`, error.message);
