@@ -18,6 +18,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
     const [opts, setOpts] = useState({
         mediaAndDesc: true,
         brandEanCat: true,
+        fiscal: true,
         stock: true,
         prices: false,
         replicateOthers: true,
@@ -151,6 +152,19 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                 });
             }
 
+            // Buscar dados fiscais (NCM, CEST, Origem, CSOSN, EAN fallback) via NF-e / faturamento ML
+            const fiscalMap = await mlApi.getBulkFiscalMap(rows, setProgressText);
+            rows.forEach((r) => {
+                const fis = fiscalMap[r.mlItemId];
+                if (fis) {
+                    r.ncm = fis.ncm || r.ncm || '';
+                    r.cest = fis.cest || '';
+                    r.origin = fis.origin !== undefined && fis.origin !== '' ? fis.origin : '0';
+                    r.csosn = fis.csosn || '';
+                    if (!r.ean && fis.ean) r.ean = fis.ean;
+                }
+            });
+
             // Ordena: vinculados primeiro, depois por código FT / título
             rows.sort((a, b) => {
                 if (a.matchedFt && !b.matchedFt) return -1;
@@ -211,37 +225,15 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                     await mlListings.linkFt(savedListing.id, baseFt.id);
                 }
 
-                // Atualiza variações (preservando SKUs já cadastrados e preenchendo dados do canal)
+                // Cria variações ausentes e atualiza existentes (preservando SKUs já cadastrados)
                 const existingVars = Array.isArray(nextFtVars[ftCode]) ? [...nextFtVars[ftCode]] : [];
-                if (item.variations?.length > 0 && existingVars.length > 0) {
-                    const updatedVars = existingVars.map(v => {
-                        const vSkuMeli = (v.skus?.meli || v.sku || '').trim().toLowerCase();
-                        const vNameLower = (v.name || '').trim().toLowerCase();
-                        const matchedMlVar = item.variations.find(mv =>
-                            (mv.sku && vSkuMeli && mv.sku.trim().toLowerCase() === vSkuMeli) ||
-                            (mv.name && vNameLower && mv.name.trim().toLowerCase() === vNameLower)
-                        );
-                        if (!matchedMlVar) return v;
-
-                        const nextChannelData = { ...(v.channelData || {}) };
-                        const meliData = { ...(nextChannelData.meli || {}) };
-                        if (opts.stock) meliData.stock = matchedMlVar.stock;
-                        if (opts.prices) {
-                            meliData.price = matchedMlVar.price;
-                            meliData.promoPrice = matchedMlVar.promoPrice;
-                        }
-                        nextChannelData.meli = meliData;
-
-                        return {
-                            ...v,
-                            channelData: nextChannelData,
-                            skus: {
-                                ...(v.skus || {}),
-                                ...(matchedMlVar.sku && !v.skus?.meli ? { meli: matchedMlVar.sku } : {})
-                            }
-                        };
-                    });
-                    nextFtVars[ftCode] = updatedVars;
+                if (item.variations?.length > 0) {
+                    nextFtVars[ftCode] = mlApi.mergeVariationsFromMl(
+                        existingVars,
+                        item.variations,
+                        currentMarketplace === 'geral' ? 'meli' : currentMarketplace,
+                        { overwritePrices: opts.prices, overwriteStock: opts.stock }
+                    );
                 }
 
                 for (const ch of targetChannels) {
@@ -273,11 +265,16 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                             if (item.brand) patch.brand = item.brand;
                             if (item.ean) patch.ean = item.ean;
                             if (item.category) patch.category = item.category;
-                            if (item.ncm && !existingOvr.ncm) patch.ncm = item.ncm;
+                        }
+                        if (opts.fiscal) {
+                            if (item.ncm) patch.ncm = item.ncm;
+                            if (item.cest) patch.cest = item.cest;
+                            if (item.origin !== undefined && item.origin !== '') patch.origin = item.origin;
+                            if (item.csosn) patch.csosn = item.csosn;
                         }
                         if (!existingOvr.originCep) patch.originCep = '13347-458';
-                        if (!existingOvr.origin) patch.origin = '0';
-                        if (!existingOvr.csosn) patch.csosn = '102';
+                        if (!existingOvr.origin && patch.origin === undefined) patch.origin = '0';
+                        if (!existingOvr.csosn && !patch.csosn) patch.csosn = '102';
                     }
 
                     // Campos específicos do Mercado Livre (SKU, Estoque e Preço opcional)
@@ -372,8 +369,12 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                                         <span>Marca, EAN/GTIN e Categoria</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={opts.fiscal} onChange={e => setOpts({ ...opts, fiscal: e.target.checked })} className="rounded text-indigo-600" />
+                                        <span>Dados Fiscais (NCM, CEST, Origem e CSOSN das NF-es)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
                                         <input type="checkbox" checked={opts.stock} onChange={e => setOpts({ ...opts, stock: e.target.checked })} className="rounded text-indigo-600" />
-                                        <span>Estoque disponível no Mercado Livre (item e variações)</span>
+                                        <span>Estoque e Variações do Mercado Livre</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input type="checkbox" checked={opts.prices} onChange={e => setOpts({ ...opts, prices: e.target.checked })} className="rounded text-indigo-600" />
@@ -381,7 +382,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer sm:col-span-2 font-semibold text-indigo-800 pt-1 border-t border-gray-200">
                                         <input type="checkbox" checked={opts.replicateOthers} onChange={e => setOpts({ ...opts, replicateOthers: e.target.checked })} className="rounded text-indigo-600" />
-                                        <span>Replicar Descrição, Marca, EAN, Categoria, Fotos e Vídeo também para Shopee, TikTok, Amazon e Site (preservando os preços/SKUs de cada canal)</span>
+                                        <span>Replicar Descrição, Marca, EAN, Categoria, Fotos, Vídeo e Dados Fiscais também para Shopee, TikTok, Amazon e Site (preservando os preços/SKUs de cada canal)</span>
                                     </label>
                                 </div>
                             </div>
@@ -499,6 +500,11 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                                                                     <Tag size={10} /> {row.variations.length} var
                                                                 </span>
                                                             )}
+                                                            {row.ncm && (
+                                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono">
+                                                                    NCM: {row.ncm}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -514,7 +520,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                 {/* Footer */}
                 <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
                     <span className="text-xs text-gray-500">
-                        NCM / CSOSN (não informados pelo ML) podem ser preenchidos manualmente depois.
+                        Variações são criadas automaticamente e NCM/CEST/Origem/CSOSN vêm do faturamento ML.
                     </span>
                     <div className="flex gap-3">
                         <button

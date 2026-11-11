@@ -499,16 +499,26 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             }
             const localListings = await mlListings.getListings();
             const meliSku = (form.sku || form.skus?.meli || '').trim().toLowerCase();
-            const found = localListings.find(l =>
+            const ftMatches = localListings.filter(l =>
                 (form.id && l.ft_id === form.id) ||
                 (form.ftCode && l.ft_id === form.ftCode) ||
                 (meliSku && (l.sku || '').trim().toLowerCase() === meliSku)
             );
-            if (!found) {
+            if (ftMatches.length === 0) {
                 alert('Nenhum anúncio do Mercado Livre vinculado a esta FT ainda. Use o botão "Importar Dados do ML" na lista principal para vincular e puxar!');
                 setPullingMlSingle(false);
                 return;
             }
+
+            // Se múltiplos anúncios apontarem para a mesma FT, escolhe por SKU exato ou maior semelhança de título
+            const nameTokens = String(form.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const scoreMatch = (l) => {
+                if (meliSku && (l.sku || '').trim().toLowerCase() === meliSku) return 1000;
+                const titleLower = String(l.title || '').toLowerCase();
+                return nameTokens.reduce((acc, tok) => acc + (titleLower.includes(tok) ? 1 : 0), 0);
+            };
+            const found = [...ftMatches].sort((a, b) => scoreMatch(b) - scoreMatch(a))[0];
+
             const [itemsDetails, descData] = await Promise.all([
                 mlApi.getItemsFullDetails([found.ml_item_id]),
                 mlApi.getItemDescription(found.ml_item_id)
@@ -518,42 +528,47 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             const catPath = await mlApi.getCategoryPath(fullItem.category_id);
             const extracted = mlApi.extractCatalogData(fullItem, descData, catPath);
 
+            // Busca dados fiscais (NCM, CEST, Origem, CSOSN e EAN fallback) via NF-e/Faturamento do ML
+            const candidateSkus = [
+                extracted.sku,
+                form.sku,
+                form.skus?.meli,
+                ...(extracted.variations || []).map(v => v.sku)
+            ].filter(Boolean);
+            const fiscal = await mlApi.getItemFiscalInfo(found.ml_item_id, candidateSkus);
+
             setForm(prev => {
-                const updatedVars = (prev.variations || []).map(v => {
-                    const vSkuMeli = (v.skus?.meli || v.sku || '').trim().toLowerCase();
-                    const vNameLower = (v.name || '').trim().toLowerCase();
-                    const mv = (extracted.variations || []).find(x =>
-                        (x.sku && vSkuMeli && x.sku.trim().toLowerCase() === vSkuMeli) ||
-                        (x.name && vNameLower && x.name.trim().toLowerCase() === vNameLower)
-                    );
-                    if (!mv) return v;
-                    return {
-                        ...v,
-                        channelData: {
-                            ...(v.channelData || {}),
-                            [currentMarketplace]: {
-                                ...(v.channelData?.[currentMarketplace] || {}),
-                                stock: mv.stock
-                            }
-                        }
-                    };
-                });
+                const updatedVars = mlApi.mergeVariationsFromMl(
+                    prev.variations || [],
+                    extracted.variations || [],
+                    currentMarketplace,
+                    { overwritePrices: false, overwriteStock: true }
+                );
 
                 return {
                     ...prev,
+                    sku: prev.sku || extracted.sku || '',
                     marketplaceTitle: extracted.marketplaceTitle || prev.marketplaceTitle,
                     description: extracted.description || prev.description,
                     brand: extracted.brand || prev.brand,
-                    ean: extracted.ean || prev.ean,
+                    ean: extracted.ean || fiscal.ean || prev.ean,
                     category: extracted.category || prev.category,
                     photos: extracted.photos?.length > 0 ? extracted.photos : prev.photos,
                     videoUrl: extracted.videoUrl || prev.videoUrl,
                     stock: extracted.stock ?? prev.stock,
-                    ncm: extracted.ncm || prev.ncm,
+                    promoPrice: extracted.promoPrice ?? prev.promoPrice,
+                    ncm: fiscal.ncm || extracted.ncm || prev.ncm,
+                    cest: fiscal.cest || prev.cest,
+                    origin: fiscal.origin !== '' ? fiscal.origin : prev.origin,
+                    csosn: fiscal.csosn || prev.csosn,
                     variations: updatedVars
                 };
             });
-            alert('✅ Dados puxados do Mercado Livre para o formulário! Confira e clique em Salvar.');
+            const extraMsg = [
+                extracted.variations?.length ? `${extracted.variations.length} variação(ões)` : null,
+                (fiscal.ncm || extracted.ncm) ? `NCM ${fiscal.ncm || extracted.ncm}` : null,
+            ].filter(Boolean).join(', ');
+            alert(`✅ Dados puxados do Mercado Livre (${found.ml_item_id})${extraMsg ? `: ${extraMsg}` : ''}! Confira e clique em Salvar.`);
         } catch (err) {
             console.error('Erro ao puxar do ML:', err);
             alert('Erro ao puxar dados do ML: ' + err.message);
