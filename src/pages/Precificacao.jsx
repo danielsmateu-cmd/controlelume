@@ -238,6 +238,7 @@ const Precificacao = ({ readOnly }) => {
             clearTimeout(saveTimerRef.current);
             saveTimerRef.current = setTimeout(() => {
                 api.saveSettings(SETTINGS_KEY, updated).catch(console.error);
+                api.touchFtUpdatedAt(ftId).catch(console.error);
             }, 700);
             return updated;
         });

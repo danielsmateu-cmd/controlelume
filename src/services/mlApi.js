@@ -172,6 +172,108 @@ export const mlApi = {
         return data.map(r => r.body).filter(Boolean);
     },
 
+    async getItemsFullDetails(itemIds) {
+        if (!itemIds || itemIds.length === 0) return [];
+        const ids = itemIds.slice(0, 20).join(',');
+        const data = await mlFetch(`/items?ids=${ids}&include_attributes=all`);
+        return data.map(r => r.body).filter(Boolean);
+    },
+
+    async getItemDescription(itemId) {
+        try {
+            return await mlFetch(`/items/${itemId}/description`);
+        } catch (err) {
+            return { plain_text: '' };
+        }
+    },
+
+    async getCategoryPath(categoryId) {
+        if (!categoryId) return '';
+        if (!mlApi._categoryCache) mlApi._categoryCache = {};
+        if (mlApi._categoryCache[categoryId]) return mlApi._categoryCache[categoryId];
+        try {
+            const data = await mlFetch(`/categories/${categoryId}`);
+            const path = Array.isArray(data?.path_from_root) && data.path_from_root.length > 0
+                ? data.path_from_root.map(c => c.name).join(' > ')
+                : (data?.name || categoryId);
+            mlApi._categoryCache[categoryId] = path;
+            return path;
+        } catch (err) {
+            return categoryId;
+        }
+    },
+
+    extractCatalogData(item, descData, categoryPath = '') {
+        if (!item) return null;
+        const findAttr = (attrId) => {
+            const found = (item.attributes || []).find(a => a.id === attrId);
+            return found?.value_name || '';
+        };
+
+        const rawEan = findAttr('GTIN');
+        const invalidEans = ['não se aplica', 'nao se aplica', 'n/a', 'isento', 'sem código', 'sem codigo'];
+        const ean = rawEan && !invalidEans.includes(rawEan.toLowerCase().trim()) ? rawEan.trim() : '';
+
+        const brand = findAttr('BRAND') || 'Lume Acrílicos';
+        const sku = item.seller_sku
+            || item.seller_custom_field
+            || findAttr('SELLER_SKU')
+            || '';
+
+        const photos = (item.pictures || [])
+            .map(p => (p.secure_url || p.url || '').replace('http://', 'https://'))
+            .filter(Boolean);
+
+        if (photos.length === 0 && item.thumbnail) {
+            photos.push(item.thumbnail.replace('http://', 'https://'));
+        }
+
+        const videoUrl = item.video_id
+            ? (String(item.video_id).startsWith('http') ? item.video_id : `https://www.youtube.com/watch?v=${item.video_id}`)
+            : '';
+
+        const fullPrice = Number(item.original_price || (item.base_price && item.base_price > item.price ? item.base_price : item.price) || 0);
+        const promoPrice = (item.original_price || (item.base_price && item.base_price > item.price))
+            ? Number(item.price || 0)
+            : null;
+
+        const variations = (item.variations || []).map(v => {
+            const vSkuAttr = (v.attributes || []).find(a => a.id === 'SELLER_SKU')?.value_name || '';
+            const vSku = v.seller_custom_field || vSkuAttr || '';
+            const vAttrText = (v.attribute_combinations || []).map(a => a.value_name).filter(Boolean).join(' / ');
+            const vPhoto = v.picture_ids && v.picture_ids.length > 0
+                ? `https://http2.mlstatic.com/D_${v.picture_ids[0]}-I.jpg`
+                : '';
+
+            return {
+                mlVariationId: String(v.id),
+                name: vAttrText || `Variação ${v.id}`,
+                sku: vSku,
+                stock: Number(v.available_quantity) || 0,
+                price: Number(v.price) || fullPrice,
+                promoPrice: promoPrice && promoPrice < (Number(v.price) || fullPrice) ? promoPrice : null,
+                photo: vPhoto
+            };
+        });
+
+        return {
+            mlItemId: item.id,
+            marketplaceTitle: item.title || '',
+            description: descData?.plain_text || '',
+            brand,
+            ean,
+            category: categoryPath || item.category_id || '',
+            photos,
+            videoUrl,
+            sku,
+            stock: Number(item.available_quantity) || 0,
+            salePrice: fullPrice,
+            promoPrice,
+            ncm: findAttr('NCM') || '',
+            variations
+        };
+    },
+
     async getItem(itemId) {
         return mlFetch(`/items/${itemId}`);
     },

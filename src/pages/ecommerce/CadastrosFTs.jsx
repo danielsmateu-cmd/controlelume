@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Edit, FileText, Loader2, Pencil, X, Search, Check, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Save, Edit, FileText, Loader2, Pencil, X, Search, Check, ChevronUp, ChevronDown, Download } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../services/api';
+import { mlApi, mlListings, mlAuth } from '../../services/mlApi';
+import FtMarketplaceFieldsSection from './FtMarketplaceFieldsSection';
+import MlCatalogImportModal from './MlCatalogImportModal';
 
 // Helper to encode material configuration into the name string
 const encodeMaterialName = (originalName, config) => {
@@ -96,6 +99,20 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                         ...(mkt === currentMarketplace ? { sku: value } : {})
                     };
                 }
+                if (field.startsWith('channel_')) {
+                    const chField = field.replace('channel_', '');
+                    const prevChData = v.channelData || {};
+                    return {
+                        ...v,
+                        channelData: {
+                            ...prevChData,
+                            [currentMarketplace]: {
+                                ...(prevChData[currentMarketplace] || {}),
+                                [chField]: value
+                            }
+                        }
+                    };
+                }
                 return { ...v, [field]: value };
             })
         }));
@@ -137,6 +154,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         return `FT${String(num + 1).padStart(3, '0')}`;
     };
 
+    const [isMlCatalogModalOpen, setIsMlCatalogModalOpen] = useState(false);
+    const [pullingMlSingle, setPullingMlSingle] = useState(false);
+    const [replicatingAll, setReplicatingAll] = useState(false);
+
     const initialFormState = {
         id: '',
         ftCode: '',
@@ -149,7 +170,22 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         directCostsPercent: [],
         sku: '',
         skus: { meli: '', shopee: '', tiktok: '', amazon: '', site: '' },
-        variations: []
+        variations: [],
+        // Campos de marketplace / parceiros
+        marketplaceTitle: '',
+        description: '',
+        brand: 'Lume Acrílicos',
+        ean: '',
+        category: '',
+        promoPrice: null,
+        stock: null,
+        originCep: '13347-458',
+        photos: [],
+        videoUrl: '',
+        ncm: '',
+        origin: '0',
+        cest: '',
+        csosn: '102'
     };
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: 'FT000' });
@@ -351,8 +387,10 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 }
             } else {
                 // EDIT EXISTING FT -> Save as Override for this marketplace
+                const existingOvr = overrides[form.ftCode] || {};
                 const nextOverrides = { ...overrides };
                 nextOverrides[form.ftCode] = {
+                    ...existingOvr,
                     name: form.name,
                     variation: form.variation,
                     productionTime: form.productionTime,
@@ -362,6 +400,21 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     directCostsPercent: form.directCostsPercent,
                     sku: form.sku || '',
                     variations: form.variations || [],
+                    // Novos campos comerciais, mídia e fiscal
+                    marketplaceTitle: form.marketplaceTitle || '',
+                    description: form.description || '',
+                    brand: form.brand ?? 'Lume Acrílicos',
+                    ean: form.ean || '',
+                    category: form.category || '',
+                    promoPrice: form.promoPrice ?? null,
+                    stock: form.stock ?? null,
+                    originCep: form.originCep ?? '13347-458',
+                    photos: Array.isArray(form.photos) ? form.photos : [],
+                    videoUrl: form.videoUrl || '',
+                    ncm: form.ncm || '',
+                    origin: form.origin ?? '0',
+                    cest: form.cest || '',
+                    csosn: form.csosn ?? '102',
                     updatedAt: new Date().toISOString()
                 };
 
@@ -375,6 +428,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 }
 
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
+                if (success) {
+                    api.touchFtUpdatedAt(form.ftCode).catch(console.error);
+                }
                 if (success) {
                     setOverrides(nextOverrides);
                     setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
@@ -407,13 +463,155 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             skus[m] = allOverrides[m]?.[ft.ftCode]?.sku || '';
         });
         setForm({
+            ...initialFormState,
             ...ft,
             sku: currentOvr.sku || ft.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '',
             skus: ft.skus || skus,
-            variations: ft.variations || currentOvr.variations || []
+            variations: ft.variations || currentOvr.variations || [],
+            marketplaceTitle: currentOvr.marketplaceTitle ?? ft.marketplaceTitle ?? '',
+            description: currentOvr.description ?? ft.description ?? '',
+            brand: currentOvr.brand ?? ft.brand ?? 'Lume Acrílicos',
+            ean: currentOvr.ean ?? ft.ean ?? '',
+            category: currentOvr.category ?? ft.category ?? '',
+            promoPrice: currentOvr.promoPrice ?? ft.promoPrice ?? null,
+            stock: currentOvr.stock ?? ft.stock ?? null,
+            originCep: currentOvr.originCep ?? ft.originCep ?? '13347-458',
+            photos: Array.isArray(currentOvr.photos) ? currentOvr.photos : (Array.isArray(ft.photos) ? ft.photos : []),
+            videoUrl: currentOvr.videoUrl ?? ft.videoUrl ?? '',
+            ncm: currentOvr.ncm ?? ft.ncm ?? '',
+            origin: currentOvr.origin ?? ft.origin ?? '0',
+            cest: currentOvr.cest ?? ft.cest ?? '',
+            csosn: currentOvr.csosn ?? ft.csosn ?? '102',
         });
         setIsEditing(true);
         setIsModalOpen(true);
+    };
+
+    const handlePullSingleFromMl = async () => {
+        if (readOnly) return;
+        setPullingMlSingle(true);
+        try {
+            const isConn = await mlAuth.isConnected();
+            if (!isConn) {
+                alert('Conecte o Mercado Livre primeiro em Marketplaces > Mercado Livre > Integração API.');
+                setPullingMlSingle(false);
+                return;
+            }
+            const localListings = await mlListings.getListings();
+            const meliSku = (form.sku || form.skus?.meli || '').trim().toLowerCase();
+            const found = localListings.find(l =>
+                (form.id && l.ft_id === form.id) ||
+                (form.ftCode && l.ft_id === form.ftCode) ||
+                (meliSku && (l.sku || '').trim().toLowerCase() === meliSku)
+            );
+            if (!found) {
+                alert('Nenhum anúncio do Mercado Livre vinculado a esta FT ainda. Use o botão "Importar Dados do ML" na lista principal para vincular e puxar!');
+                setPullingMlSingle(false);
+                return;
+            }
+            const [itemsDetails, descData] = await Promise.all([
+                mlApi.getItemsFullDetails([found.ml_item_id]),
+                mlApi.getItemDescription(found.ml_item_id)
+            ]);
+            const fullItem = itemsDetails[0];
+            if (!fullItem) throw new Error('Anúncio não retornou dados do ML.');
+            const catPath = await mlApi.getCategoryPath(fullItem.category_id);
+            const extracted = mlApi.extractCatalogData(fullItem, descData, catPath);
+
+            setForm(prev => {
+                const updatedVars = (prev.variations || []).map(v => {
+                    const vSkuMeli = (v.skus?.meli || v.sku || '').trim().toLowerCase();
+                    const vNameLower = (v.name || '').trim().toLowerCase();
+                    const mv = (extracted.variations || []).find(x =>
+                        (x.sku && vSkuMeli && x.sku.trim().toLowerCase() === vSkuMeli) ||
+                        (x.name && vNameLower && x.name.trim().toLowerCase() === vNameLower)
+                    );
+                    if (!mv) return v;
+                    return {
+                        ...v,
+                        channelData: {
+                            ...(v.channelData || {}),
+                            [currentMarketplace]: {
+                                ...(v.channelData?.[currentMarketplace] || {}),
+                                stock: mv.stock
+                            }
+                        }
+                    };
+                });
+
+                return {
+                    ...prev,
+                    marketplaceTitle: extracted.marketplaceTitle || prev.marketplaceTitle,
+                    description: extracted.description || prev.description,
+                    brand: extracted.brand || prev.brand,
+                    ean: extracted.ean || prev.ean,
+                    category: extracted.category || prev.category,
+                    photos: extracted.photos?.length > 0 ? extracted.photos : prev.photos,
+                    videoUrl: extracted.videoUrl || prev.videoUrl,
+                    stock: extracted.stock ?? prev.stock,
+                    ncm: extracted.ncm || prev.ncm,
+                    variations: updatedVars
+                };
+            });
+            alert('✅ Dados puxados do Mercado Livre para o formulário! Confira e clique em Salvar.');
+        } catch (err) {
+            console.error('Erro ao puxar do ML:', err);
+            alert('Erro ao puxar dados do ML: ' + err.message);
+        } finally {
+            setPullingMlSingle(false);
+        }
+    };
+
+    const handleReplicateCommercialFields = async () => {
+        if (readOnly || !form.ftCode) return;
+        const confirmed = window.confirm('Deseja copiar Descrição, Marca, EAN, Categoria, Fotos, Vídeo, Dados Fiscais e CEP desta FT para TODOS os outros Marketplaces (preservando os preços e SKUs individuais de cada canal)?');
+        if (!confirmed) return;
+
+        setReplicatingAll(true);
+        try {
+            const cleanBaseFt = baseFts.find(b => b.ftCode === form.ftCode) || form;
+            const others = ALL_MKT_PLATFORMS.filter(m => m !== currentMarketplace);
+            const nowIso = new Date().toISOString();
+
+            await Promise.all(others.map(async (mkt) => {
+                const mktOverrides = await api.getSettings(`ft_overrides_${mkt}`) || {};
+                const existing = mktOverrides[form.ftCode] || {
+                    name: cleanBaseFt.name,
+                    variation: cleanBaseFt.variation || '',
+                    productionTime: cleanBaseFt.productionTime || '',
+                    salePrice: cleanBaseFt.salePrice || 0,
+                    materials: cleanBaseFt.materials || [],
+                    directCostsRS: cleanBaseFt.directCostsRS || [],
+                    directCostsPercent: cleanBaseFt.directCostsPercent || [],
+                };
+                mktOverrides[form.ftCode] = {
+                    ...existing,
+                    marketplaceTitle: form.marketplaceTitle || '',
+                    description: form.description || '',
+                    brand: form.brand ?? 'Lume Acrílicos',
+                    ean: form.ean || '',
+                    category: form.category || '',
+                    originCep: form.originCep ?? '13347-458',
+                    photos: Array.isArray(form.photos) ? form.photos : [],
+                    videoUrl: form.videoUrl || '',
+                    ncm: form.ncm || '',
+                    origin: form.origin ?? '0',
+                    cest: form.cest || '',
+                    csosn: form.csosn ?? '102',
+                    updatedAt: nowIso
+                };
+                await api.saveSettings(`ft_overrides_${mkt}`, mktOverrides);
+                setAllOverrides(prev => ({ ...prev, [mkt]: mktOverrides }));
+            }));
+
+            await api.touchFtUpdatedAt(form.ftCode);
+            alert('✅ Dados replicados para todos os outros Marketplaces!');
+        } catch (err) {
+            console.error('Erro ao replicar:', err);
+            alert('Erro ao replicar dados: ' + err.message);
+        } finally {
+            setReplicatingAll(false);
+        }
     };
 
     const handleCreateVariation = (ft) => {
@@ -492,6 +690,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 };
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
+                    api.touchFtUpdatedAt(ft.ftCode).catch(console.error);
                     setOverrides(nextOverrides);
                     setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 } else {
@@ -540,6 +739,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 };
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
+                    api.touchFtUpdatedAt(ft.ftCode).catch(console.error);
                     setOverrides(nextOverrides);
                     setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 } else {
@@ -579,8 +779,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
             const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
             if (success) {
+                api.touchFtUpdatedAt(ft.ftCode).catch(console.error);
                 setOverrides(nextOverrides);
-                    setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
+                setAllOverrides(prev => ({ ...prev, [currentMarketplace]: nextOverrides }));
                 setFts(prev => prev.map(item => item.id === ft.id ? { ...item, isOverride: true, notForSale: isChecked, updatedAt: new Date().toISOString() } : item));
             } else {
                 alert("Erro ao salvar status de venda no marketplace.");
@@ -632,6 +833,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
             const success = await api.saveSettings(`ft_overrides_${mkt}`, nextOverridesForMkt);
             if (success) {
+                api.touchFtUpdatedAt(ft.ftCode).catch(console.error);
                 setAllOverrides(prev => ({
                     ...prev,
                     [mkt]: nextOverridesForMkt
@@ -1155,13 +1357,26 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     </p>
                 </div>
                 {!readOnly && (
-                    <button
-                        onClick={handleNewFt}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-100 flex items-center gap-2 transition-all duration-200 hover:scale-105"
-                    >
-                        <Plus size={18} />
-                        Nova Ficha Técnica
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        {currentMarketplace !== 'geral' && (
+                            <button
+                                type="button"
+                                onClick={() => setIsMlCatalogModalOpen(true)}
+                                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer text-sm"
+                                title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre para as FTs"
+                            >
+                                <Download size={17} />
+                                <span>Importar Dados do ML</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={handleNewFt}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-100 flex items-center gap-2 transition-all duration-200 hover:scale-105 cursor-pointer"
+                        >
+                            <Plus size={18} />
+                            Nova Ficha Técnica
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -1403,19 +1618,61 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-                                                            <label className="text-[11px] font-bold text-gray-700 whitespace-nowrap flex items-center gap-1">
-                                                                <span>{currentPlatform?.emoji}</span>
-                                                                <span>SKU na {currentPlatform?.label}:</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                placeholder={`SKU cadastrado na ${currentPlatform?.label}`}
-                                                                value={vItem.skus?.[currentMarketplace] || vItem.sku || ''}
-                                                                onChange={(e) => handleUpdateVariationItem(vItem.id, 'sku_' + currentMarketplace, e.target.value)}
-                                                                readOnly={readOnly}
-                                                                className="flex-1 text-xs font-mono font-bold text-gray-800 border border-amber-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-amber-500"
-                                                            />
+                                                        <div className="space-y-2 pt-1 border-t border-gray-100">
+                                                            <div className="flex items-center gap-2">
+                                                                <label className="text-[11px] font-bold text-gray-700 whitespace-nowrap flex items-center gap-1">
+                                                                    <span>{currentPlatform?.emoji}</span>
+                                                                    <span>SKU na {currentPlatform?.label}:</span>
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder={`SKU cadastrado na ${currentPlatform?.label}`}
+                                                                    value={vItem.skus?.[currentMarketplace] || vItem.sku || ''}
+                                                                    onChange={(e) => handleUpdateVariationItem(vItem.id, 'sku_' + currentMarketplace, e.target.value)}
+                                                                    readOnly={readOnly}
+                                                                    className="flex-1 text-xs font-mono font-bold text-gray-800 border border-amber-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-amber-500"
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                <div>
+                                                                    <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Preço Variação (R$)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        min="0"
+                                                                        placeholder={String(form.salePrice || 0)}
+                                                                        value={vItem.channelData?.[currentMarketplace]?.price ?? ''}
+                                                                        onChange={(e) => handleUpdateVariationItem(vItem.id, 'channel_price', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                                                        readOnly={readOnly}
+                                                                        className="w-full text-xs font-bold text-gray-800 border border-gray-200 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-indigo-400"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Promo Variação (R$)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        min="0"
+                                                                        placeholder="Opcional"
+                                                                        value={vItem.channelData?.[currentMarketplace]?.promoPrice ?? ''}
+                                                                        onChange={(e) => handleUpdateVariationItem(vItem.id, 'channel_promoPrice', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                                                        readOnly={readOnly}
+                                                                        className="w-full text-xs font-bold text-emerald-700 border border-gray-200 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-indigo-400"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Estoque ({currentPlatform?.label})</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        placeholder="0"
+                                                                        value={vItem.channelData?.[currentMarketplace]?.stock ?? ''}
+                                                                        onChange={(e) => handleUpdateVariationItem(vItem.id, 'channel_stock', e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                                                                        readOnly={readOnly}
+                                                                        className="w-full text-xs font-bold text-indigo-800 border border-gray-200 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-indigo-400"
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1461,6 +1718,21 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Seção Exclusiva de Marketplaces: Dados Comerciais, Mídia & Fiscal */}
+                            {currentMarketplace !== 'geral' && (
+                                <FtMarketplaceFieldsSection
+                                    form={form}
+                                    setForm={setForm}
+                                    currentMarketplace={currentMarketplace}
+                                    platformLabel={currentPlatform?.label || currentMarketplace}
+                                    readOnly={readOnly}
+                                    onPullFromMl={handlePullSingleFromMl}
+                                    pullingMl={pullingMlSingle}
+                                    onReplicateAll={handleReplicateCommercialFields}
+                                    replicatingAll={replicatingAll}
+                                />
+                            )}
 
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 gap-4 border-b border-gray-100 pb-4">
                                 <h3 className="text-sm font-bold text-gray-800">Composição de Custos</h3>
@@ -2072,7 +2344,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                 />
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                                <div className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                                                     <span className="text-gray-500">{ft.ftCode}</span>
                                                     {ft.isOverride && (
                                                         <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
@@ -2081,6 +2353,30 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                     )}
                                                     <span>{ft.name} {ft.variation && <span className="text-gray-500 font-normal ml-1">({ft.variation})</span>}</span>
                                                 </div>
+                                                {currentMarketplace !== 'geral' && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {(ft.photos?.length > 0) && (
+                                                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                                                                📸 {ft.photos.length} {ft.photos.length === 1 ? 'foto' : 'fotos'}
+                                                            </span>
+                                                        )}
+                                                        {ft.description && (
+                                                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                ✓ Desc
+                                                            </span>
+                                                        )}
+                                                        {ft.ean && (
+                                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-100">
+                                                                EAN
+                                                            </span>
+                                                        )}
+                                                        {ft.ncm && (
+                                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                                                NCM: {ft.ncm}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             {/* SKU Cell */}
                                             <td className="px-4 py-4 text-center">
@@ -2741,6 +3037,14 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 </div>
             )}
         
+            <MlCatalogImportModal
+                isOpen={isMlCatalogModalOpen}
+                onClose={() => setIsMlCatalogModalOpen(false)}
+                baseFts={baseFts}
+                currentMarketplace={currentMarketplace}
+                onImported={loadData}
+            />
+
             {isManageModelsModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">

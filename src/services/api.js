@@ -822,11 +822,50 @@ const supabaseApi = {
 
     async deleteFt(id) {
         try {
+            // Registra a exclusão lógica para sincronização futura com parceiros via API
+            try {
+                const { data: existingFt } = await supabase
+                    .from('fts')
+                    .select('id, ft_code, name')
+                    .eq('id', id)
+                    .single();
+                if (existingFt) {
+                    const currentLog = (await this.getSettings('ft_deleted_log')) || [];
+                    const filtered = currentLog.filter(item => item.id !== existingFt.id);
+                    filtered.push({
+                        id: existingFt.id,
+                        ftCode: existingFt.ft_code,
+                        name: existingFt.name,
+                        deletedAt: new Date().toISOString()
+                    });
+                    await this.saveSettings('ft_deleted_log', filtered);
+                }
+            } catch (logErr) {
+                console.warn('Erro ao registrar exclusão em ft_deleted_log:', logErr);
+            }
+
             const { error } = await supabase.from('fts').delete().eq('id', id);
             if (error) throw error;
             return true;
         } catch (err) {
             console.error('Supabase deleteFt:', err);
+            return false;
+        }
+    },
+
+    async touchFtUpdatedAt(ftCodeOrId) {
+        if (!ftCodeOrId) return false;
+        try {
+            const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(ftCodeOrId);
+            const col = isUUID ? 'id' : 'ft_code';
+            const { error } = await supabase
+                .from('fts')
+                .update({ updated_at: new Date().toISOString() })
+                .eq(col, ftCodeOrId);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.warn('Supabase touchFtUpdatedAt:', err);
             return false;
         }
     },
