@@ -355,9 +355,12 @@ Se o receptor não responder \`2xx\`, reenviamos com espera crescente: **1 min �
                         <span className="text-[11px] text-gray-400">Salvas em hash SHA-256</span>
                     </div>
 
-                    <form onSubmit={handleCreateKey} className="flex gap-2">
+                    <form onSubmit={handleCreateKey} autoComplete="off" className="flex gap-2">
                         <input
                             type="text"
+                            name="partner-key-label"
+                            autoComplete="off"
+                            data-lpignore="true"
                             value={newKeyName}
                             onChange={(e) => setNewKeyName(e.target.value)}
                             placeholder="Nome da chave (ex: eBureau Produção)"
@@ -463,7 +466,11 @@ Se o receptor não responder \`2xx\`, reenviamos com espera crescente: **1 min �
                         )}
                     </div>
 
-                    <form onSubmit={handleSaveWebhook} className="space-y-3">
+                    <p className="text-[11px] text-gray-500 bg-purple-50/60 border border-purple-100 rounded-xl px-3 py-2">
+                        Opcional: use apenas se a eBureau informar uma URL HTTPS para receber avisos em tempo real. O segredo abaixo não é a sua senha do sistema — é um código exclusivo para assinar as mensagens entre o Controle Lume e a eBureau.
+                    </p>
+
+                    <form onSubmit={handleSaveWebhook} autoComplete="off" className="space-y-3">
                         <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -477,7 +484,14 @@ Se o receptor não responder \`2xx\`, reenviamos com espera crescente: **1 min �
                         <div>
                             <label className="block text-[11px] font-semibold text-gray-600 mb-1">URL do Webhook da eBureau (HTTPS)</label>
                             <input
-                                type="url"
+                                type="text"
+                                inputMode="url"
+                                name="partner-webhook-endpoint"
+                                autoComplete="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                data-lpignore="true"
+                                data-1p-ignore="true"
                                 value={webhookUrl}
                                 onChange={(e) => setWebhookUrl(e.target.value)}
                                 placeholder="https://erp.ebureau.com.br/api/webhooks/lume"
@@ -486,10 +500,17 @@ Se o receptor não responder \`2xx\`, reenviamos com espera crescente: **1 min �
                         </div>
 
                         <div>
-                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Segredo Compartilhado (X-Lume-Assinatura)</label>
+                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Segredo Compartilhado do Webhook (X-Lume-Assinatura)</label>
                             <div className="flex gap-2">
                                 <input
-                                    type={showSecret ? 'text' : 'password'}
+                                    type="text"
+                                    name="partner-webhook-hmac-secret"
+                                    autoComplete="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
+                                    data-lpignore="true"
+                                    data-1p-ignore="true"
+                                    style={showSecret ? undefined : { WebkitTextSecurity: 'disc' }}
                                     value={webhookSecret}
                                     onChange={(e) => setWebhookSecret(e.target.value)}
                                     placeholder="Gerado automaticamente se deixar em branco"
