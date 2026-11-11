@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { localApi } from './localApi';
+import { recalculateMaterialItem } from '../../api/_lib/materialRecalc';
+
+let materialSyncQueue = Promise.resolve();
 
 const isTestUser = () => {
     try {
@@ -108,16 +111,109 @@ const supabaseApi = {
             if (saved.width === 0 && saved.height === 0) type = 'unit';
             else if (saved.width === 0 && saved.height === 1) type = 'linear';
 
-            return {
+            const formatted = {
                 ...saved,
                 type,
                 pricePerM2: saved.price_per_m2,
                 sortIndex: saved.sort_index
             };
+
+            // Recalcula apenas materiais (@meta:id) nas FTs globais e nos marketplaces, preservando custos extras R$ e %
+            materialSyncQueue = materialSyncQueue
+                .then(() => this.syncMaterialPriceAcrossFts(formatted))
+                .catch((err) => console.error('Erro ao propagar preço de material para FTs:', err));
+
+            return formatted;
         } catch (err) {
             console.error('Supabase updateMaterial:', err);
             return null;
         }
+    },
+
+    async syncMaterialPriceAcrossFts(updatedMaterial) {
+        if (!updatedMaterial || updatedMaterial.id === undefined || updatedMaterial.id === null) return { updatedFts: 0 };
+        const nowIso = new Date().toISOString();
+        const affectedFtIds = new Set();
+        const affectedFtCodes = new Set();
+
+        // 1. Atualiza linhas na tabela global `ft_materials` (sem mexer em ft_direct_costs_rs/percent)
+        const { data: ftMatRows, error: ftMatErr } = await supabase
+            .from('ft_materials')
+            .select('id, ft_id, name, value')
+            .ilike('name', '%@meta:%');
+
+        if (!ftMatErr && Array.isArray(ftMatRows)) {
+            for (const row of ftMatRows) {
+                const { item: nextItem, changed } = recalculateMaterialItem(row, updatedMaterial);
+                if (changed) {
+                    const { error: upErr } = await supabase
+                        .from('ft_materials')
+                        .update({ name: nextItem.name, value: nextItem.value })
+                        .eq('id', row.id);
+                    if (!upErr && row.ft_id) {
+                        affectedFtIds.add(String(row.ft_id));
+                    }
+                }
+            }
+        }
+
+        // 2. Atualiza linhas dentro dos overrides de cada marketplace (`ft_overrides_*`) preservando custos extras R$ e %
+        const channels = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
+        for (const ch of channels) {
+            const settingKey = `ft_overrides_${ch}`;
+            const overrides = await this.getSettings(settingKey);
+            if (!overrides || typeof overrides !== 'object') continue;
+
+            let channelChanged = false;
+            const nextOverrides = { ...overrides };
+
+            for (const [ftCode, ovr] of Object.entries(overrides)) {
+                if (!ovr || !Array.isArray(ovr.materials)) continue;
+                let ftOvrChanged = false;
+                const nextMaterials = ovr.materials.map(matEntry => {
+                    const { item: nextItem, changed } = recalculateMaterialItem(matEntry, updatedMaterial);
+                    if (changed) ftOvrChanged = true;
+                    return nextItem;
+                });
+                if (ftOvrChanged) {
+                    channelChanged = true;
+                    affectedFtCodes.add(String(ftCode));
+                    nextOverrides[ftCode] = {
+                        ...ovr,
+                        materials: nextMaterials,
+                        updatedAt: nowIso,
+                    };
+                }
+            }
+
+            if (channelChanged) {
+                await this.saveSettings(settingKey, nextOverrides);
+            }
+        }
+
+        // 3. Atualiza updated_at das FTs afetadas e dispara webhook de alteração
+        if (affectedFtIds.size === 0 && affectedFtCodes.size === 0) {
+            return { updatedFts: 0 };
+        }
+
+        const { data: allFts } = await supabase.from('fts').select('id, ft_code');
+        const affectedFts = (allFts || []).filter(
+            ft => affectedFtIds.has(String(ft.id)) || affectedFtCodes.has(String(ft.ft_code))
+        );
+
+        if (affectedFts.length > 0) {
+            const idsToTouch = affectedFts.map(f => f.id);
+            await supabase
+                .from('fts')
+                .update({ updated_at: nowIso })
+                .in('id', idsToTouch);
+
+            for (const ft of affectedFts) {
+                this.notifyPartnerChange('produto.alterado', ft.id, ft.ft_code, nowIso);
+            }
+        }
+
+        return { updatedFts: affectedFts.length };
     },
 
     async deleteMaterial(id) {

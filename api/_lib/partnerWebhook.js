@@ -31,7 +31,7 @@ export function verifyWebhookSignature(rawBody, secret, timestampIso, signatureH
 }
 
 export function generateWebhookSecret() {
-    return 'whsec_' + crypto.randomBytes(24).toString('hex');
+    return crypto.randomBytes(32).toString('hex');
 }
 
 export async function appendWebhookLog(entry, client) {

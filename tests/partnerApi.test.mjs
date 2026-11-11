@@ -5,8 +5,10 @@ import {
     buildPartnerProduct,
     buildDeletedProduct,
     paginateCatalogItems,
+    parseWeightToKg,
     FIELD_DICTIONARY,
 } from '../api/_lib/partnerCatalog.js';
+import { recalculateMaterialItem } from '../api/_lib/materialRecalc.js';
 import {
     generateApiKey,
     hashApiKey,
@@ -16,6 +18,7 @@ import {
 import {
     signWebhookPayload,
     verifyWebhookSignature,
+    generateWebhookSecret,
     enqueueWebhookEvent,
     processWebhookOutbox,
     WEBHOOK_CONFIG_SETTING,
@@ -157,9 +160,9 @@ function buildTestEnvironment() {
                 cest: '2805800',
                 csosn: '102',
                 photos: ['http://http2.mlstatic.com/foto1.jpg', 'https://http2.mlstatic.com/foto2.jpg'],
-                materials: [{ name: 'Acrílico 3mm SEGREDO', value: 18.5 }],
-                directCostsRS: [{ name: 'Taxa Secreta', value: 9 }],
-                directCostsPercent: [{ name: 'Comissão Interna', percentage: 16 }],
+                materials: [{ name: 'Acrílico 3mm Cristal (20x30cm) @meta:id:1;t:sheet;x:20;y:30;p:100;pm2:50', value: 18.5 }],
+                directCostsRS: [{ name: 'Envios', value: 19.9 }],
+                directCostsPercent: [{ name: 'Taxa ML', percentage: 16 }, { name: 'NF', percentage: 9.5 }],
                 rankPrice: 99.9,
                 updatedAt: '2026-11-11T09:00:00.000Z',
             },
@@ -167,13 +170,16 @@ function buildTestEnvironment() {
                 sku: 'FT003-INT',
                 notForSale: true,
                 salePrice: 55,
-                updatedAt: '2026-11-05T12:00:00.000Z',
+                updatedAt: '2026-11-09T12:00:00.000Z',
             },
             FT004: {
                 sku: 'FT004-ML',
                 salePrice: 220,
                 stock: 32,
                 notForSale: false,
+                materials: [{ name: 'Acrílico 3mm', value: 50 }],
+                directCostsRS: [{ name: 'Envios', value: 20 }],
+                directCostsPercent: [{ name: 'Taxa ML', percentage: 16 }],
                 updatedAt: '2026-11-10T15:30:00.000Z',
             },
         },
@@ -214,6 +220,12 @@ function buildTestEnvironment() {
                 medidasSemCaixa: '28x18x12',
                 pesoComCaixa: '0,85',
                 pesoSemCaixa: '0,60',
+            },
+            '44444444-4444-4444-8444-444444444444': {
+                medidasComCaixa: '30x20x20',
+                medidasSemCaixa: '24x15x9',
+                pesoComCaixa: '850',
+                pesoSemCaixa: '550',
             },
         },
         ft_deleted_log: [
@@ -292,7 +304,7 @@ test('Chave válida lê /saude, /campos e /produtos com filtros, exclusões e ca
     assert.equal(resCampos.statusCode, 200);
     assert.equal(resCampos.body.campos.length, FIELD_DICTIONARY.length);
 
-    // Consulta incremental desde 2026-11-08: deve retornar FT099 (excluída), FT004 e FT001, SEM FT003 (notForSale)
+    // Consulta incremental desde 2026-11-08: deve retornar FT099 (excluída), FT003 (inativo), FT004 e FT001
     const resProd = createMockRes();
     await handlePartnerApiRequest({
         method: 'GET',
@@ -303,11 +315,15 @@ test('Chave válida lê /saude, /campos e /produtos com filtros, exclusões e ca
     assert.equal(resProd.statusCode, 200);
 
     const codes = resProd.body.itens.map(i => i.codigo_ft);
-    assert.deepEqual(codes, ['FT099', 'FT004', 'FT001']);
+    assert.deepEqual(codes, ['FT099', 'FT003', 'FT004', 'FT001']);
 
     const ft099 = resProd.body.itens.find(i => i.codigo_ft === 'FT099');
     assert.equal(ft099.situacao, 'excluido');
     assert.ok(ft099.excluido_em);
+
+    const ft003List = resProd.body.itens.find(i => i.codigo_ft === 'FT003');
+    assert.equal(ft003List.situacao, 'inativo');
+    assert.equal(ft003List.excluido_em, null);
 
     const ft001 = resProd.body.itens.find(i => i.codigo_ft === 'FT001');
     assert.equal(ft001.preco_venda, 129.9);
@@ -315,12 +331,24 @@ test('Chave válida lê /saude, /campos e /produtos com filtros, exclusões e ca
     assert.deepEqual(ft001.fotos, ['https://http2.mlstatic.com/foto1.jpg', 'https://http2.mlstatic.com/foto2.jpg']);
     assert.equal(ft001.medidas_embalagem.comprimento_cm, 30);
     assert.equal(ft001.medidas_embalagem.peso_kg, 0.85);
+    assert.equal(ft001.medidas_embalagem.produto_sem_caixa_peso_kg, 0.6);
+
+    // Custos e margens por canal com nome do material limpo (sem @meta)
+    assert.equal(ft001.canais.meli.materiais[0].nome, 'Acrílico 3mm Cristal (20x30cm)');
+    assert.equal(ft001.canais.meli.materiais[0].valor_rs, 18.5);
+    assert.equal(ft001.canais.meli.custos_fixos_rs[0].nome, 'Envios');
+    assert.equal(ft001.canais.meli.custos_percentuais[0].nome, 'Taxa ML');
+    assert.equal(ft001.canais.meli.margem_minima_percentual, 10);
+    assert.ok(ft001.canais.meli.preco_minimo > 0);
+    assert.ok(Math.abs(ft001.canais.meli.margem_rs - (129.9 - (18.5 + 19.9 + 129.9 * 0.255))) < 0.05);
 
     const ft004 = resProd.body.itens.find(i => i.codigo_ft === 'FT004');
     assert.equal(ft004.canais.shopee, undefined, 'Canal marcado Não Vender na FT004 não deve sair');
     assert.equal(ft004.variacoes[0].sku_por_canal.shopee, undefined);
+    assert.equal(ft004.medidas_embalagem.peso_kg, 0.85, 'Pesos digitados em gramas devem sair em kg');
+    assert.equal(ft004.medidas_embalagem.produto_sem_caixa_peso_kg, 0.55);
 
-    // FT003 (notForSale em todos overrides) deve dar 404 individualmente
+    // FT003 (notForSale em todos overrides) deve retornar situacao="inativo" no GET /produtos/FT003
     const res003 = createMockRes();
     await handlePartnerApiRequest({
         method: 'GET',
@@ -328,12 +356,13 @@ test('Chave válida lê /saude, /campos e /produtos com filtros, exclusões e ca
         headers: { authorization: `Bearer ${rawKey}`, host: 'localhost:5173' },
         query: { route: 'produto', id: 'FT003' },
     }, res003, { client });
-    assert.equal(res003.statusCode, 404);
+    assert.equal(res003.statusCode, 200);
+    assert.equal(res003.body.produto.situacao, 'inativo');
 
-    // Garante que NENHUM campo proibido apareça no JSON inteiro
+    // Garante que domínios proibidos (fornecedor, cliente, pedido, usuário/senha, rankPrice, productionTime) NUNCA apareçam
     const serialized = JSON.stringify(resProd.body);
-    for (const forbidden of ['SEGREDO', 'Taxa Secreta', 'Comissão Interna', 'directCosts', 'materials', 'rankPrice', 'productionTime', 'margin']) {
-        assert.equal(serialized.includes(forbidden), false, `Campo proibido vazou: ${forbidden}`);
+    for (const forbidden of ['@meta:', 'rankPrice', 'productionTime', 'fornecedor', 'cliente', 'pedido', 'senha', 'funcionario', 'password']) {
+        assert.equal(serialized.includes(forbidden), false, `Campo/tag proibido vazou: ${forbidden}`);
     }
 });
 
@@ -400,13 +429,19 @@ test('Webhook assina HMAC-SHA256 corretamente, agrupa edições e agenda retenta
     assert.equal(client.store.settings[WEBHOOK_OUTBOX_SETTING][0].evento, 'produto.criado');
 
     // Simula falha HTTP 500 -> deve incrementar attempts e agendar retry em 60s
-    const mockFetchFail = async () => new Response('Erro servidor', { status: 500 });
+    let firstAttemptHeaders = null;
+    const mockFetchFail = async (_url, opts) => {
+        firstAttemptHeaders = opts.headers;
+        return new Response('Erro servidor', { status: 500 });
+    };
     const procFail = await processWebhookOutbox(client, { forceImmediateId: q2.id_evento, fetchImpl: mockFetchFail });
     assert.equal(procFail.delivered, 0);
     assert.equal(procFail.remaining, 1);
     assert.equal(client.store.settings[WEBHOOK_OUTBOX_SETTING][0].attempts, 1);
 
-    // Simula sucesso HTTP 200 na próxima entrega verificando cabeçalhos HMAC reais
+    await new Promise(r => setTimeout(r, 15));
+
+    // Simula sucesso HTTP 200 na próxima entrega verificando novo timestamp + assinatura recalculada
     let receivedHeaders = null;
     let receivedRaw = null;
     const mockFetchOk = async (_url, opts) => {
@@ -417,8 +452,43 @@ test('Webhook assina HMAC-SHA256 corretamente, agrupa edições e agenda retenta
     const procOk = await processWebhookOutbox(client, { forceImmediateId: q2.id_evento, fetchImpl: mockFetchOk });
     assert.equal(procOk.delivered, 1);
     assert.equal(procOk.remaining, 0);
+    assert.notEqual(
+        receivedHeaders['X-Lume-Timestamp'],
+        firstAttemptHeaders['X-Lume-Timestamp'],
+        'Retentativa deve enviar um novo X-Lume-Timestamp'
+    );
     assert.equal(
         verifyWebhookSignature(receivedRaw, secret, receivedHeaders['X-Lume-Timestamp'], receivedHeaders['X-Lume-Assinatura']),
         true
     );
+    assert.ok(generateWebhookSecret().length >= 64, 'Segredo gerado deve ter ao menos 32 bytes em hex');
+});
+
+test('Conversão de pesos para kg e recálculo de material central sem alterar custos extras', () => {
+    assert.equal(parseWeightToKg('850'), 0.85);
+    assert.equal(parseWeightToKg('550'), 0.55);
+    assert.equal(parseWeightToKg('1200'), 1.2);
+    assert.equal(parseWeightToKg('0,85'), 0.85);
+    assert.equal(parseWeightToKg('850g'), 0.85);
+    assert.equal(parseWeightToKg('1,25 kg'), 1.25);
+
+    const sheetItem = {
+        name: 'Acrílico 2mm (50x50cm) @meta:id:55;t:sheet;x:50;y:50;p:100;pm2:50',
+        value: 12.5,
+    };
+    const updated = recalculateMaterialItem(sheetItem, {
+        id: 55,
+        name: 'Acrílico 2mm Novo',
+        type: 'sheet',
+        width: 200,
+        height: 100,
+        price: 120,
+        pricePerM2: 60,
+    });
+    assert.equal(updated.changed, true);
+    assert.equal(updated.item.value, 15);
+    assert.ok(updated.item.name.startsWith('Acrílico 2mm Novo (50x50cm) @meta:'));
+
+    const unitOther = { name: 'Parafuso @meta:id:99;t:unit;q:2;p:1.5', value: 3 };
+    assert.equal(recalculateMaterialItem(unitOther, { id: 55, price: 200 }).changed, false);
 });

@@ -1,9 +1,11 @@
 import { getSetting } from './partnerSupabase.js';
+import { cleanMaterialNameForPartner } from './materialRecalc.js';
 
 export const PARTNER_CHANNELS = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
 
 const DEFAULT_ORIGIN_CEP = '13347-458';
 const DEFAULT_BRAND = 'Lume Acrílicos';
+const MIN_MARGIN_PERCENT = 10;
 
 export const FIELD_DICTIONARY = [
     { campo: 'id', tipo: 'string (UUID)', unidade: null, obrigatorio: true, descricao: 'Identificador fixo e imutável do produto no Controle Lume.' },
@@ -15,19 +17,19 @@ export const FIELD_DICTIONARY = [
     { campo: 'marca', tipo: 'string', unidade: null, obrigatorio: true, descricao: 'Marca do produto.' },
     { campo: 'ean', tipo: 'string | null', unidade: null, obrigatorio: false, descricao: 'Código de barras GTIN/EAN quando aplicável.' },
     { campo: 'categoria', tipo: 'string | null', unidade: null, obrigatorio: false, descricao: 'Categoria ou linha do produto.' },
-    { campo: 'situacao', tipo: 'string (enum)', unidade: null, obrigatorio: true, descricao: 'Situação da ficha: "ativo" ou "excluido". Itens marcados como "Não está à venda" não são enviados.' },
-    { campo: 'preco_venda', tipo: 'number', unidade: 'R$', obrigatorio: true, descricao: 'Preço de venda ajustado do canal ativo principal (com 2 casas decimais).' },
+    { campo: 'situacao', tipo: 'string (enum)', unidade: null, obrigatorio: true, descricao: 'Situação da ficha: "ativo", "inativo" (marcado como "Não está à venda") ou "excluido". Itens inativos/excluídos trazem os campos essenciais para atualização.' },
+    { campo: 'preco_venda', tipo: 'number | null', unidade: 'R$', obrigatorio: false, descricao: 'Preço de venda ajustado do canal ativo principal (com 2 casas decimais).' },
     { campo: 'preco_promocional', tipo: 'number | null', unidade: 'R$', obrigatorio: false, descricao: 'Preço promocional no canal ativo, quando houver.' },
     { campo: 'estoque_disponivel', tipo: 'integer | null', unidade: 'un', obrigatorio: false, descricao: 'Quantidade disponível em estoque.' },
-    { campo: 'cep_origem', tipo: 'string', unidade: null, obrigatorio: true, descricao: 'CEP de expedição para cálculo de frete.' },
+    { campo: 'cep_origem', tipo: 'string', unidade: null, obrigatorio: false, descricao: 'CEP de expedição para cálculo de frete.' },
     { campo: 'fotos', tipo: 'array<string>', unidade: 'URL HTTPS', obrigatorio: false, descricao: 'Links públicos HTTPS das imagens em ordem (foto principal na posição 0).' },
     { campo: 'video_url', tipo: 'string | null', unidade: 'URL HTTPS', obrigatorio: false, descricao: 'Link público HTTPS de vídeo do produto, quando houver.' },
-    { campo: 'medidas_embalagem', tipo: 'object', unidade: 'cm / kg', obrigatorio: false, descricao: 'Dimensões da embalagem (comprimento_cm, largura_cm, altura_cm, peso_kg) e dimensões do produto sem caixa.' },
-    { campo: 'fiscal', tipo: 'object', unidade: null, obrigatorio: false, descricao: 'Dados fiscais para Simples Nacional: ncm (8 dígitos), origem (0-8), cest e csosn.' },
+    { campo: 'medidas_embalagem', tipo: 'object | null', unidade: 'cm / kg', obrigatorio: false, descricao: 'Dimensões da embalagem em cm (comprimento_cm, largura_cm, altura_cm), peso_kg em quilos (até 3 casas), e dimensões/peso do produto sem caixa (em cm e kg).' },
+    { campo: 'fiscal', tipo: 'object | null', unidade: null, obrigatorio: false, descricao: 'Dados fiscais para Simples Nacional: ncm (8 dígitos), origem (0-8), cest e csosn.' },
     { campo: 'variacoes', tipo: 'array<object>', unidade: null, obrigatorio: false, descricao: 'Lista de variações (cor/modelo/tamanho) com id, nome, sku e preço/estoque por canal vendável.' },
-    { campo: 'canais', tipo: 'object', unidade: null, obrigatorio: true, descricao: 'Mapa por marketplace ativo (meli, shopee, tiktok, amazon, site) contendo apenas canais liberados para venda, com preço ajustado e SKU próprio.' },
+    { campo: 'canais', tipo: 'object', unidade: 'R$ / %', obrigatorio: false, descricao: 'Mapa por marketplace ativo (meli, shopee, tiktok, amazon, site) com preço, SKU, materiais (linhas R$), custos_fixos_rs (linhas R$), custos_percentuais (linhas % e R$), custo_total_rs, margem_rs, margem_percentual, margem_minima_percentual (10%), margem_ideal_percentual (null) e preco_minimo (Valor de Queima).' },
     { campo: 'criado_em', tipo: 'string (ISO 8601 UTC)', unidade: 'UTC', obrigatorio: true, descricao: 'Data e hora de criação da ficha em UTC.' },
-    { campo: 'atualizado_em', tipo: 'string (ISO 8601 UTC)', unidade: 'UTC', obrigatorio: true, descricao: 'Data e hora da última alteração em UTC (considerando preço, variação, foto, estoque, fiscal e medidas).' },
+    { campo: 'atualizado_em', tipo: 'string (ISO 8601 UTC)', unidade: 'UTC', obrigatorio: true, descricao: 'Data e hora da última alteração em UTC (preço, custo/material, status de venda, variação, foto, estoque, fiscal e medidas/pesos).' },
     { campo: 'excluido_em', tipo: 'string (ISO 8601 UTC) | null', unidade: 'UTC', obrigatorio: false, descricao: 'Data e hora da exclusão em UTC quando situacao = "excluido".' },
 ];
 
@@ -53,12 +55,45 @@ function toHttpsUrl(url) {
     return null;
 }
 
-function parseNumberFlexible(raw) {
+export function parseWeightToKg(raw) {
     if (raw === null || raw === undefined || raw === '') return null;
-    const clean = String(raw).trim().replace(',', '.').match(/[\d.]+/);
-    if (!clean) return null;
-    const n = parseFloat(clean[0]);
-    return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : null;
+    if (typeof raw === 'number') {
+        if (!Number.isFinite(raw) || raw < 0) return null;
+        // Números puros >= 20 ou inteiros grandes seguem convenção interna em gramas quando cadastrados sem decimal
+        const kg = (Number.isInteger(raw) && raw >= 10) || raw >= 20 ? raw / 1000 : raw;
+        return Math.round(kg * 1000) / 1000;
+    }
+
+    const str = String(raw).trim().toLowerCase();
+    if (!str) return null;
+
+    const hasExplicitKg = /\bkg\b/.test(str);
+    const hasExplicitG = /(^|\d|\s)g\b/.test(str) && !hasExplicitKg;
+
+    let numPart = str.replace(/[^0-9.,]/g, '');
+    if (!numPart) return null;
+    if (numPart.includes(',') && numPart.includes('.')) {
+        numPart = numPart.replace(/\./g, '').replace(',', '.');
+    } else if (numPart.includes(',')) {
+        numPart = numPart.replace(',', '.');
+    }
+    const n = parseFloat(numPart);
+    if (!Number.isFinite(n) || n < 0) return null;
+
+    let kg;
+    if (hasExplicitKg) {
+        kg = n;
+    } else if (hasExplicitG) {
+        kg = n / 1000;
+    } else {
+        const hasDecimalSeparator = /[.,]/.test(str);
+        if (hasDecimalSeparator && n < 20) {
+            kg = n;
+        } else {
+            kg = n / 1000;
+        }
+    }
+    return Math.round(kg * 1000) / 1000;
 }
 
 function parseDimensionsString(raw) {
@@ -106,10 +141,84 @@ export function isProductMarkedNotForSale(ftCode, overridesByChannel) {
     return explicitOverrides.every(ovr => Boolean(ovr.notForSale));
 }
 
+export function buildInactiveProduct(baseFt, extraTimestamps = []) {
+    if (!baseFt || !baseFt.id || !baseFt.ft_code) return null;
+    const criado_em = toIsoUtc(baseFt.created_at, new Date().toISOString());
+    const atualizado_em = latestIsoUtc(baseFt.updated_at, ...extraTimestamps, criado_em);
+    return {
+        id: String(baseFt.id),
+        codigo_ft: String(baseFt.ft_code),
+        nome: String(baseFt.name || ''),
+        situacao: 'inativo',
+        criado_em,
+        atualizado_em,
+        excluido_em: null,
+    };
+}
+
+function buildChannelCostsAndMargin(baseFt, ovr, salePrice) {
+    const rawMaterials = Array.isArray(ovr?.materials)
+        ? ovr.materials
+        : (Array.isArray(baseFt.ft_materials) ? baseFt.ft_materials : (Array.isArray(baseFt.materials) ? baseFt.materials : []));
+
+    const rawDirectRS = Array.isArray(ovr?.directCostsRS)
+        ? ovr.directCostsRS
+        : (Array.isArray(baseFt.ft_direct_costs_rs) ? baseFt.ft_direct_costs_rs : (Array.isArray(baseFt.directCostsRS) ? baseFt.directCostsRS : []));
+
+    const rawDirectPct = Array.isArray(ovr?.directCostsPercent)
+        ? ovr.directCostsPercent
+        : (Array.isArray(baseFt.ft_direct_costs_percent) ? baseFt.ft_direct_costs_percent : (Array.isArray(baseFt.directCostsPercent) ? baseFt.directCostsPercent : []));
+
+    const materiais = rawMaterials.map(m => ({
+        nome: cleanMaterialNameForPartner(m?.name),
+        valor_rs: roundMoney(m?.value) ?? 0,
+    }));
+
+    const custos_fixos_rs = rawDirectRS.map(c => ({
+        nome: String(c?.name || '').trim(),
+        valor_rs: roundMoney(c?.value) ?? 0,
+    }));
+
+    const effectiveSale = Number(salePrice) || 0;
+    const custos_percentuais = rawDirectPct.map(c => {
+        const pct = Math.round((Number(c?.percentage) || 0) * 100) / 100;
+        return {
+            nome: String(c?.name || '').trim(),
+            percentual: pct,
+            valor_calculado_rs: roundMoney((pct / 100) * effectiveSale) ?? 0,
+        };
+    });
+
+    const totalMateriais = materiais.reduce((a, m) => a + m.valor_rs, 0);
+    const totalFixosRS = custos_fixos_rs.reduce((a, c) => a + c.valor_rs, 0);
+    const percentRate = custos_percentuais.reduce((a, c) => a + c.percentual, 0) / 100;
+    const totalPercentuais = effectiveSale * percentRate;
+    const custoTotal = totalMateriais + totalFixosRS + totalPercentuais;
+    const margemRS = effectiveSale - custoTotal;
+    const margemPercent = effectiveSale > 0 ? (margemRS / effectiveSale) * 100 : 0;
+
+    const fixedCosts = totalMateriais + totalFixosRS;
+    const precoMinimo = (percentRate < 0.9 && fixedCosts > 0)
+        ? roundMoney(fixedCosts / (1 - percentRate - MIN_MARGIN_PERCENT / 100))
+        : null;
+
+    return {
+        materiais,
+        custos_fixos_rs,
+        custos_percentuais,
+        custo_total_rs: roundMoney(custoTotal) ?? 0,
+        margem_rs: roundMoney(margemRS) ?? 0,
+        margem_percentual: Math.round(margemPercent * 100) / 100,
+        margem_minima_percentual: MIN_MARGIN_PERCENT,
+        margem_ideal_percentual: null,
+        preco_minimo: precoMinimo,
+    };
+}
+
 /**
- * Pure allow-listed serializer for an active FT.
- * Explicitly NEVER accesses or forwards costs, margins, rankPrice, production time,
- * customers, orders, employees, passwords, or suppliers.
+ * Pure allow-listed serializer for an FT (ativo or inativo).
+ * Explicitly NEVER accesses or forwards rankPrice, productionTime, customers,
+ * orders, employees, passwords, company financials, or suppliers.
  */
 export function buildPartnerProduct(baseFt, context = {}) {
     const {
@@ -120,8 +229,12 @@ export function buildPartnerProduct(baseFt, context = {}) {
 
     if (!baseFt || !baseFt.id || !baseFt.ft_code) return null;
 
+    const allChannelTimestamps = PARTNER_CHANNELS
+        .map(ch => toIsoUtc(overridesByChannel?.[ch]?.[baseFt.ft_code]?.updatedAt))
+        .filter(Boolean);
+
     if (isProductMarkedNotForSale(baseFt.ft_code, overridesByChannel)) {
-        return null;
+        return buildInactiveProduct(baseFt, allChannelTimestamps);
     }
 
     const activeChannels = {};
@@ -129,26 +242,31 @@ export function buildPartnerProduct(baseFt, context = {}) {
 
     for (const ch of PARTNER_CHANNELS) {
         const ovr = overridesByChannel?.[ch]?.[baseFt.ft_code] || null;
-        if (ovr?.notForSale) continue; // Canal marcado como "Não vender" não sai na API
+        if (ovr?.notForSale) continue; // Canal marcado como "Não vender" não sai no mapa de canais ativos
 
-        const price = roundMoney(ovr?.salePrice ?? baseFt.sale_price);
+        const price = roundMoney(ovr?.salePrice ?? baseFt.sale_price) ?? 0;
         const promoPrice = roundMoney(ovr?.promoPrice);
         const stock = toIntOrNull(ovr?.stock);
         const chUpdated = toIsoUtc(ovr?.updatedAt);
         if (chUpdated) channelUpdateTimestamps.push(chUpdated);
 
+        const costsAndMargin = buildChannelCostsAndMargin(baseFt, ovr, price);
+
         activeChannels[ch] = {
             sku: ovr?.sku ? String(ovr.sku).trim() : null,
             titulo_comercial: ovr?.marketplaceTitle ? String(ovr.marketplaceTitle).trim() : null,
-            preco_venda: price ?? 0,
+            preco_venda: price,
             preco_promocional: promoPrice,
             estoque_disponivel: stock,
+            ...costsAndMargin,
             atualizado_em: chUpdated || toIsoUtc(baseFt.updated_at),
         };
     }
 
     const activeChannelKeys = Object.keys(activeChannels);
-    if (activeChannelKeys.length === 0) return null;
+    if (activeChannelKeys.length === 0) {
+        return buildInactiveProduct(baseFt, allChannelTimestamps);
+    }
 
     // Canal de referência principal para campos compartilhados (prioriza meli)
     const primaryKey = activeChannels.meli ? 'meli' : activeChannelKeys[0];
@@ -231,12 +349,12 @@ export function buildPartnerProduct(baseFt, context = {}) {
             comprimento_cm: dimComCaixa.comprimento_cm,
             largura_cm: dimComCaixa.largura_cm,
             altura_cm: dimComCaixa.altura_cm,
-            peso_kg: parseNumberFlexible(precif.pesoComCaixa),
+            peso_kg: parseWeightToKg(precif.pesoComCaixa),
             texto_com_caixa: precif.medidasComCaixa || null,
             produto_sem_caixa_comprimento_cm: dimSemCaixa.comprimento_cm,
             produto_sem_caixa_largura_cm: dimSemCaixa.largura_cm,
             produto_sem_caixa_altura_cm: dimSemCaixa.altura_cm,
-            produto_sem_caixa_peso_kg: parseNumberFlexible(precif.pesoSemCaixa),
+            produto_sem_caixa_peso_kg: parseWeightToKg(precif.pesoSemCaixa),
         },
         fiscal: {
             ncm: findFirstField(o => o.ncm) || null,
@@ -359,7 +477,12 @@ export async function loadPartnerCatalogContext(client) {
         precificacaoData,
         deletedLog,
     ] = await Promise.all([
-        client.from('fts').select('id, ft_code, name, sale_price, created_at, updated_at'),
+        client.from('fts').select(`
+            id, ft_code, name, sale_price, created_at, updated_at,
+            ft_materials ( name, value ),
+            ft_direct_costs_rs ( name, value ),
+            ft_direct_costs_percent ( name, percentage )
+        `),
         getSetting('ft_overrides_meli', {}, client),
         getSetting('ft_overrides_shopee', {}, client),
         getSetting('ft_overrides_tiktok', {}, client),

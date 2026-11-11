@@ -237,7 +237,7 @@ Authorization: Bearer <CHAVE_API_ENVIADA_POR_CANAL_SEGURO>
 |---|---|---|
 | \`GET\` | \`/saude\` | Testa conectividade e saúde da API |
 | \`GET\` | \`/campos\` | Dicionário completo dos campos (tipo, unidade, obrigatoriedade e significado) |
-| \`GET\` | \`/produtos?alterados_desde=<ISO>&cursor=<x>&limite=<1..100>\` | Lista paginada por cursor em ordem crescente de \`atualizado_em\` (inclui \`situacao: "excluido"\`) |
+| \`GET\` | \`/produtos?alterados_desde=<ISO>&cursor=<x>&limite=<1..100>\` | Lista paginada por cursor em ordem crescente de \`atualizado_em\` (inclui \`situacao: "inativo"\` e \`"excluido"\`) |
 | \`GET\` | \`/produtos/{id}\` | Retorna a ficha completa de um produto (aceita UUID \`id\` ou \`codigo_ft\`) |
 
 ### Exemplo real de resposta (\`GET /produtos/{id}\`)
@@ -278,9 +278,9 @@ const esperado = 'sha256=' + crypto
 Se o receptor não responder \`2xx\`, reenviamos com espera crescente: **1 min → 5 min → 30 min → 2 horas**. Caso todas falhem, a consulta incremental \`GET /produtos?alterados_desde=...\` garante que nenhuma alteração seja perdida.
 
 ## 5. Observações sobre o Catálogo
-- Produtos marcados no Controle Lume como **"Não está à venda"** não são expostos pela API.
-- Campos não aplicáveis ao nosso estoque físico ainda (ex.: Shopee/TikTok ainda em implantação de SKUs/integração) retornam com os dados comerciais replicados ou \`null\` até preenchimento.
-- Dados internos (custos de materiais, taxas, margens, fornecedores, clientes, pedidos e usuários) **nunca** são trafegados.
+- Produtos marcados no Controle Lume como **"Não está à venda"** em todos os canais retornam com \`situacao: "inativo"\` (campos essenciais) para inativação/pausa automática na eBureau.
+- Cada canal ativo em \`canais\` inclui preços, SKU, lista detalhada de \`materiais\`, \`custos_fixos_rs\`, \`custos_percentuais\`, \`custo_total_rs\`, \`margem_rs\`, \`margem_percentual\`, \`margem_minima_percentual\` (10%) e \`preco_minimo\` (Valor de Queima).
+- Dados restritos (fornecedores, clientes, pedidos, financeiro da empresa, funcionários e usuários/senhas) **nunca** são trafegados.
 `;
     };
 
