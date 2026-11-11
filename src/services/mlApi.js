@@ -237,6 +237,39 @@ export const mlApi = {
             ? Number(item.price || 0)
             : null;
 
+        // Extrai medidas sem caixa e com caixa/peso como fallback quando disponíveis no ML
+        const parseDimNum = (str) => {
+            const m = String(str || '').replace(',', '.').match(/[\d.]+/);
+            return m ? m[0] : '';
+        };
+        const parseWeightKg = (str) => {
+            const s = String(str || '').trim().toLowerCase().replace(',', '.');
+            const m = s.match(/[\d.]+/);
+            if (!m) return '';
+            const n = parseFloat(m[0]);
+            if (isNaN(n)) return '';
+            return s.includes('kg') ? String(n) : String(Number((n / 1000).toFixed(3)));
+        };
+        const findAnyAttr = (attrId) => {
+            const top = findAttr(attrId);
+            if (top) return top;
+            for (const v of (item.variations || [])) {
+                const va = (v.attributes || []).find(a => a.id === attrId);
+                if (va?.value_name) return va.value_name;
+            }
+            return '';
+        };
+        const lenSem = parseDimNum(findAnyAttr('LENGTH'));
+        const widSem = parseDimNum(findAnyAttr('WIDTH'));
+        const heiSem = parseDimNum(findAnyAttr('HEIGHT'));
+        const medidasSemCaixa = (lenSem && widSem && heiSem) ? `${lenSem}x${widSem}x${heiSem}` : '';
+
+        const lenCom = parseDimNum(findAnyAttr('PACKAGE_LENGTH'));
+        const widCom = parseDimNum(findAnyAttr('PACKAGE_WIDTH'));
+        const heiCom = parseDimNum(findAnyAttr('PACKAGE_HEIGHT'));
+        const medidasComCaixa = (lenCom && widCom && heiCom) ? `${lenCom}x${widCom}x${heiCom}` : '';
+        const pesoComCaixa = parseWeightKg(findAnyAttr('PACKAGE_WEIGHT'));
+
         const variations = (item.variations || []).map(v => {
             const vSkuAttr = (v.attributes || []).find(a => a.id === 'SELLER_SKU')?.value_name || '';
             const vSku = v.seller_custom_field || vSkuAttr || '';
@@ -270,6 +303,9 @@ export const mlApi = {
             salePrice: fullPrice,
             promoPrice,
             ncm: findAttr('NCM') || '',
+            medidasSemCaixa,
+            medidasComCaixa,
+            pesoComCaixa,
             variations
         };
     },

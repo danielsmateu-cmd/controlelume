@@ -185,10 +185,17 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         ncm: '',
         origin: '0',
         cest: '',
-        csosn: '102'
+        csosn: '102',
+        // Medidas e peso (sincronizados com Precificação)
+        medidasComCaixa: '',
+        medidasSemCaixa: '',
+        pesoComCaixa: '',
+        pesoSemCaixa: ''
     };
 
     const [form, setForm] = useState({ ...initialFormState, ftCode: 'FT000' });
+    const [precificacaoData, setPrecificacaoData] = useState({});
+    const [pullingPrecificacao, setPullingPrecificacao] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [costModels, setCostModels] = useState([]);
@@ -207,7 +214,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [dbFts, dbModels, dbMaterials, meliOvr, shopeeOvr, tiktokOvr, amazonOvr, siteOvr, ftVariationsSetting] = await Promise.all([
+            const [dbFts, dbModels, dbMaterials, meliOvr, shopeeOvr, tiktokOvr, amazonOvr, siteOvr, ftVariationsSetting, precifSetting] = await Promise.all([
                 api.getFts(),
                 api.getFtCostModels(),
                 api.getMaterials(),
@@ -216,9 +223,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 api.getSettings('ft_overrides_tiktok'),
                 api.getSettings('ft_overrides_amazon'),
                 api.getSettings('ft_overrides_site'),
-                api.getSettings('ft_variations')
+                api.getSettings('ft_variations'),
+                api.getSettings('precificacao_product_data')
             ]);
             const ftVariationsData = ftVariationsSetting || {};
+            const precifMap = precifSetting || {};
+            setPrecificacaoData(precifMap);
 
             setRegisteredMaterials(dbMaterials || []);
 
@@ -275,12 +285,17 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 });
                 const currentSku = ovr.sku || (currentMarketplace !== 'geral' ? skus[currentMarketplace] : '') || '';
                 const itemVariations = ftVariationsData[ft.ftCode] || ovr.variations || [];
+                const precif = precifMap[ft.id] || {};
                 return {
                     ...ft,
                     ...ovr,
                     sku: currentSku,
                     skus,
                     variations: itemVariations,
+                    medidasComCaixa: precif.medidasComCaixa ?? '',
+                    medidasSemCaixa: precif.medidasSemCaixa ?? '',
+                    pesoComCaixa: precif.pesoComCaixa ?? '',
+                    pesoSemCaixa: precif.pesoSemCaixa ?? '',
                     isOverride: Boolean(overridesData[ft.ftCode])
                 };
             });
@@ -295,6 +310,55 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             console.error(err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const syncPrecificacaoDims = async (targetFtId, vals) => {
+        if (!targetFtId) return;
+        try {
+            const currentAll = (await api.getSettings('precificacao_product_data')) || {};
+            const prevEntry = currentAll[targetFtId] || {};
+            const nextEntry = {
+                ...prevEntry,
+                medidasComCaixa: vals.medidasComCaixa || '',
+                medidasSemCaixa: vals.medidasSemCaixa || '',
+                pesoComCaixa: vals.pesoComCaixa || '',
+                pesoSemCaixa: vals.pesoSemCaixa || '',
+            };
+            const nextAll = { ...currentAll, [targetFtId]: nextEntry };
+            await api.saveSettings('precificacao_product_data', nextAll);
+            setPrecificacaoData(nextAll);
+        } catch (err) {
+            console.error('Erro ao sincronizar medidas/peso com Precificação:', err);
+        }
+    };
+
+    const handlePullFromPrecificacao = async () => {
+        if (!form.id) {
+            alert('Salve esta nova FT primeiro ou selecione uma FT existente para puxar as medidas da Precificação.');
+            return;
+        }
+        setPullingPrecificacao(true);
+        try {
+            const currentAll = (await api.getSettings('precificacao_product_data')) || {};
+            setPrecificacaoData(currentAll);
+            const entry = currentAll[form.id];
+            if (!entry || (!entry.medidasComCaixa && !entry.medidasSemCaixa && !entry.pesoComCaixa && !entry.pesoSemCaixa)) {
+                alert('Nenhuma medida ou peso cadastrado para esta FT na aba Precificação.');
+                return;
+            }
+            setForm(prev => ({
+                ...prev,
+                medidasComCaixa: entry.medidasComCaixa || prev.medidasComCaixa || '',
+                medidasSemCaixa: entry.medidasSemCaixa || prev.medidasSemCaixa || '',
+                pesoComCaixa: entry.pesoComCaixa || prev.pesoComCaixa || '',
+                pesoSemCaixa: entry.pesoSemCaixa || prev.pesoSemCaixa || '',
+            }));
+        } catch (err) {
+            console.error('Erro ao puxar medidas da Precificação:', err);
+            alert('Erro ao buscar dados da Precificação.');
+        } finally {
+            setPullingPrecificacao(false);
         }
     };
 
@@ -328,6 +392,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     } catch (varErr) {
                         console.error('Error saving ft_variations:', varErr);
                     }
+                    await syncPrecificacaoDims(res.newId, formData);
                     const newFt = { ...formData, id: res.newId };
                     const updatedFts = [...fts, newFt];
                     updatedFts.sort((a, b) => a.ftCode.localeCompare(b.ftCode));
@@ -352,6 +417,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     } catch (varErr) {
                         console.error('Error saving ft_variations:', varErr);
                     }
+                    await syncPrecificacaoDims(formData.id, formData);
                     // Propagate physical changes and update SKUs across all marketplace overrides
                     const knownMkts = ['meli', 'shopee', 'tiktok', 'amazon', 'site'];
                     
@@ -429,6 +495,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
                 const success = await api.saveSettings(`ft_overrides_${currentMarketplace}`, nextOverrides);
                 if (success) {
+                    await syncPrecificacaoDims(form.id, form);
                     api.touchFtUpdatedAt(form.ftCode).catch(console.error);
                 }
                 if (success) {
@@ -462,6 +529,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         ALL_MKT_PLATFORMS.forEach(m => {
             skus[m] = allOverrides[m]?.[ft.ftCode]?.sku || '';
         });
+        const precif = precificacaoData[ft.id] || {};
         setForm({
             ...initialFormState,
             ...ft,
@@ -482,9 +550,31 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             origin: currentOvr.origin ?? ft.origin ?? '0',
             cest: currentOvr.cest ?? ft.cest ?? '',
             csosn: currentOvr.csosn ?? ft.csosn ?? '102',
+            medidasComCaixa: precif.medidasComCaixa ?? ft.medidasComCaixa ?? '',
+            medidasSemCaixa: precif.medidasSemCaixa ?? ft.medidasSemCaixa ?? '',
+            pesoComCaixa: precif.pesoComCaixa ?? ft.pesoComCaixa ?? '',
+            pesoSemCaixa: precif.pesoSemCaixa ?? ft.pesoSemCaixa ?? '',
         });
         setIsEditing(true);
         setIsModalOpen(true);
+
+        // Atualiza medidas/peso em segundo plano caso tenham sido alterados recentemente na aba Precificação
+        if (ft.id) {
+            api.getSettings('precificacao_product_data').then((latest) => {
+                if (!latest) return;
+                setPrecificacaoData(latest);
+                const latestEntry = latest[ft.id];
+                if (latestEntry) {
+                    setForm(prev => (prev.id === ft.id ? {
+                        ...prev,
+                        medidasComCaixa: latestEntry.medidasComCaixa ?? prev.medidasComCaixa ?? '',
+                        medidasSemCaixa: latestEntry.medidasSemCaixa ?? prev.medidasSemCaixa ?? '',
+                        pesoComCaixa: latestEntry.pesoComCaixa ?? prev.pesoComCaixa ?? '',
+                        pesoSemCaixa: latestEntry.pesoSemCaixa ?? prev.pesoSemCaixa ?? '',
+                    } : prev));
+                }
+            }).catch(() => {});
+        }
     };
 
     const handlePullSingleFromMl = async () => {
@@ -561,6 +651,9 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     cest: fiscal.cest || prev.cest,
                     origin: fiscal.origin !== '' ? fiscal.origin : prev.origin,
                     csosn: fiscal.csosn || prev.csosn,
+                    medidasSemCaixa: prev.medidasSemCaixa || extracted.medidasSemCaixa || '',
+                    medidasComCaixa: prev.medidasComCaixa || extracted.medidasComCaixa || '',
+                    pesoComCaixa: prev.pesoComCaixa || extracted.pesoComCaixa || '',
                     variations: updatedVars
                 };
             });
@@ -1749,6 +1842,76 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             <span className={clsx("text-base font-bold", marginPercent >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                 {marginPercent.toFixed(2)}%
                                             </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Medidas e Peso (com e sem caixa) - Sincronizado com Precificação */}
+                                <div className="bg-blue-50/30 p-3.5 rounded-xl border border-blue-100 space-y-2.5">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <span className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                <span>📦 Medidas (cm) e Peso (kg)</span>
+                                                <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full normal-case">
+                                                    Sincronizado com Precificação
+                                                </span>
+                                            </span>
+                                        </div>
+                                        {!readOnly && isEditing && (
+                                            <button
+                                                type="button"
+                                                onClick={handlePullFromPrecificacao}
+                                                disabled={pullingPrecificacao}
+                                                className="px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50"
+                                            >
+                                                {pullingPrecificacao ? 'Puxando...' : '🔄 Puxar da Precificação'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Medidas Com Caixa (cm)</label>
+                                            <input
+                                                type="text"
+                                                value={form.medidasComCaixa || ''}
+                                                onChange={(e) => setForm({ ...form, medidasComCaixa: e.target.value })}
+                                                readOnly={readOnly}
+                                                placeholder="Ex: 30x20x15"
+                                                className="w-full text-xs font-semibold text-gray-800 border border-blue-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-1 focus:ring-blue-400"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Medidas Sem Caixa (cm)</label>
+                                            <input
+                                                type="text"
+                                                value={form.medidasSemCaixa || ''}
+                                                onChange={(e) => setForm({ ...form, medidasSemCaixa: e.target.value })}
+                                                readOnly={readOnly}
+                                                placeholder="Ex: 28x18x12"
+                                                className="w-full text-xs font-semibold text-gray-800 border border-blue-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-1 focus:ring-blue-400"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Peso Com Caixa (kg)</label>
+                                            <input
+                                                type="text"
+                                                value={form.pesoComCaixa || ''}
+                                                onChange={(e) => setForm({ ...form, pesoComCaixa: e.target.value })}
+                                                readOnly={readOnly}
+                                                placeholder="Ex: 0,85"
+                                                className="w-full text-xs font-semibold text-gray-800 border border-blue-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-1 focus:ring-blue-400"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">Peso Sem Caixa (kg)</label>
+                                            <input
+                                                type="text"
+                                                value={form.pesoSemCaixa || ''}
+                                                onChange={(e) => setForm({ ...form, pesoSemCaixa: e.target.value })}
+                                                readOnly={readOnly}
+                                                placeholder="Ex: 0,60"
+                                                className="w-full text-xs font-semibold text-gray-800 border border-blue-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-1 focus:ring-blue-400"
+                                            />
                                         </div>
                                     </div>
                                 </div>
