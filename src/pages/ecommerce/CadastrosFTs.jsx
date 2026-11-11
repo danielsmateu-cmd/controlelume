@@ -923,8 +923,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
             id: null,
             name: name.trim(),
             materials: form.materials.map(m => ({ id: m.id, name: m.name, value: 0 })),
-            directCostsRS: form.directCostsRS,
-            directCostsPercent: form.directCostsPercent
+            directCostsRS: currentMarketplace === 'geral' ? [] : form.directCostsRS,
+            directCostsPercent: currentMarketplace === 'geral' ? [] : form.directCostsPercent
         };
 
         setIsSaving(true);
@@ -945,12 +945,17 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
         if (!id) return;
         const model = costModels.find(m => m.id === id);
         if (model) {
-            if (window.confirm(`Deseja carregar o modelo "${model.name}"? Isso substituirá os materiais, custos R$ e % atuais.`)) {
+            const confirmMsg = currentMarketplace === 'geral'
+                ? `Deseja carregar os materiais do modelo "${model.name}"?`
+                : `Deseja carregar o modelo "${model.name}"? Isso substituirá os materiais, custos R$ e % atuais.`;
+            if (window.confirm(confirmMsg)) {
                 setForm({
                     ...form,
                     materials: model.materials && model.materials.length > 0 ? model.materials : form.materials,
-                    directCostsRS: model.directCostsRS || [],
-                    directCostsPercent: model.directCostsPercent || []
+                    ...(currentMarketplace !== 'geral' ? {
+                        directCostsRS: model.directCostsRS || [],
+                        directCostsPercent: model.directCostsPercent || []
+                    } : {})
                 });
             }
         }
@@ -1250,11 +1255,15 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
 
     // calculations
     const totalMaterials = form.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-    const totalDirectRS = form.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-    const totalDirectPercentValue = form.directCostsPercent.reduce((acc, curr) => {
-        const perc = parseFloat(curr.percentage) || 0;
-        return acc + ((perc / 100) * (parseFloat(form.salePrice) || 0));
-    }, 0);
+    const totalDirectRS = currentMarketplace === 'geral'
+        ? 0
+        : form.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
+    const totalDirectPercentValue = currentMarketplace === 'geral'
+        ? 0
+        : form.directCostsPercent.reduce((acc, curr) => {
+            const perc = parseFloat(curr.percentage) || 0;
+            return acc + ((perc / 100) * (parseFloat(form.salePrice) || 0));
+        }, 0);
 
     const marginRS = (parseFloat(form.salePrice) || 0) - totalMaterials - totalDirectRS - totalDirectPercentValue;
     const marginPercent = parseFloat(form.salePrice) > 0 ? (marginRS / parseFloat(form.salePrice)) * 100 : 0;
@@ -1343,6 +1352,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                     >
                         📊 Venda x Margem
                     </button>
+
+                    {!readOnly && (
+                        <button
+                            type="button"
+                            onClick={() => setIsMlCatalogModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-yellow-400 hover:bg-yellow-500 text-gray-900 shadow-sm transition-all cursor-pointer"
+                            title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre"
+                        >
+                            <Download size={16} />
+                            <span>Importar Dados do ML</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1358,17 +1379,15 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 </div>
                 {!readOnly && (
                     <div className="flex flex-wrap items-center gap-2.5">
-                        {currentMarketplace !== 'geral' && (
-                            <button
-                                type="button"
-                                onClick={() => setIsMlCatalogModalOpen(true)}
-                                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer text-sm"
-                                title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre para as FTs"
-                            >
-                                <Download size={17} />
-                                <span>Importar Dados do ML</span>
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => setIsMlCatalogModalOpen(true)}
+                            className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer text-sm"
+                            title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre para as FTs"
+                        >
+                            <Download size={17} />
+                            <span>Importar Dados do ML</span>
+                        </button>
                         <button
                             onClick={handleNewFt}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-100 flex items-center gap-2 transition-all duration-200 hover:scale-105 cursor-pointer"
@@ -1400,6 +1419,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 )}
                             </h3>
                             <div className="flex items-center gap-3">
+                                {currentMarketplace !== 'geral' && isEditing && !readOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={handlePullSingleFromMl}
+                                        disabled={pullingMlSingle}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-400 hover:bg-yellow-500 text-gray-900 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                                        title="Importar fotos, descrição, título, EAN, marca, categoria e estoque deste anúncio no Mercado Livre"
+                                    >
+                                        {pullingMlSingle ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                        <span>{pullingMlSingle ? 'Puxando...' : 'Puxar do ML'}</span>
+                                    </button>
+                                )}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2">
                                         <label className="text-xs font-semibold text-gray-600 whitespace-nowrap">Código:</label>
@@ -1452,18 +1483,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         placeholder="Ex: Luminária X"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
-                                        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Variação <span className="text-indigo-400 font-normal lowercase italic">(opcional)</span></label>
-                                        <input
-                                            type="text"
-                                            value={form.variation}
-                                            onChange={(e) => setForm({ ...form, variation: e.target.value })}
-                                            readOnly={readOnly}
-                                            className="w-full text-sm font-semibold text-gray-800 border-indigo-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white/90 py-1 px-2.5 transition-colors"
-                                            placeholder="Ex: Preto"
-                                        />
-                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="bg-indigo-50/20 px-3 py-2 rounded-xl border border-indigo-100/70 shadow-sm hover:shadow-md transition-all">
                                         <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Tempo Prod. (min)</label>
                                         <input
@@ -1700,7 +1720,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 <div className="p-3 bg-indigo-50/30 border border-indigo-100/80 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
                                     <div className="text-[11px] text-indigo-900">
                                         <span className="font-semibold block mb-0.5">Resumo da Margem de Contribuição:</span>
-                                        Venda: R$ {(form.salePrice || 0).toFixed(2)} - Custos Totais: R$ {(totalMaterials + totalDirectRS + totalDirectPercentValue).toFixed(2)}
+                                        Venda: R$ {(form.salePrice || 0).toFixed(2)} - {currentMarketplace === 'geral' ? 'Materiais' : 'Custos Totais'}: R$ {(totalMaterials + totalDirectRS + totalDirectPercentValue).toFixed(2)}
                                     </div>
                                     <div className="flex gap-4 text-right">
                                         <div>
@@ -1771,7 +1791,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className={clsx("grid gap-6", currentMarketplace === 'geral' ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3")}>
                                 {/* Custo Materiais */}
                                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                                     <div className="flex justify-between items-center mb-3">
@@ -1882,11 +1902,18 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         })}
                                         {form.materials.length === 0 && <p className="text-xs text-gray-500 italic text-center py-2">Nenhum material</p>}
                                     </div>
-                                    <div className="mt-3 text-right text-xs font-semibold text-gray-700 pt-2 border-t border-gray-200">
-                                        Total: R$ {totalMaterials.toFixed(2)}
+                                    <div className="mt-3 flex items-center justify-between text-xs font-semibold text-gray-700 pt-2 border-t border-gray-200">
+                                        {currentMarketplace === 'geral' ? (
+                                            <span className="text-[11px] font-normal text-gray-500 italic">
+                                                💡 Custos Diretos (R$ e %) são cadastrados individualmente em cada Marketplace.
+                                            </span>
+                                        ) : <span />}
+                                        <span>Total: R$ {totalMaterials.toFixed(2)}</span>
                                     </div>
                                 </div>
 
+                                {currentMarketplace !== 'geral' && (
+                                <>
                                 {/* Custo Direto R$ */}
                                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                                     <div className="flex justify-between items-center mb-3">
@@ -2021,6 +2048,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                         Equivalente: R$ {totalDirectPercentValue.toFixed(2)}
                                     </div>
                                 </div>
+                                </>
+                                )}
                             </div>
 
                         </div>
@@ -2301,8 +2330,12 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Última Alt.</th>
                                     <th className="px-6 py-3 font-medium text-center whitespace-nowrap">Tempo Prod.</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Matérias (R$)</th>
-                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (Fixo)</th>
-                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (%)</th>
+                                    {currentMarketplace !== 'geral' && (
+                                        <>
+                                            <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (Fixo)</th>
+                                            <th className="px-6 py-3 font-medium text-right whitespace-nowrap">C. Dir. R$ (%)</th>
+                                        </>
+                                    )}
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (R$)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Margem (%)</th>
                                     <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Venda (R$)</th>
@@ -2312,8 +2345,8 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                             <tbody className="divide-y divide-gray-100">
                                 {fts.filter(ft => ft.name.toLowerCase().includes(ftSearchTerm.toLowerCase()) || ft.ftCode.toLowerCase().includes(ftSearchTerm.toLowerCase())).map((ft, idx) => {
                                     const ftTotalMat = ft.materials.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-                                    const ftTotalDir = ft.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-                                    const ftTotalPerc = ft.directCostsPercent.reduce((acc, curr) => {
+                                    const ftTotalDir = currentMarketplace === 'geral' ? 0 : ft.directCostsRS.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
+                                    const ftTotalPerc = currentMarketplace === 'geral' ? 0 : ft.directCostsPercent.reduce((acc, curr) => {
                                         return acc + (((parseFloat(curr.percentage) || 0) / 100) * (parseFloat(ft.salePrice) || 0));
                                     }, 0);
                                     const ftMarginRS = (parseFloat(ft.salePrice) || 0) - ftTotalMat - ftTotalDir - ftTotalPerc;
@@ -2468,12 +2501,16 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                             <td className="px-6 py-4 text-right text-gray-600">
                                                 R$ {ftTotalMat.toFixed(2)}
                                             </td>
-                                            <td className="px-6 py-4 text-right text-gray-600">
-                                                R$ {ftTotalDir.toFixed(2)}
-                                            </td>
-                                            <td className="px-6 py-4 text-right text-gray-600">
-                                                R$ {ftTotalPerc.toFixed(2)}
-                                            </td>
+                                            {currentMarketplace !== 'geral' && (
+                                                <>
+                                                    <td className="px-6 py-4 text-right text-gray-600">
+                                                        R$ {ftTotalDir.toFixed(2)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right text-gray-600">
+                                                        R$ {ftTotalPerc.toFixed(2)}
+                                                    </td>
+                                                </>
+                                            )}
                                             <td className={clsx("px-6 py-4 text-right font-semibold", ftMarginRS >= 0 ? "text-emerald-600" : "text-red-600")}>
                                                 R$ {ftMarginRS.toFixed(2)}
                                             </td>
