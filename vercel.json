@@ -1,7 +1,23 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/parceiros/v1/saude",
+      "destination": "/api/parceiros-v1?route=saude"
+    },
+    {
+      "source": "/api/parceiros/v1/campos",
+      "destination": "/api/parceiros-v1?route=campos"
+    },
+    {
+      "source": "/api/parceiros/v1/produtos",
+      "destination": "/api/parceiros-v1?route=produtos"
+    },
+    {
+      "source": "/api/parceiros/v1/produtos/:id",
+      "destination": "/api/parceiros-v1?route=produto&id=:id"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

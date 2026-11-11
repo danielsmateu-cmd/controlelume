@@ -9,11 +9,13 @@ import {
     ShoppingCart,
     Store,
     Printer,
-    Calculator
+    Calculator,
+    KeyRound
 } from 'lucide-react';
 
 import CadastrosFTs from './ecommerce/CadastrosFTs';
 import Parcerias from './ecommerce/Parcerias';
+import ApiParceiros from './ecommerce/ApiParceiros';
 
 import Vendas from './ecommerce/Vendas';
 import EmpresasCustos from './ecommerce/EmpresasCustos';
@@ -90,17 +92,22 @@ const ECommerce = ({ readOnly }) => {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
+    const isAdmin = currentUser?.role === 'admin' || currentUser?.login === 'dsmateu';
+
     const subTabs = [
         { id: 'visao_geral', label: 'Visão Geral', icon: BarChart3 },
         { id: 'empresas_custos', label: 'Empresas e Custos', icon: Building2 },
         { id: 'marketplaces', label: 'Marketplaces', icon: Store },
         { id: 'cadastros_fts', label: 'Cadastros de FTs', icon: ListTodo },
         { id: 'parcerias', label: 'Parcerias', icon: Handshake },
+        ...(isAdmin ? [{ id: 'api_parceiros', label: 'API Parceiros', icon: KeyRound }] : []),
         { id: 'relatorio', label: 'Gerar PDF', icon: Printer },
     ];
 
     // Filtrar apenas as sub-abas liberadas para este usuário
-    const availableSubTabs = subTabs.filter(tab => canView ? canView('ecommerce', tab.id) : true);
+    const availableSubTabs = subTabs.filter(tab =>
+        tab.id === 'api_parceiros' ? isAdmin : (canView ? canView('ecommerce', tab.id) : true)
+    );
 
     const [activeSubTab, setActiveSubTab] = useState(() => {
         const first = subTabs.find(tab => canView ? canView('ecommerce', tab.id) : true);
@@ -131,6 +138,8 @@ const ECommerce = ({ readOnly }) => {
                 return <EmpresasCustos readOnly={isCurrentSubReadOnly} />;
             case 'parcerias':
                 return <Parcerias readOnly={isCurrentSubReadOnly} />;
+            case 'api_parceiros':
+                return isAdmin ? <ApiParceiros /> : null;
             case 'marketplaces':
                 return (
                     <div className="space-y-4">

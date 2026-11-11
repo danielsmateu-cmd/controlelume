@@ -61,6 +61,17 @@ function AppContent() {
         }
     }, [currentUser?.id]);
 
+    // Flush de retentativas de webhook em segundo plano (plano gratuito)
+    useEffect(() => {
+        if (!currentUser || currentUser.login === 'teste') return;
+        const timerInit = setTimeout(() => api.flushPartnerWebhooksBackground(), 5000);
+        const interval = setInterval(() => api.flushPartnerWebhooksBackground(), 60000);
+        return () => {
+            clearTimeout(timerInit);
+            clearInterval(interval);
+        };
+    }, [currentUser?.id]);
+
     // Load from database/localStorage on mount or user change
     useEffect(() => {
         const loadData = async () => {

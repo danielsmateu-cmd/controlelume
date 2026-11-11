@@ -794,6 +794,8 @@ const supabaseApi = {
                 if (error) throw error;
             }
 
+            const wasCreated = !ft.id || !isUUID;
+
             // 2. Apagar listar filhas antigas da FT
             await supabase.from('ft_materials').delete().eq('ft_id', ftId);
             await supabase.from('ft_direct_costs_rs').delete().eq('ft_id', ftId);
@@ -813,6 +815,7 @@ const supabaseApi = {
                 await supabase.from('ft_direct_costs_percent').insert(inserts);
             }
 
+            this.notifyPartnerChange(wasCreated ? 'produto.criado' : 'produto.alterado', ftId, ft.ftCode, ftData.updated_at);
             return { success: true, newId: ftId };
         } catch (err) {
             console.error('Supabase saveFt:', err);
@@ -821,6 +824,7 @@ const supabaseApi = {
     },
 
     async deleteFt(id) {
+        let deletedMeta = null;
         try {
             // Registra a exclusão lógica para sincronização futura com parceiros via API
             try {
@@ -830,13 +834,16 @@ const supabaseApi = {
                     .eq('id', id)
                     .single();
                 if (existingFt) {
+                    deletedMeta = existingFt;
                     const currentLog = (await this.getSettings('ft_deleted_log')) || [];
                     const filtered = currentLog.filter(item => item.id !== existingFt.id);
                     filtered.push({
                         id: existingFt.id,
                         ftCode: existingFt.ft_code,
+                        ft_code: existingFt.ft_code,
                         name: existingFt.name,
-                        deletedAt: new Date().toISOString()
+                        deletedAt: new Date().toISOString(),
+                        deleted_at: new Date().toISOString()
                     });
                     await this.saveSettings('ft_deleted_log', filtered);
                 }
@@ -846,6 +853,7 @@ const supabaseApi = {
 
             const { error } = await supabase.from('fts').delete().eq('id', id);
             if (error) throw error;
+            this.notifyPartnerChange('produto.excluido', deletedMeta?.id || id, deletedMeta?.ft_code || null);
             return true;
         } catch (err) {
             console.error('Supabase deleteFt:', err);
@@ -858,16 +866,62 @@ const supabaseApi = {
         try {
             const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(ftCodeOrId);
             const col = isUUID ? 'id' : 'ft_code';
-            const { error } = await supabase
+            const nowIso = new Date().toISOString();
+            const { data, error } = await supabase
                 .from('fts')
-                .update({ updated_at: new Date().toISOString() })
-                .eq(col, ftCodeOrId);
+                .update({ updated_at: nowIso })
+                .eq(col, ftCodeOrId)
+                .select('id, ft_code')
+                .maybeSingle();
             if (error) throw error;
+            if (data?.id) {
+                this.notifyPartnerChange('produto.alterado', data.id, data.ft_code, nowIso);
+            }
             return true;
         } catch (err) {
             console.warn('Supabase touchFtUpdatedAt:', err);
             return false;
         }
+    },
+
+    notifyPartnerChange(evento, produtoId, ftCode = null, alteradoEm = null) {
+        if (typeof window === 'undefined' || !produtoId) return;
+        try {
+            const rawUser = sessionStorage.getItem('currentUser');
+            if (!rawUser) return;
+            const user = JSON.parse(rawUser);
+            if (!user || user.login === 'teste') return;
+
+            fetch('/api/parceiros-admin?action=enqueue_webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true,
+                body: JSON.stringify({
+                    userId: user.id,
+                    userLogin: user.login,
+                    evento,
+                    produto_id: produtoId,
+                    ft_code: ftCode,
+                    alterado_em: alteradoEm || new Date().toISOString(),
+                }),
+            }).catch(() => {});
+        } catch (_) {}
+    },
+
+    flushPartnerWebhooksBackground() {
+        if (typeof window === 'undefined') return;
+        try {
+            const rawUser = sessionStorage.getItem('currentUser');
+            if (!rawUser) return;
+            const user = JSON.parse(rawUser);
+            if (!user || user.login === 'teste') return;
+
+            fetch('/api/parceiros-admin?action=flush_webhooks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, userLogin: user.login }),
+            }).catch(() => {});
+        } catch (_) {}
     },
 
     async updateFtProductionTime(id, productionTime) {
@@ -886,11 +940,17 @@ const supabaseApi = {
 
     async updateFtSalePrice(id, salePrice) {
         try {
-            const { error } = await supabase
+            const nowIso = new Date().toISOString();
+            const { data, error } = await supabase
                 .from('fts')
-                .update({ sale_price: salePrice || 0, updated_at: new Date().toISOString() })
-                .eq('id', id);
+                .update({ sale_price: salePrice || 0, updated_at: nowIso })
+                .eq('id', id)
+                .select('id, ft_code')
+                .maybeSingle();
             if (error) throw error;
+            if (data?.id) {
+                this.notifyPartnerChange('produto.alterado', data.id, data.ft_code, nowIso);
+            }
             return true;
         } catch (err) {
             console.error('Supabase updateFtSalePrice:', err);
