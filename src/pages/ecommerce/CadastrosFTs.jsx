@@ -1461,7 +1461,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                         📊 Venda x Margem
                     </button>
 
-                    {!readOnly && (
+                    {!readOnly && currentMarketplace === 'meli' && (
                         <button
                             type="button"
                             onClick={() => setIsMlCatalogModalOpen(true)}
@@ -1487,15 +1487,17 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                 </div>
                 {!readOnly && (
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <button
-                            type="button"
-                            onClick={() => setIsMlCatalogModalOpen(true)}
-                            className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer text-sm"
-                            title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre para as FTs"
-                        >
-                            <Download size={17} />
-                            <span>Importar Dados do ML</span>
-                        </button>
+                        {currentMarketplace === 'meli' && (
+                            <button
+                                type="button"
+                                onClick={() => setIsMlCatalogModalOpen(true)}
+                                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer text-sm"
+                                title="Importar fotos, descrição, título, EAN, marca, categoria e estoque do Mercado Livre para as FTs"
+                            >
+                                <Download size={17} />
+                                <span>Importar Dados do ML</span>
+                            </button>
+                        )}
                         <button
                             onClick={handleNewFt}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-100 flex items-center gap-2 transition-all duration-200 hover:scale-105 cursor-pointer"
@@ -1527,7 +1529,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                 )}
                             </h3>
                             <div className="flex items-center gap-3">
-                                {currentMarketplace !== 'geral' && isEditing && !readOnly && (
+                                {currentMarketplace === 'meli' && isEditing && !readOnly && (
                                     <button
                                         type="button"
                                         onClick={handlePullSingleFromMl}
@@ -1925,7 +1927,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                     currentMarketplace={currentMarketplace}
                                     platformLabel={currentPlatform?.label || currentMarketplace}
                                     readOnly={readOnly}
-                                    onPullFromMl={handlePullSingleFromMl}
+                                    onPullFromMl={currentMarketplace === 'meli' ? handlePullSingleFromMl : null}
                                     pullingMl={pullingMlSingle}
                                     onReplicateAll={handleReplicateCommercialFields}
                                     replicatingAll={replicatingAll}
