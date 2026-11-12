@@ -21,7 +21,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
         fiscal: true,
         stock: true,
         prices: false,
-        replicateOthers: true,
+        replicateOthers: false,
     });
 
     useEffect(() => {
@@ -195,7 +195,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
         try {
             const targetChannels = opts.replicateOthers
                 ? ALL_MKT_PLATFORMS
-                : [currentMarketplace === 'geral' ? 'meli' : currentMarketplace];
+                : ['meli'];
 
             // Carrega overrides de todos os canais alvo + ft_variations
             const [ftVarsSetting, localListings, ...channelOverridesList] = await Promise.all([
@@ -225,13 +225,13 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                     await mlListings.linkFt(savedListing.id, baseFt.id);
                 }
 
-                // Cria variações ausentes e atualiza existentes (preservando SKUs já cadastrados)
+                // Cria variações ausentes e atualiza existentes (preservando SKUs já cadastrados de cada canal)
                 const existingVars = Array.isArray(nextFtVars[ftCode]) ? [...nextFtVars[ftCode]] : [];
                 if (item.variations?.length > 0) {
                     nextFtVars[ftCode] = mlApi.mergeVariationsFromMl(
                         existingVars,
                         item.variations,
-                        currentMarketplace === 'geral' ? 'meli' : currentMarketplace,
+                        'meli',
                         { overwritePrices: opts.prices, overwriteStock: opts.stock }
                     );
                 }
@@ -264,7 +264,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                         if (opts.brandEanCat) {
                             if (item.brand) patch.brand = item.brand;
                             if (item.ean) patch.ean = item.ean;
-                            if (item.category) patch.category = item.category;
+                            if (isMeli && item.category) patch.category = item.category;
                         }
                         if (opts.fiscal) {
                             if (item.ncm) patch.ncm = item.ncm;
@@ -382,7 +382,7 @@ const MlCatalogImportModal = ({ isOpen, onClose, baseFts = [], currentMarketplac
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer sm:col-span-2 font-semibold text-indigo-800 pt-1 border-t border-gray-200">
                                         <input type="checkbox" checked={opts.replicateOthers} onChange={e => setOpts({ ...opts, replicateOthers: e.target.checked })} className="rounded text-indigo-600" />
-                                        <span>Replicar Descrição, Marca, EAN, Categoria, Fotos, Vídeo e Dados Fiscais também para Shopee, TikTok, Amazon e Site (preservando os preços/SKUs de cada canal)</span>
+                                        <span>Replicar também para Shopee, TikTok, Amazon e Site (somente Fotos, Vídeo, Descrição, Marca, EAN e Fiscal — nunca copia SKU, Preço, Estoque nem Categoria do ML)</span>
                                     </label>
                                 </div>
                             </div>

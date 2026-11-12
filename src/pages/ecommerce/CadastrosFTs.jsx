@@ -1755,7 +1755,7 @@ const CadastrosFTs = ({ marketplace = 'geral', readOnly = false }) => {
                                                                 <input
                                                                     type="text"
                                                                     placeholder={`SKU cadastrado na ${currentPlatform?.label}`}
-                                                                    value={vItem.skus?.[currentMarketplace] || vItem.sku || ''}
+                                                                    value={vItem.skus?.[currentMarketplace] || (currentMarketplace === 'meli' ? vItem.sku : '') || ''}
                                                                     onChange={(e) => handleUpdateVariationItem(vItem.id, 'sku_' + currentMarketplace, e.target.value)}
                                                                     readOnly={readOnly}
                                                                     className="flex-1 text-xs font-mono font-bold text-gray-800 border border-amber-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-amber-500"
