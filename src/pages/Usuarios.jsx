@@ -14,6 +14,7 @@ const MODULES = [
         subModules: [
             { id: 'fixos', label: 'Gastos Fixos' },
             { id: 'mercado', label: 'Gastos Extras' },
+            { id: 'alimentacao', label: 'Mercado / Alimentação' },
             { id: 'fornecedores', label: 'Fornecedores' },
             { id: 'retirada', label: 'Retirada de Sócios' },
             { id: 'acerto_socios', label: 'Acerto Sócios' }

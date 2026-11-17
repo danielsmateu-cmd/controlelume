@@ -16,6 +16,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     // Form States
     const [extrasForm, setExtrasForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0], allMonths: false });
     const [mercadoForm, setMercadoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+    const [alimentacaoForm, setAlimentacaoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
     const [viewingSeries, setViewingSeries] = useState(null);
     const [installmentInterval, setInstallmentInterval] = useState('monthly'); // 'monthly', 'biweekly', 'weekly'
     const [fornecedoresForm, setFornecedoresForm] = useState({
@@ -394,6 +395,27 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         }
     };
 
+    const handleAddAlimentacao = async (e) => {
+        e.preventDefault();
+        const newExpense = {
+            id: Date.now(),
+            type: 'alimentacao',
+            description: alimentacaoForm.description,
+            amount: parseFloat(alimentacaoForm.value) || 0,
+            date: alimentacaoForm.date,
+            month: new Date(alimentacaoForm.date + 'T00:00:00').getUTCMonth(),
+            year: new Date(alimentacaoForm.date + 'T00:00:00').getUTCFullYear(),
+            paid: true
+        };
+        setExpenses([newExpense, ...expenses]);
+        setAlimentacaoForm({ ...alimentacaoForm, description: '', value: '' });
+        try {
+            await api.saveExpenses([newExpense]);
+        } catch (err) {
+            console.error('Erro ao salvar despesa de mercado/alimentação:', err);
+        }
+    };
+
     
     // Função utilitária para gerar datas de parcelas com intervalo correto
     const calculateInstallmentDates = (baseDateStr, count, interval = 'monthly') => {
@@ -589,7 +611,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
         if (activeTab === 'fornecedores') {
             return e.type === 'fornecedores' && e.month === selectedMonth && e.year === selectedYear;
         }
-        if (activeTab === 'mercado') {
+        if (activeTab === 'mercado' || activeTab === 'alimentacao') {
             return e.type === activeTab && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear;
         }
         if (activeTab === 'retirada') {
@@ -814,6 +836,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 {[
                     { id: 'fixos', label: 'Gastos Fixos' },
                     { id: 'mercado', label: 'Gastos Extras' },
+                    { id: 'alimentacao', label: 'MERCADO/ALIMENTAÇÃO' },
                     { id: 'fornecedores', label: 'Fornecedores' },
                     { id: 'retirada', label: 'Retirada' },
                     { id: 'acerto_socios', label: 'Acerto Sócios' }
@@ -1141,6 +1164,70 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                                     </div>
                                     <div className="md:col-span-1">
                                         <button type="submit" className="w-full bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
+                                            <Plus size={16} /> Adicionar
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* MERCADO / ALIMENTAÇÃO */}
+                {activeTab === 'alimentacao' && (
+                    <div className="space-y-3">
+                        {/* TOTALS SUMMARY */}
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-2 mb-2">
+                            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Total Mercado / Alimentação - {months[selectedMonth]}</p>
+                                <p className="text-xl font-bold text-emerald-700">
+                                    {expenses
+                                        .filter(e => e.type === 'alimentacao' && new Date(e.date + 'T00:00:00').getUTCMonth() === selectedMonth && new Date(e.date + 'T00:00:00').getUTCFullYear() === selectedYear)
+                                        .reduce((acc, curr) => acc + curr.amount, 0)
+                                        .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-semibold text-gray-800">Adicionar Gasto Mercado / Alimentação</h3>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                    {months[selectedMonth]}
+                                </span>
+                            </div>
+                            {!readOnly && (
+                                <form onSubmit={handleAddAlimentacao} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Descrição</label>
+                                        <input
+                                            type="text" required
+                                            value={alimentacaoForm.description}
+                                            onChange={(e) => setAlimentacaoForm({ ...alimentacaoForm, description: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            placeholder="Ex: Supermercado / Feira / Almoço"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
+                                        <input
+                                            type="number" step="0.01" required
+                                            value={alimentacaoForm.value}
+                                            onChange={(e) => setAlimentacaoForm({ ...alimentacaoForm, value: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                        <input
+                                            type="date" required
+                                            value={alimentacaoForm.date}
+                                            onChange={(e) => setAlimentacaoForm({ ...alimentacaoForm, date: e.target.value })}
+                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <button type="submit" className="w-full bg-emerald-600 text-white py-1.5 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2 text-sm font-semibold cursor-pointer">
                                             <Plus size={16} /> Adicionar
                                         </button>
                                     </div>

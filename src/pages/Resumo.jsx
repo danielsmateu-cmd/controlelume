@@ -311,6 +311,10 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
             .filter(e => e.type === 'mercado' && e.paid !== false) // Any added before fix lacked 'paid'
             .reduce((sum, e) => sum + e.amount, 0);
 
+        const alimentacao = monthExpenses
+            .filter(e => e.type === 'alimentacao' && e.paid !== false)
+            .reduce((sum, e) => sum + e.amount, 0);
+
         const fornecedores = monthExpenses
             .filter(e => e.type === 'fornecedores' && e.paid)
             .reduce((sum, e) => sum + e.amount, 0);
@@ -323,14 +327,14 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
             .filter(e => e.paid === false)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const totalSaídas = fixos + mercado + fornecedores + retirada;
+        const totalSaídas = fixos + mercado + alimentacao + fornecedores + retirada;
         const lumeEcomm = getEcommTotalLume(monthIndex, year);
         const saldo = entradas + lumeEcomm - totalSaídas;
 
         const vendasTotalLume = entradas + entradasPendentes;
         const ecommTotalFat = getEcommTotalFaturamento(monthIndex, year);
 
-        return { entradas, entradasPendentes, fixos, mercado, fornecedores, retirada, saidasPendentes, totalSaídas, saldo, lumeEcomm, vendasTotalLume, ecommTotalFat };
+        return { entradas, entradasPendentes, fixos, mercado, alimentacao, fornecedores, retirada, saidasPendentes, totalSaídas, saldo, lumeEcomm, vendasTotalLume, ecommTotalFat };
     };
 
     // Calcular totais anuais
@@ -343,6 +347,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
         acc.ecommTotalFat += parseFloat(data.ecommTotalFat) || 0;
         acc.fixos += parseFloat(data.fixos) || 0;
         acc.mercado += parseFloat(data.mercado) || 0;
+        acc.alimentacao += parseFloat(data.alimentacao) || 0;
         acc.fornecedores += parseFloat(data.fornecedores) || 0;
         acc.retirada += parseFloat(data.retirada) || 0;
         acc.totalSaídas += parseFloat(data.totalSaídas) || 0;
@@ -357,6 +362,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
         ecommTotalFat: 0,
         fixos: 0, 
         mercado: 0, 
+        alimentacao: 0,
         fornecedores: 0, 
         retirada: 0, 
         totalSaídas: 0, 
@@ -453,6 +459,7 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                                 <th className="px-6 py-4 text-right text-orange-500">Entradas Pendentes</th>
                                 <th className="px-6 py-4 text-right">Fixo/Extra</th>
                                 <th className="px-6 py-4 text-right">Extras (Avulso)</th>
+                                <th className="px-6 py-4 text-right">Mercado / Alim.</th>
                                 <th className="px-6 py-4 text-right">Fornecedores</th>
                                 <th className="px-6 py-4 text-right">Retirada</th>
                                 <th className="px-6 py-4 text-right font-bold text-red-600 border-l border-gray-100 bg-red-50/10">Total Saídas (-)</th>
@@ -504,6 +511,9 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                                             {data.mercado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right text-gray-500">
+                                            {data.alimentacao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-500">
                                             {data.fornecedores.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className="px-6 py-4 text-right text-gray-500">
@@ -548,6 +558,9 @@ const Resumo = ({ expenses, orders, setActiveTab }) => {
                                 </td>
                                 <td className="px-6 py-4 text-right font-normal">
                                     {annualTotals.mercado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </td>
+                                <td className="px-6 py-4 text-right font-normal">
+                                    {annualTotals.alimentacao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </td>
                                 <td className="px-6 py-4 text-right font-normal">
                                     {annualTotals.fornecedores.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
