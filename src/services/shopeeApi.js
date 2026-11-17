@@ -286,39 +286,56 @@ export const shopeeApi = {
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
 
-        // Timestamps UNIX em segundos (Shopee usa segundos)
-        const timeFrom = Math.floor(new Date(year, month - 1, 1, 0, 0, 0).getTime() / 1000);
-        const timeTo = Math.floor(new Date(year, month, 0, 23, 59, 59, 999).getTime() / 1000);
+        // A Shopee exige que o intervalo (time_to - time_from) seja de no máximo 15 dias.
+        // Dividimos o mês em janelas de até 14 dias para cobrir o mês inteiro com segurança.
+        const monthStart = new Date(year, month - 1, 1, 0, 0, 0);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+        const maxSpanSeconds = 14 * 24 * 60 * 60; // 14 dias em segundos
 
-        let allOrderSns = [];
-        let cursor = '';
-        let hasMore = true;
+        const intervals = [];
+        let curStart = Math.floor(monthStart.getTime() / 1000);
+        const finalEnd = Math.floor(monthEnd.getTime() / 1000);
 
-        // 1. Listar pedidos do período
-        while (hasMore) {
-            const params = {
-                time_range_field: 'create_time',
-                time_from: String(timeFrom),
-                time_to: String(timeTo),
-                page_size: '50',
-                response_optional_fields: 'order_status'
-            };
-            if (cursor) params.cursor = cursor;
-
-            const res = await shopeeFetch('/api/v2/order/get_order_list', params);
-            const list = res.order_list || [];
-
-            for (const ord of list) {
-                // Ignora cancelados
-                if (ord.order_status !== 'CANCELLED') {
-                    allOrderSns.push(ord.order_sn);
-                }
-            }
-
-            hasMore = Boolean(res.more);
-            cursor = res.next_cursor || '';
-            if (allOrderSns.length > 2000) break; // Segurança
+        while (curStart < finalEnd) {
+            const curEnd = Math.min(curStart + maxSpanSeconds, finalEnd);
+            intervals.push({ from: curStart, to: curEnd });
+            curStart = curEnd + 1;
         }
+
+        const allOrderSnsSet = new Set();
+
+        // 1. Listar pedidos de cada janela de até 14 dias
+        for (const interval of intervals) {
+            let cursor = '';
+            let hasMore = true;
+
+            while (hasMore) {
+                const params = {
+                    time_range_field: 'create_time',
+                    time_from: String(interval.from),
+                    time_to: String(interval.to),
+                    page_size: '50',
+                    response_optional_fields: 'order_status'
+                };
+                if (cursor) params.cursor = cursor;
+
+                const res = await shopeeFetch('/api/v2/order/get_order_list', params);
+                const list = res.order_list || [];
+
+                for (const ord of list) {
+                    // Ignora cancelados
+                    if (ord.order_status !== 'CANCELLED') {
+                        allOrderSnsSet.add(ord.order_sn);
+                    }
+                }
+
+                hasMore = Boolean(res.more);
+                cursor = res.next_cursor || '';
+                if (allOrderSnsSet.size > 3000) break; // Segurança
+            }
+        }
+
+        const allOrderSns = Array.from(allOrderSnsSet);
 
         if (allOrderSns.length === 0) {
             return {};
