@@ -17,6 +17,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     const [extrasForm, setExtrasForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0], allMonths: false });
     const [mercadoForm, setMercadoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
     const [alimentacaoForm, setAlimentacaoForm] = useState({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+    const [sortDateAsc, setSortDateAsc] = useState(true);
     const [viewingSeries, setViewingSeries] = useState(null);
     const [installmentInterval, setInstallmentInterval] = useState('monthly'); // 'monthly', 'biweekly', 'weekly'
     const [fornecedoresForm, setFornecedoresForm] = useState({
@@ -636,6 +637,23 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             const nameB = (b.category || b.description || '').toLowerCase();
             return nameA.localeCompare(nameB);
         }
+        if (activeTab === 'mercado' || activeTab === 'alimentacao') {
+            const dA = a.date;
+            const dB = b.date;
+            let dateDiff = 0;
+            if (dA && dB) {
+                dateDiff = new Date(dA + 'T00:00:00') - new Date(dB + 'T00:00:00');
+            } else if (dA) {
+                dateDiff = -1;
+            } else if (dB) {
+                dateDiff = 1;
+            }
+            if (dateDiff !== 0) return sortDateAsc ? dateDiff : -dateDiff;
+
+            const nameA = (a.description || '').toLowerCase();
+            const nameB = (b.description || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        }
         if (activeTab === 'retirada') {
             const dA = a.date;
             const dB = b.date;
@@ -665,7 +683,22 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                         {activeTab === 'fornecedores' && (
                             <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Cód. Barras</th>
                         )}
-                        <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
+                        <th
+                            className={`px-6 py-2 text-xs font-semibold uppercase ${activeTab === 'mercado' || activeTab === 'alimentacao' ? 'cursor-pointer hover:text-indigo-600 select-none text-indigo-700' : 'text-gray-500'}`}
+                            onClick={() => {
+                                if (activeTab === 'mercado' || activeTab === 'alimentacao') {
+                                    setSortDateAsc(prev => !prev);
+                                }
+                            }}
+                            title={activeTab === 'mercado' || activeTab === 'alimentacao' ? (sortDateAsc ? 'Ordenado por data (mais antigo primeiro). Clique para inverter.' : 'Ordenado por data (mais recente primeiro). Clique para inverter.') : undefined}
+                        >
+                            <span className="inline-flex items-center gap-1">
+                                {activeTab === 'fornecedores' ? 'Vencimento' : 'Data'}
+                                {(activeTab === 'mercado' || activeTab === 'alimentacao') && (
+                                    <span className="text-[10px] font-bold">{sortDateAsc ? '▲ (01→31)' : '▼ (31→01)'}</span>
+                                )}
+                            </span>
+                        </th>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Valor</th>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase text-center">Status</th>
                         <th className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Ações</th>
