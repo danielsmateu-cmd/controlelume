@@ -381,6 +381,13 @@ const Vendas = ({ marketplace = 'geral', readOnly }) => {
                     onImported={handleMLImport} 
                 />
             )}
+            {marketplace === 'shopee' && (
+                <ImportacaoVendasShopee 
+                    currentMonth={currentMonth} 
+                    fts={fts} 
+                    onImported={handleMLImport} 
+                />
+            )}
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
