@@ -29,6 +29,7 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
     });
     const [retiradaForm, setRetiradaForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], people: [], notes: '' });
     const [acertoForm, setAcertoForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], person: 'Daniel', notes: '' });
+    const [acertoJulianaForm, setAcertoJulianaForm] = useState({ value: '', date: new Date().toISOString().split('T')[0], creditor: 'Daniel', notes: '' });
 
     const withdrawalPeople = ['Juliana', 'Daniel', 'Bruno', 'Outros'];
 
@@ -542,6 +543,73 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
             await api.saveExpenses([newExpense]);
         } catch (err) {
             alert('Erro ao salvar acerto.');
+            setExpenses(expenses);
+        }
+    };
+
+    const handleAddAcertoJuliana = async (e) => {
+        e.preventDefault();
+        const val = parseFloat(acertoJulianaForm.value) || 0;
+        if (!acertoJulianaForm.creditor || val <= 0) return;
+
+        let newExpenses = [];
+        const baseDate = acertoJulianaForm.date;
+        const d = new Date(baseDate + 'T00:00:00');
+        const month = d.getUTCMonth();
+        const year = d.getUTCFullYear();
+
+        if (acertoJulianaForm.creditor === 'Ambos') {
+            const half = parseFloat((val / 2).toFixed(2));
+            const remainder = parseFloat((val - half).toFixed(2));
+            newExpenses = [
+                {
+                    id: Date.now(),
+                    type: 'retirada',
+                    description: 'Retirada: [ACERTO JULIANA] Pagamento para Daniel (50%)',
+                    notes: acertoJulianaForm.notes || null,
+                    amount: half,
+                    date: baseDate,
+                    month,
+                    year,
+                    people: ['Juliana'],
+                    paid: true
+                },
+                {
+                    id: Date.now() + 1,
+                    type: 'retirada',
+                    description: 'Retirada: [ACERTO JULIANA] Pagamento para Bruno (50%)',
+                    notes: acertoJulianaForm.notes || null,
+                    amount: remainder,
+                    date: baseDate,
+                    month,
+                    year,
+                    people: ['Juliana'],
+                    paid: true
+                }
+            ];
+        } else {
+            newExpenses = [{
+                id: Date.now(),
+                type: 'retirada',
+                description: `Retirada: [ACERTO JULIANA] Pagamento para ${acertoJulianaForm.creditor}`,
+                notes: acertoJulianaForm.notes || null,
+                amount: val,
+                date: baseDate,
+                month,
+                year,
+                people: ['Juliana'],
+                paid: true
+            }];
+        }
+
+        setExpenses([...newExpenses, ...expenses]);
+        setAcertoJulianaForm({ value: '', date: new Date().toISOString().split('T')[0], creditor: 'Daniel', notes: '' });
+
+        try {
+            await api.saveExpenses(newExpenses);
+        } catch (err) {
+            alert('Erro ao salvar acerto de Juliana.');
+            console.error('Erro ao salvar acerto Juliana:', err);
             setExpenses(expenses);
         }
     };
@@ -1519,154 +1587,485 @@ const Saida = ({ expenses, setExpenses, readOnly = false }) => {
                 )}
 
                 {/* ACERTO ENTRE SÓCIOS */}
-                {activeTab === 'acerto_socios' && (
-                    <div className="space-y-6">
-                        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-sm text-indigo-900 leading-relaxed">
-                            <h3 className="font-bold text-base mb-2">Resumo do Acerto — Opção B (Acerto Operacional via Caixa da LUME)</h3>
-                            <p className="mb-2">Neste formato, a <strong>LUME</strong> quita todas as pendências operacionais internas e equipara as retiradas societárias diretamente pelo seu caixa. O empréstimo do cheque da Marcenaria permanece como uma pendência pessoal de Juliana com os sócios da Marcenaria.</p>
-                            
-                            <h4 className="font-bold mt-4 mb-1">1. Composição dos Valores a Retirar da LUME</h4>
-                            <ul className="list-disc pl-5 mb-2 space-y-1">
-                                <li><strong>Equiparação de Retiradas:</strong> Como Juliana já retirou <strong>R$ 5.380,00</strong>, Daniel e Bruno retiram o mesmo valor para igualar.</li>
-                                <li><strong>Materiais da Marcenaria:</strong> A LUME paga a dívida de materiais (R$ 3.860,00) dividindo 50/50 (<strong>R$ 1.930,00</strong> para cada).</li>
-                                <li><strong>Dívida Direta com Bruno:</strong> A LUME quita o valor integral devido a ele (<strong>R$ 3.950,00</strong>).</li>
-                            </ul>
+                {activeTab === 'acerto_socios' && (() => {
+                    // CONTA 1: LUME com Daniel e Bruno
+                    const lumeAcertoExpenses = expenses
+                        .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO SÓCIOS]'))
+                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-                            <h4 className="font-bold mt-4 mb-1">2. Valores Finais de Retirada por Pessoa</h4>
-                            <div className="bg-white rounded-lg border border-indigo-100 overflow-hidden mb-2 mt-2">
-                                <table className="w-full text-left text-xs">
-                                    <thead className="bg-indigo-100">
-                                        <tr>
-                                            <th className="px-3 py-2 font-bold">Sócio</th>
-                                            <th className="px-3 py-2 font-bold text-center">Equiparação</th>
-                                            <th className="px-3 py-2 font-bold text-center">Materiais (50%)</th>
-                                            <th className="px-3 py-2 font-bold text-center">Dívida Direta</th>
-                                            <th className="px-3 py-2 font-bold text-right">Total a Receber</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-indigo-50">
-                                        <tr>
-                                            <td className="px-3 py-2 font-bold">Daniel</td>
-                                            <td className="px-3 py-2 text-center">R$ 5.380,00</td>
-                                            <td className="px-3 py-2 text-center">R$ 1.930,00</td>
-                                            <td className="px-3 py-2 text-center">R$ 0,00</td>
-                                            <td className="px-3 py-2 font-bold text-right text-green-700">R$ 7.310,00</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="px-3 py-2 font-bold">Bruno</td>
-                                            <td className="px-3 py-2 text-center">R$ 5.380,00</td>
-                                            <td className="px-3 py-2 text-center">R$ 1.930,00</td>
-                                            <td className="px-3 py-2 text-center">R$ 3.950,00</td>
-                                            <td className="px-3 py-2 font-bold text-right text-green-700">R$ 11.260,00</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="px-3 py-2 font-bold">Juliana</td>
-                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00 (já retirou)</td>
-                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00</td>
-                                            <td className="px-3 py-2 text-center text-gray-500">R$ 0,00</td>
-                                            <td className="px-3 py-2 font-bold text-right text-gray-500">R$ 0,00</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                    // CONTA 2: Juliana com Daniel e Bruno
+                    const julianaAcertoExpenses = expenses
+                        .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO JULIANA]'))
+                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+                    const julianaPaidDaniel = expenses
+                        .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO JULIANA]') && e.description?.includes('Daniel'))
+                        .reduce((acc, curr) => acc + curr.amount, 0);
+
+                    const julianaPaidBruno = expenses
+                        .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO JULIANA]') && e.description?.includes('Bruno'))
+                        .reduce((acc, curr) => acc + curr.amount, 0);
+
+                    const julianaTargetDaniel = 2500;
+                    const julianaTargetBruno = 2500;
+                    const julianaTotalTarget = 5000;
+                    const julianaTotalPaid = julianaPaidDaniel + julianaPaidBruno;
+                    const julianaTotalRemaining = Math.max(0, julianaTotalTarget - julianaTotalPaid);
+
+                    const pctJulianaDaniel = Math.min(100, Math.round((julianaPaidDaniel / julianaTargetDaniel) * 100));
+                    const pctJulianaBruno = Math.min(100, Math.round((julianaPaidBruno / julianaTargetBruno) * 100));
+                    const pctJulianaTotal = Math.min(100, Math.round((julianaTotalPaid / julianaTotalTarget) * 100));
+
+                    return (
+                        <div className="space-y-8">
+                            {/* ============================================================== */}
+                            {/* CONTA 1: EMPRESA LUME COM DANIEL E BRUNO */}
+                            {/* ============================================================== */}
+                            <div className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm space-y-6">
+                                <div className="border-b border-indigo-50 pb-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-600 text-white">
+                                                Conta 1
+                                            </span>
+                                            <h3 className="font-bold text-base text-gray-900">
+                                                Acerto Operacional da Empresa LUME com Daniel e Bruno
+                                            </h3>
+                                        </div>
+                                        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            Via Caixa da LUME (Opção B)
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 leading-relaxed">
+                                        Neste formato, a <strong>LUME</strong> quita as pendências operacionais internas e equipara as retiradas societárias diretamente pelo caixa da empresa.
+                                    </p>
+                                </div>
+
+                                <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-xl text-xs text-indigo-950 leading-relaxed space-y-2">
+                                    <h4 className="font-bold text-sm text-indigo-900 mb-1">Composição dos Valores a Retirar da LUME</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li><strong>Equiparação de Retiradas:</strong> Como Juliana já retirou <strong>R$ 5.380,00</strong>, Daniel e Bruno retiram o mesmo valor para igualar.</li>
+                                        <li><strong>Materiais da Marcenaria:</strong> A LUME paga a dívida de materiais (R$ 3.860,00) dividindo 50/50 (<strong>R$ 1.930,00</strong> para cada).</li>
+                                        <li><strong>Dívida Direta com Bruno:</strong> A LUME quita o valor integral devido a ele (<strong>R$ 3.950,00</strong>).</li>
+                                    </ul>
+
+                                    <div className="bg-white rounded-lg border border-indigo-100 overflow-hidden mt-3">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-indigo-100/80">
+                                                <tr>
+                                                    <th className="px-3 py-2 font-bold text-indigo-950">Sócio</th>
+                                                    <th className="px-3 py-2 font-bold text-center text-indigo-950">Equiparação</th>
+                                                    <th className="px-3 py-2 font-bold text-center text-indigo-950">Materiais (50%)</th>
+                                                    <th className="px-3 py-2 font-bold text-center text-indigo-950">Dívida Direta</th>
+                                                    <th className="px-3 py-2 font-bold text-right text-indigo-950">Meta a Receber</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-indigo-50">
+                                                <tr>
+                                                    <td className="px-3 py-2 font-bold text-gray-800">Daniel</td>
+                                                    <td className="px-3 py-2 text-center text-gray-600">R$ 5.380,00</td>
+                                                    <td className="px-3 py-2 text-center text-gray-600">R$ 1.930,00</td>
+                                                    <td className="px-3 py-2 text-center text-gray-400">R$ 0,00</td>
+                                                    <td className="px-3 py-2 font-bold text-right text-green-700">R$ 7.310,00</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="px-3 py-2 font-bold text-gray-800">Bruno</td>
+                                                    <td className="px-3 py-2 text-center text-gray-600">R$ 5.380,00</td>
+                                                    <td className="px-3 py-2 text-center text-gray-600">R$ 1.930,00</td>
+                                                    <td className="px-3 py-2 text-center text-gray-600">R$ 3.950,00</td>
+                                                    <td className="px-3 py-2 font-bold text-right text-green-700">R$ 11.260,00</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="px-3 py-2 font-bold text-gray-500">Juliana</td>
+                                                    <td className="px-3 py-2 text-center text-gray-400">R$ 0,00 (já retirou)</td>
+                                                    <td className="px-3 py-2 text-center text-gray-400">R$ 0,00</td>
+                                                    <td className="px-3 py-2 text-center text-gray-400">R$ 0,00</td>
+                                                    <td className="px-3 py-2 font-bold text-right text-gray-400">R$ 0,00</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Progresso do Acerto da Lume */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {['Daniel', 'Bruno'].map(person => {
+                                        const target = person === 'Daniel' ? 7310 : 11260;
+                                        const current = expenses
+                                            .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO SÓCIOS]') && e.people?.includes(person))
+                                            .reduce((acc, curr) => acc + curr.amount, 0);
+                                        const percentage = Math.min(100, Math.round((current / target) * 100));
+                                        const remaining = target - current;
+
+                                        return (
+                                            <div key={person} className="bg-gray-50/70 border border-gray-200 rounded-xl p-4 shadow-xs">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h4 className="font-bold text-gray-800">{person}</h4>
+                                                    <span className="text-xs font-bold px-2 py-1 bg-white border border-gray-200 rounded-md text-gray-700">
+                                                        Meta: {target.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                                                    <div className="bg-indigo-600 h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                                                </div>
+                                                
+                                                <div className="flex justify-between text-[11px] font-medium text-gray-600">
+                                                    <span>Pago: <strong className="text-gray-900">{current.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> ({percentage}%)</span>
+                                                    <span className={remaining > 0 ? 'text-orange-600 font-bold' : 'text-green-600 font-bold'}>
+                                                        {remaining > 0 ? `Falta: ${remaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : 'Acerto Concluído! 🎉'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Formulário de Lançamento da Conta 1 */}
+                                {!readOnly && (
+                                    <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30">
+                                        <h4 className="text-xs font-bold text-indigo-950 uppercase mb-1">Registrar Pagamento da Empresa (Conta 1)</h4>
+                                        <p className="text-[11px] text-gray-500 mb-3">Lançamento de retirada da empresa com a tag [ACERTO SÓCIOS].</p>
+                                        <form onSubmit={handleAddAcerto} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Sócio Beneficiário</label>
+                                                <select
+                                                    required
+                                                    value={acertoForm.person}
+                                                    onChange={(e) => setAcertoForm({ ...acertoForm, person: e.target.value })}
+                                                    className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                                                >
+                                                    <option value="Daniel">Daniel</option>
+                                                    <option value="Bruno">Bruno</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
+                                                <input
+                                                    type="number" step="0.01" required
+                                                    value={acertoForm.value}
+                                                    onChange={(e) => setAcertoForm({ ...acertoForm, value: e.target.value })}
+                                                    className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
+                                                <input
+                                                    type="date" required
+                                                    value={acertoForm.date}
+                                                    onChange={(e) => setAcertoForm({ ...acertoForm, date: e.target.value })}
+                                                    className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Obs. (Opcional)</label>
+                                                <input
+                                                    type="text"
+                                                    value={acertoForm.notes}
+                                                    placeholder="Ex: Parcela acerto Lume"
+                                                    onChange={(e) => setAcertoForm({ ...acertoForm, notes: e.target.value })}
+                                                    className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-4 flex justify-end mt-1">
+                                                <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm">
+                                                    <Plus size={15} /> Lançar Pagamento da Lume
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
+
+                                {/* Tabela de Lançamentos Realizados da Conta 1 */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Histórico de Lançamentos da Conta 1 ({lumeAcertoExpenses.length})</h4>
+                                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
+                                                <tr>
+                                                    <th className="px-4 py-2.5">Data</th>
+                                                    <th className="px-4 py-2.5">Sócio</th>
+                                                    <th className="px-4 py-2.5">Descrição</th>
+                                                    <th className="px-4 py-2.5 text-right">Valor</th>
+                                                    <th className="px-4 py-2.5 text-center">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {lumeAcertoExpenses.map(item => (
+                                                    <tr key={item.id} className="hover:bg-gray-50/70">
+                                                        <td className="px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">
+                                                            {item.date ? new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2.5">
+                                                            <span className="font-bold px-2 py-0.5 rounded text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                {item.people?.[0] || 'Sócio'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-gray-700">
+                                                            {item.description}
+                                                            {item.notes && <span className="block text-[10px] text-gray-400 italic">{item.notes}</span>}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right font-bold text-red-600 whitespace-nowrap">
+                                                            - {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-center">
+                                                            {!readOnly && (
+                                                                <button
+                                                                    onClick={() => handleDelete(item)}
+                                                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                                                                    title="Excluir este lançamento"
+                                                                >
+                                                                    <Trash2 size={15} />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {lumeAcertoExpenses.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-4 py-6 text-center text-gray-400">
+                                                            Nenhum lançamento registrado nesta conta.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Progresso do Acerto */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {['Daniel', 'Bruno'].map(person => {
-                                const target = person === 'Daniel' ? 7310 : 11260;
-                                const current = expenses
-                                    .filter(e => e.type === 'retirada' && e.description?.includes('[ACERTO SÓCIOS]') && e.people?.includes(person))
-                                    .reduce((acc, curr) => acc + curr.amount, 0);
-                                const percentage = Math.min(100, Math.round((current / target) * 100));
-                                const remaining = target - current;
+                            {/* ============================================================== */}
+                            {/* CONTA 2: ACERTO PESSOAL DE JULIANA COM DANIEL E BRUNO */}
+                            {/* ============================================================== */}
+                            <div className="bg-white border-2 border-amber-200/90 rounded-2xl p-5 shadow-sm space-y-6">
+                                <div className="border-b border-amber-100 pb-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-xs">
+                                                Conta 2
+                                            </span>
+                                            <h3 className="font-bold text-base text-gray-900">
+                                                Acerto Pessoal — Dívida de Juliana com Daniel e Bruno
+                                            </h3>
+                                        </div>
+                                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                                            Dívida: R$ 2.500,00 p/ cada (Total: R$ 5.000,00)
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 leading-relaxed">
+                                        Dívida pessoal de <strong>Juliana</strong> com <strong>Daniel (R$ 2.500,00)</strong> e <strong>Bruno (R$ 2.500,00)</strong>. Toda saída registrada nesta seção entra no caixa como <strong>Retirada de Juliana</strong> (com a tag <code>[ACERTO JULIANA]</code>) e abate diretamente o saldo devido a cada sócio.
+                                    </p>
+                                </div>
 
-                                return (
-                                    <div key={person} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                {/* Resumo Geral da Dívida de Juliana */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3 text-center">
+                                        <span className="block text-[10px] uppercase font-bold text-amber-700">Meta Total da Dívida</span>
+                                        <span className="text-base font-extrabold text-amber-900">
+                                            {julianaTotalTarget.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </span>
+                                    </div>
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                                        <span className="block text-[10px] uppercase font-bold text-emerald-700">Total Abatido por Juliana</span>
+                                        <span className="text-base font-extrabold text-emerald-700">
+                                            {julianaTotalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ({pctJulianaTotal}%)
+                                        </span>
+                                    </div>
+                                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                                        <span className="block text-[10px] uppercase font-bold text-orange-700">Saldo Restante a Quitar</span>
+                                        <span className="text-base font-extrabold text-orange-700">
+                                            {julianaTotalRemaining > 0 
+                                                ? julianaTotalRemaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                                                : 'Quitado integralmente! 🎉'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Progresso Individual para Daniel e Bruno */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Card Daniel */}
+                                    <div className="bg-gradient-to-br from-amber-50/50 to-white border border-amber-200 rounded-xl p-4 shadow-xs">
                                         <div className="flex justify-between items-center mb-2">
-                                            <h4 className="font-bold text-gray-800">{person}</h4>
-                                            <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded text-gray-600">
-                                                Meta: {target.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                    <span>Devido a:</span>
+                                                    <span className="text-amber-800">Daniel</span>
+                                                </h4>
+                                                <span className="text-[10px] text-gray-500">Juliana ➔ Daniel</span>
+                                            </div>
+                                            <span className="text-xs font-bold px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-amber-900">
+                                                Meta: {julianaTargetDaniel.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                         </div>
                                         
                                         <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                                            <div className="bg-indigo-600 h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                                            <div className="bg-amber-500 h-3 rounded-full transition-all duration-500" style={{ width: `${pctJulianaDaniel}%` }}></div>
                                         </div>
                                         
-                                        <div className="flex justify-between text-[11px] font-medium text-gray-500">
-                                            <span>Pago: {current.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ({percentage}%)</span>
-                                            <span className={remaining > 0 ? 'text-orange-600' : 'text-green-600'}>
-                                                {remaining > 0 ? `Falta: ${remaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : 'Acerto Concluído! 🎉'}
+                                        <div className="flex justify-between text-[11px] font-medium text-gray-600">
+                                            <span>Abatido: <strong className="text-gray-900">{julianaPaidDaniel.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> ({pctJulianaDaniel}%)</span>
+                                            <span className={julianaPaidDaniel < julianaTargetDaniel ? 'text-amber-700 font-bold' : 'text-emerald-600 font-bold'}>
+                                                {julianaPaidDaniel < julianaTargetDaniel 
+                                                    ? `Falta: ${(julianaTargetDaniel - julianaPaidDaniel).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` 
+                                                    : 'Concluído! 🎉'}
                                             </span>
                                         </div>
                                     </div>
-                                );
-                            })}
+
+                                    {/* Card Bruno */}
+                                    <div className="bg-gradient-to-br from-amber-50/50 to-white border border-amber-200 rounded-xl p-4 shadow-xs">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                    <span>Devido a:</span>
+                                                    <span className="text-amber-800">Bruno</span>
+                                                </h4>
+                                                <span className="text-[10px] text-gray-500">Juliana ➔ Bruno</span>
+                                            </div>
+                                            <span className="text-xs font-bold px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-amber-900">
+                                                Meta: {julianaTargetBruno.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                                            <div className="bg-amber-500 h-3 rounded-full transition-all duration-500" style={{ width: `${pctJulianaBruno}%` }}></div>
+                                        </div>
+                                        
+                                        <div className="flex justify-between text-[11px] font-medium text-gray-600">
+                                            <span>Abatido: <strong className="text-gray-900">{julianaPaidBruno.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> ({pctJulianaBruno}%)</span>
+                                            <span className={julianaPaidBruno < julianaTargetBruno ? 'text-amber-700 font-bold' : 'text-emerald-600 font-bold'}>
+                                                {julianaPaidBruno < julianaTargetBruno 
+                                                    ? `Falta: ${(julianaTargetBruno - julianaPaidBruno).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` 
+                                                    : 'Concluído! 🎉'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Formulário de Lançamento da Conta 2 */}
+                                {!readOnly && (
+                                    <div className="border border-amber-200 rounded-xl p-4 bg-amber-50/40">
+                                        <h4 className="text-xs font-bold text-amber-950 uppercase mb-1">Registrar Pagamento da Dívida (Juliana)</h4>
+                                        <p className="text-[11px] text-gray-600 mb-3">
+                                            A saída será registrada no caixa da Lume para <strong>Juliana</strong> (Retirada) com a tag <code>[ACERTO JULIANA]</code> e abaterá a dívida do credor selecionado.
+                                        </p>
+                                        <form onSubmit={handleAddAcertoJuliana} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-700 mb-0.5">Credor (Para quem Juliana paga)</label>
+                                                <select
+                                                    required
+                                                    value={acertoJulianaForm.creditor}
+                                                    onChange={(e) => setAcertoJulianaForm({ ...acertoJulianaForm, creditor: e.target.value })}
+                                                    className="w-full p-1.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm bg-white font-medium"
+                                                >
+                                                    <option value="Daniel">Daniel (R$ 2.500)</option>
+                                                    <option value="Bruno">Bruno (R$ 2.500)</option>
+                                                    <option value="Ambos">Dividir 50/50 (Daniel e Bruno)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-700 mb-0.5">Valor (R$)</label>
+                                                <input
+                                                    type="number" step="0.01" required
+                                                    value={acertoJulianaForm.value}
+                                                    onChange={(e) => setAcertoJulianaForm({ ...acertoJulianaForm, value: e.target.value })}
+                                                    className="w-full p-1.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm bg-white font-medium"
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-700 mb-0.5">Data</label>
+                                                <input
+                                                    type="date" required
+                                                    value={acertoJulianaForm.date}
+                                                    onChange={(e) => setAcertoJulianaForm({ ...acertoJulianaForm, date: e.target.value })}
+                                                    className="w-full p-1.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm bg-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-700 mb-0.5">Obs. (Opcional)</label>
+                                                <input
+                                                    type="text"
+                                                    value={acertoJulianaForm.notes}
+                                                    placeholder="Ex: Parcela 1/5 divida"
+                                                    onChange={(e) => setAcertoJulianaForm({ ...acertoJulianaForm, notes: e.target.value })}
+                                                    className="w-full p-1.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm bg-white"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-4 flex justify-end mt-1">
+                                                <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm">
+                                                    <Plus size={15} /> Registrar Pagamento de Juliana
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
+
+                                {/* Tabela de Lançamentos Realizados da Conta 2 */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Histórico de Pagamentos de Juliana ({julianaAcertoExpenses.length})</h4>
+                                    <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-amber-50/80 border-b border-amber-200 text-amber-900 font-bold uppercase text-[10px]">
+                                                <tr>
+                                                    <th className="px-4 py-2.5">Data</th>
+                                                    <th className="px-4 py-2.5">Pagador</th>
+                                                    <th className="px-4 py-2.5">Descrição / Credor</th>
+                                                    <th className="px-4 py-2.5 text-right">Valor Abatido</th>
+                                                    <th className="px-4 py-2.5 text-center">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-amber-100/50">
+                                                {julianaAcertoExpenses.map(item => (
+                                                    <tr key={item.id} className="hover:bg-amber-50/40">
+                                                        <td className="px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">
+                                                            {item.date ? new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2.5">
+                                                            <span className="font-bold px-2 py-0.5 rounded text-[11px] bg-purple-50 text-purple-700 border border-purple-200">
+                                                                Juliana
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-gray-700 font-medium">
+                                                            {item.description}
+                                                            {item.notes && <span className="block text-[10px] text-gray-400 italic">{item.notes}</span>}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right font-bold text-emerald-700 whitespace-nowrap">
+                                                            - {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-center">
+                                                            {!readOnly && (
+                                                                <button
+                                                                    onClick={() => handleDelete(item)}
+                                                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                                                                    title="Excluir este pagamento"
+                                                                >
+                                                                    <Trash2 size={15} />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {julianaAcertoExpenses.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-4 py-6 text-center text-gray-400">
+                                                            Nenhum pagamento registrado ainda para a dívida de Juliana.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-
-                        <hr className="border-gray-200" />
-
-                        <h3 className="text-sm font-semibold text-gray-800">Registrar Lançamento de Acerto</h3>
-                        <p className="text-xs text-gray-500 mb-4">Lançamentos feitos por aqui serão inseridos nas saídas como "Retirada" com a tag [ACERTO SÓCIOS].</p>
-                        
-                        {!readOnly && (
-                            <form onSubmit={handleAddAcerto} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                    <div>
-                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Sócio</label>
-                                        <select
-                                            required
-                                            value={acertoForm.person}
-                                            onChange={(e) => setAcertoForm({ ...acertoForm, person: e.target.value })}
-                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
-                                        >
-                                            <option value="Daniel">Daniel</option>
-                                            <option value="Bruno">Bruno</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Valor (R$)</label>
-                                        <input
-                                            type="number" step="0.01" required
-                                            value={acertoForm.value}
-                                            onChange={(e) => setAcertoForm({ ...acertoForm, value: e.target.value })}
-                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Data</label>
-                                        <input
-                                            type="date" required
-                                            value={acertoForm.date}
-                                            onChange={(e) => setAcertoForm({ ...acertoForm, date: e.target.value })}
-                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Obs. (Opcional)</label>
-                                        <input
-                                            type="text"
-                                            value={acertoForm.notes}
-                                            placeholder="Ex: Ref. à venda X"
-                                            onChange={(e) => setAcertoForm({ ...acertoForm, notes: e.target.value })}
-                                            className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex justify-end">
-                                    <button type="submit" className="px-6 bg-indigo-600 text-white py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm">
-                                        <Plus size={16} /> Lançar Acerto
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                )}
+                    );
+                })()}
             </div>
 
             {/* EXPENSE LIST */}
-            {activeTab !== 'fixos' && ExpenseList()}
+            {activeTab !== 'fixos' && activeTab !== 'acerto_socios' && ExpenseList()}
 
             {/* MODAL PARA VISUALIZAR TODAS AS PARCELAS DO LANÇAMENTO */}
             {viewingSeries && (() => {
