@@ -510,6 +510,7 @@ const supabaseApi = {
                 paymentMethod: o.payment_method,
                 boletoNumber: o.boleto_number,
                 nfNumber: o.nf_number,
+                clientData: o.client_data,
                 contribMarginValue: o.contrib_margin_value,
                 contribMarginPerc: o.contrib_margin_perc
             }));
@@ -547,6 +548,7 @@ const supabaseApi = {
                 year: o.year,
                 boleto_number: o.boletoNumber,
                 nf_number: o.nfNumber,
+                client_data: o.clientData !== undefined ? o.clientData : (o.client_data || null),
                 contrib_margin_value: o.contribMarginValue !== undefined ? o.contribMarginValue : null,
                 contrib_margin_perc: o.contribMarginPerc !== undefined ? o.contribMarginPerc : null
             });
@@ -605,6 +607,7 @@ const supabaseApi = {
                 paymentMethod: o.payment_method,
                 boletoNumber: o.boleto_number,
                 nfNumber: o.nf_number,
+                clientData: o.client_data,
                 contribMarginValue: o.contrib_margin_value,
                 contribMarginPerc: o.contrib_margin_perc
             }));
@@ -629,6 +632,8 @@ const supabaseApi = {
             if (updates.nfNumber !== undefined) dbUpdates.nf_number = updates.nfNumber;
             if (updates.contribMarginValue !== undefined) dbUpdates.contrib_margin_value = updates.contribMarginValue;
             if (updates.contribMarginPerc !== undefined) dbUpdates.contrib_margin_perc = updates.contribMarginPerc;
+            if (updates.clientData !== undefined) dbUpdates.client_data = updates.clientData;
+            if (updates.client_data !== undefined) dbUpdates.client_data = updates.client_data;
 
             const { error } = await supabase
                 .from('orders')

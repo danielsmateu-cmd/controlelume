@@ -1,7 +1,99 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList, CheckCircle2, AlertTriangle, AlertOctagon, Printer, Calendar } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Edit2, Search, TrendingUp, Grid, LayoutList, CheckCircle2, AlertTriangle, AlertOctagon, Printer, Calendar, Clock, Layers, DollarSign } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
+
+
+const distributeValues = (totalVal, n) => {
+    if (!n || n <= 0) return [];
+    const totalCents = Math.round((parseFloat(totalVal) || 0) * 100);
+    const baseCents = Math.floor(totalCents / n);
+    const remainder = totalCents - (baseCents * n);
+    const result = [];
+    for (let i = 0; i < n; i++) {
+        const cents = baseCents + (i === n - 1 ? remainder : 0);
+        result.push(cents / 100);
+    }
+    return result;
+};
+
+// Agrupa pedidos que possuem clientData.groupId ou padrão legado "(1/X)"
+const groupOrders = (list) => {
+    const groups = new Map();
+    const result = [];
+
+    list.forEach(order => {
+        let groupId = order.clientData?.groupId;
+
+        if (!groupId && order.description) {
+            const match = order.description.match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
+            if (match) {
+                const baseDesc = match[1].trim();
+                const total = parseInt(match[3]);
+                if (total > 1) {
+                    groupId = `legacy_${order.clientName || ''}_${order.year || ''}_${baseDesc}_${total}`;
+                }
+            }
+        }
+
+        if (groupId) {
+            if (!groups.has(groupId)) {
+                groups.set(groupId, {
+                    id: groupId,
+                    isGroup: true,
+                    clientName: order.clientName,
+                    description: order.clientData?.baseDescription || (order.description ? order.description.replace(/\s*\(\d+\/\d+\)$/, '') : ''),
+                    paymentMethod: order.paymentMethod,
+                    nfNumber: order.nfNumber,
+                    boletoNumber: order.boletoNumber,
+                    year: order.year,
+                    installments: []
+                });
+            }
+            groups.get(groupId).installments.push(order);
+        } else {
+            result.push(order);
+        }
+    });
+
+    groups.forEach((group) => {
+        // Ordena parcelas por data e por índice
+        group.installments.sort((a, b) => {
+            const dateDiff = new Date(a.orderDate) - new Date(b.orderDate);
+            if (dateDiff !== 0) return dateDiff;
+            const aIdx = a.clientData?.installmentIndex || 0;
+            const bIdx = b.clientData?.installmentIndex || 0;
+            return aIdx - bIdx;
+        });
+
+        const first = group.installments[0];
+        group.orderDate = first.orderDate;
+        group.paymentMethod = first.paymentMethod;
+        group.nfNumber = first.nfNumber;
+        group.boletoNumber = first.boletoNumber;
+
+        // Totais financeiros
+        group.totalValue = group.installments.reduce((sum, i) => sum + (parseFloat(i.value) || 0), 0);
+        group.paidValue = group.installments.filter(i => i.isPaid).reduce((sum, i) => sum + (parseFloat(i.value) || 0), 0);
+        group.pendingValue = Math.round((group.totalValue - group.paidValue) * 100) / 100;
+        group.isPaid = group.pendingValue <= 0;
+        group.isPartiallyPaid = group.paidValue > 0 && !group.isPaid;
+
+        // Margem de Contribuição total
+        const mcItems = group.installments.filter(i => i.contribMarginValue !== null && i.contribMarginValue !== undefined);
+        if (mcItems.length > 0) {
+            group.contribMarginValue = mcItems.reduce((sum, i) => sum + (parseFloat(i.contribMarginValue) || 0), 0);
+            group.contribMarginPerc = group.totalValue > 0 ? (group.contribMarginValue / group.totalValue) * 100 : 0;
+        } else {
+            group.contribMarginValue = null;
+            group.contribMarginPerc = null;
+        }
+
+        result.push(group);
+    });
+
+    return result;
+};
 
 const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -1197,6 +1289,167 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     <p className="text-center text-gray-500 py-8">Nenhuma entrada cadastrada.</p>
                 )}
             </div>
+
+                        {/* Modal de Formalização de Pagamento (Total ou Parcial com Saldo Restante) */}
+            {paymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all duration-300">
+                        {/* Header */}
+                        <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-4 flex items-center justify-between text-emerald-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                    <CheckCircle2 size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold">Formalizar Pagamento</h3>
+                                    <p className="text-xs opacity-80">{paymentModal.order.clientName}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setPaymentModal(null)}
+                                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            {/* Resumo do Pedido */}
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Descrição:</span>
+                                    <span className="font-semibold text-gray-800 truncate max-w-[240px]">{paymentModal.order.description}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Valor da Entrada / Parcela:</span>
+                                    <span className="font-bold text-gray-900 text-sm">{fmt(paymentModal.order.value)}</span>
+                                </div>
+                            </div>
+
+                            {/* Quanto o cliente está pagando agora */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                    Quanto o cliente está pagando agora? (R$)
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2 text-sm text-gray-400 font-bold">R$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={paymentModal.paidAmount}
+                                        onChange={(e) => setPaymentModal(prev => ({ ...prev, paidAmount: e.target.value }))}
+                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 text-base font-bold text-gray-900"
+                                        placeholder="0,00"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Painel Dinâmico de Saldo Restante */}
+                            {(() => {
+                                const currentPaid = parseFloat(paymentModal.paidAmount) || 0;
+                                const orderVal = parseFloat(paymentModal.order.value) || 0;
+                                const saldo = Math.round((orderVal - currentPaid) * 100) / 100;
+
+                                if (saldo === 0) {
+                                    return (
+                                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                                            <Check size={16} className="text-emerald-600 flex-shrink-0" />
+                                            <div>
+                                                <p className="font-bold">Pagamento Integral</p>
+                                                <p className="text-[11px] text-emerald-700">O valor total de {fmt(orderVal)} será 100% quitado (sem saldo restante).</p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                if (saldo > 0) {
+                                    return (
+                                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+                                            <div className="flex items-center justify-between text-amber-900">
+                                                <span className="font-bold flex items-center gap-1.5">
+                                                    <AlertTriangle size={15} className="text-amber-600" />
+                                                    Saldo Pendente Restante:
+                                                </span>
+                                                <span className="font-bold text-base text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-lg border border-amber-300">
+                                                    {fmt(saldo)}
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-amber-800">
+                                                R$ {currentPaid.toFixed(2)} será registrado como <strong>PAGO</strong> hoje, e uma nova entrada de <strong>{fmt(saldo)}</strong> será gerada automaticamente para o saldo pendente restante.
+                                            </p>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">
+                                                    Vencimento do Saldo Restante:
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={paymentModal.remainingDueDate}
+                                                    onChange={(e) => setPaymentModal(prev => ({ ...prev, remainingDueDate: e.target.value }))}
+                                                    className="w-full p-1.5 border border-amber-300 rounded-lg bg-white text-xs text-gray-800 font-medium"
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
+                                        <p className="font-semibold">Valor superior ao cadastrado ({fmt(currentPaid)})</p>
+                                        <p className="text-[10px] text-blue-600">O valor da entrada será ajustado para o montante total recebido.</p>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Data e Forma de Pagamento */}
+                            <div className="grid grid-cols-2 gap-3 pt-1">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Data do Pagamento</label>
+                                    <input
+                                        type="date"
+                                        value={paymentModal.paymentDate}
+                                        onChange={(e) => setPaymentModal(prev => ({ ...prev, paymentDate: e.target.value }))}
+                                        className="w-full p-2 border border-gray-300 rounded-xl text-xs text-gray-800 font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Forma de Pagamento</label>
+                                    <select
+                                        value={paymentModal.paymentMethod}
+                                        onChange={(e) => setPaymentModal(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                                        className="w-full p-2 border border-gray-300 rounded-xl text-xs text-gray-800 font-medium"
+                                    >
+                                        <option value="Pix/Transferência">Pix/Transferência</option>
+                                        <option value="Link de pagamento">Link de pagamento</option>
+                                        <option value="Boleto">Boleto</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setPaymentModal(null)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmPaymentModal}
+                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-1.5"
+                            >
+                                <Check size={15} /> Confirmar Pagamento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de Confirmação Unificada */}
             {confirmModal && (
