@@ -118,7 +118,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     useEffect(() => {
         // Busca orçamentos aprovados da API (ou localStorage como fallback)
-        api.getBudgets().then(data => {
+        Promise.resolve(api?.getBudgets ? api.getBudgets() : []).then(data => {
             if (data && data.length > 0) {
                 setApprovedBudgets(data.filter(b => b.status === 'Aprovado'));
             } else {
@@ -1350,7 +1350,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     // MC Calculations
                     const ordersWithMc = monthOrders.filter(o => o.contribMarginValue !== null && o.contribMarginValue !== undefined);
                     const totalMcValue = ordersWithMc.reduce((sum, o) => sum + o.contribMarginValue, 0);
-                    const totalMcBaseValue = ordersWithMc.reduce((sum, o) => sum + (order.totalValue ?? o.value), 0);
+                    const totalMcBaseValue = ordersWithMc.reduce((sum, o) => sum + (o.totalValue ?? o.value), 0);
                     const avgMcPerc = totalMcBaseValue > 0 ? (totalMcValue / totalMcBaseValue) * 100 : 0;
 
                     const currentMonthYear = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
