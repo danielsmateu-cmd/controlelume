@@ -21,20 +21,10 @@ const distributeValues = (totalVal, n) => {
 const groupOrders = (list) => {
     const groups = new Map();
     const result = [];
+    const legacyCandidates = [];
 
     list.forEach(order => {
         let groupId = order.clientData?.groupId;
-
-        if (!groupId && order.description) {
-            const match = order.description.match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
-            if (match) {
-                const baseDesc = match[1].trim();
-                const total = parseInt(match[3]);
-                if (total > 1) {
-                    groupId = `legacy_${order.clientName || ''}_${order.year || ''}_${baseDesc}_${total}`;
-                }
-            }
-        }
 
         if (groupId) {
             if (!groups.has(groupId)) {
@@ -51,9 +41,55 @@ const groupOrders = (list) => {
                 });
             }
             groups.get(groupId).installments.push(order);
+        } else if (order.description) {
+            const match = order.description.match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
+            if (match) {
+                const baseDesc = match[1].trim();
+                const idx = parseInt(match[2]);
+                const total = parseInt(match[3]);
+                if (total > 1 && idx >= 1 && idx <= total) {
+                    legacyCandidates.push({ order, baseDesc, idx, total });
+                    return;
+                }
+            }
+            result.push(order);
         } else {
             result.push(order);
         }
+    });
+
+    // Agrupa candidatos legados sem colidir pedidos diferentes de mesma descrição
+    legacyCandidates.sort((a, b) => (a.order.id || 0) - (b.order.id || 0));
+    const legacyBuckets = new Map();
+
+    legacyCandidates.forEach(({ order, baseDesc, idx, total }) => {
+        const bucketKey = `${order.clientName || ''}__${baseDesc}__${total}`;
+        if (!legacyBuckets.has(bucketKey)) {
+            legacyBuckets.set(bucketKey, []);
+        }
+        const bucketGroups = legacyBuckets.get(bucketKey);
+        let targetGroup = bucketGroups.find(g => !g.indexes.has(idx) && g.installments.length < total);
+
+        if (!targetGroup) {
+            const legacyGroupId = `legacy_${order.clientName || ''}_${baseDesc}_${total}_${bucketGroups.length + 1}`;
+            targetGroup = {
+                id: legacyGroupId,
+                isGroup: true,
+                clientName: order.clientName,
+                description: baseDesc,
+                paymentMethod: order.paymentMethod,
+                nfNumber: order.nfNumber,
+                boletoNumber: order.boletoNumber,
+                year: order.year,
+                installments: [],
+                indexes: new Set()
+            };
+            bucketGroups.push(targetGroup);
+            groups.set(legacyGroupId, targetGroup);
+        }
+
+        targetGroup.indexes.add(idx);
+        targetGroup.installments.push(order);
     });
 
     groups.forEach((group) => {
