@@ -57,7 +57,6 @@ const groupOrders = (list) => {
     });
 
     groups.forEach((group) => {
-        // Ordena parcelas por data e por índice
         group.installments.sort((a, b) => {
             const dateDiff = new Date(a.orderDate) - new Date(b.orderDate);
             if (dateDiff !== 0) return dateDiff;
@@ -72,14 +71,12 @@ const groupOrders = (list) => {
         group.nfNumber = first.nfNumber;
         group.boletoNumber = first.boletoNumber;
 
-        // Totais financeiros
         group.totalValue = group.installments.reduce((sum, i) => sum + (parseFloat(i.value) || 0), 0);
         group.paidValue = group.installments.filter(i => i.isPaid).reduce((sum, i) => sum + (parseFloat(i.value) || 0), 0);
         group.pendingValue = Math.round((group.totalValue - group.paidValue) * 100) / 100;
         group.isPaid = group.pendingValue <= 0;
         group.isPartiallyPaid = group.paidValue > 0 && !group.isPaid;
 
-        // Margem de Contribuição total
         const mcItems = group.installments.filter(i => i.contribMarginValue !== null && i.contribMarginValue !== undefined);
         if (mcItems.length > 0) {
             group.contribMarginValue = mcItems.reduce((sum, i) => sum + (parseFloat(i.contribMarginValue) || 0), 0);
@@ -140,6 +137,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         isPaid: false,
         installments: 1,
         installmentDates: [new Date().toISOString().split('T')[0]],
+        installmentValues: [''],
         paymentMethod: 'Pix/Transferência',
         nfNumber: '',
         boletoNumber: '',
@@ -156,16 +154,18 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState(null);
+    const [paymentModal, setPaymentModal] = useState(null);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
 
         let newFormData = { ...formData, [name]: type === 'checkbox' ? checked : value };
 
-        if (name === 'orderDate' || name === 'installments') {
+        if (name === 'orderDate' || name === 'installments' || name === 'value') {
             const n = name === 'installments' ? parseInt(value) : formData.installments;
             const baseDateStr = name === 'orderDate' ? value : formData.orderDate;
             const baseDate = new Date(baseDateStr + 'T00:00:00');
+            const totalVal = name === 'value' ? parseFloat(value) || 0 : parseFloat(formData.value) || 0;
 
             const dates = Array.from({ length: n }, (_, i) => {
                 const d = new Date(baseDate);
@@ -179,9 +179,47 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
             newFormData.installments = n;
             newFormData.installmentDates = dates;
+
+            if (name === 'installments' || name === 'value') {
+                const distributed = distributeValues(totalVal, n);
+                newFormData.installmentValues = distributed.map(v => v > 0 ? v.toFixed(2) : '');
+            }
         }
 
         setFormData(newFormData);
+    };
+
+    const handleInstallmentValueChange = (index, rawVal) => {
+        const totalVal = parseFloat(formData.value) || 0;
+        const n = formData.installments;
+        const newVals = [...(formData.installmentValues || [])];
+        newVals[index] = rawVal;
+
+        let sumFixed = 0;
+        for (let i = 0; i <= index; i++) {
+            sumFixed += parseFloat(newVals[i]) || 0;
+        }
+
+        const remaining = Math.round((totalVal - sumFixed) * 100) / 100;
+        const remainingCount = n - (index + 1);
+
+        if (remainingCount > 0 && remaining >= 0) {
+            const distributedRemainder = distributeValues(remaining, remainingCount);
+            for (let i = 0; i < remainingCount; i++) {
+                newVals[index + 1 + i] = distributedRemainder[i].toFixed(2);
+            }
+        }
+
+        setFormData(prev => ({ ...prev, installmentValues: newVals }));
+    };
+
+    const handleResetInstallmentValues = () => {
+        const totalVal = parseFloat(formData.value) || 0;
+        const distributed = distributeValues(totalVal, formData.installments);
+        setFormData(prev => ({
+            ...prev,
+            installmentValues: distributed.map(v => v.toFixed(2))
+        }));
     };
 
     const handleInstallmentDateChange = (index, value) => {
@@ -239,6 +277,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             return d.toISOString().split('T')[0];
         });
 
+        const distBudgetVals = distributeValues(targetValue, targetInstallments).map(v => v.toFixed(2));
         setFormData(prev => ({
             ...prev,
             clientName: budget.clientData?.name || '',
@@ -246,6 +285,7 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             value: targetValue ? String(targetValue.toFixed(2)) : '',
             installments: targetInstallments,
             installmentDates: installmentDates,
+            installmentValues: distBudgetVals,
             contribMarginValue: totalMargin,
             contribMarginPerc: marginPerc,
             originalTotal: budget.total || 0,
@@ -277,26 +317,26 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             ? parseFloat(formData.contribMarginPerc)
             : null;
 
-        // Se o valor faturado foi alterado, recalcula a margem proporcionalmente
         if (totalMargin !== null && formData.originalTotal && Math.abs(parseFloat(formData.originalTotal) - totalValue) > 0.01) {
             const originalVal = parseFloat(formData.originalTotal);
             const materialCost = parseFloat(formData.originalMaterialCost || 0);
-            
-            // originalVal = materialCost + originalTaxesAndNf + totalMargin
-            // originalTaxesAndNf = originalVal - materialCost - totalMargin
             const originalTaxesAndNf = originalVal - materialCost - totalMargin;
             const taxRate = originalVal > 0 ? (originalTaxesAndNf / originalVal) : 0;
-            
-            // Nova Margem = Novo Valor - Custo Materiais - (Novo Valor * Taxa Impostos/NF)
             totalMargin = totalValue - materialCost - (totalValue * taxRate);
             marginPerc = totalValue > 0 ? (totalMargin / totalValue) * 100 : 0;
         }
 
+        const groupId = numInstallments > 1 ? `grp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}` : null;
+
         const newOrdersToInsert = formData.installmentDates.map((date, index) => {
-            const orderVal = installmentValue;
+            const rawInstVal = formData.installmentValues && formData.installmentValues[index] !== undefined
+                ? parseFloat(formData.installmentValues[index])
+                : null;
+            const orderVal = (rawInstVal !== null && !isNaN(rawInstVal)) ? rawInstVal : installmentValue;
+
             let orderMarginVal = null;
-            if (totalMargin !== null) {
-                orderMarginVal = totalMargin / numInstallments;
+            if (totalMargin !== null && totalValue > 0) {
+                orderMarginVal = (orderVal / totalValue) * totalMargin;
             }
 
             return {
@@ -312,6 +352,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 nfNumber: formData.nfNumber,
                 boletoNumber: formData.paymentMethod === 'Boleto' ? formData.boletoNumber : '',
                 year: new Date(date + 'T00:00:00').getUTCFullYear(),
+                clientData: groupId ? {
+                    groupId,
+                    installmentIndex: index + 1,
+                    totalInstallments: numInstallments,
+                    baseDescription: formData.description
+                } : null,
                 contribMarginValue: orderMarginVal,
                 contribMarginPerc: marginPerc
             };
@@ -331,39 +377,137 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
     };
 
-    const startPaymentConfirmation = (order) => {
-        if (order.isPaid) {
+    const openPaymentModal = (targetOrder, parentGroup = null) => {
+        if (targetOrder.isPaid) {
             setConfirmModal({
                 type: 'revert',
                 title: 'Reverter Pagamento',
                 theme: 'amber',
-                message: `Deseja reverter o pagamento de ${fmt(order.value)} para "${order.clientName}" para PENDENTE?`,
+                message: `Deseja reverter o pagamento de ${fmt(targetOrder.value)} para "${targetOrder.clientName}" para PENDENTE?`,
                 details: (
                     <div className="space-y-1.5 text-xs text-gray-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <p><strong>Cliente:</strong> {order.clientName}</p>
-                        <p><strong>Descrição:</strong> {order.description}</p>
-                        <p><strong>Valor:</strong> {fmt(order.value)}</p>
-                        <p><strong>Data Pago:</strong> {order.paymentDate ? new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</p>
+                        <p><strong>Cliente:</strong> {targetOrder.clientName}</p>
+                        <p><strong>Descrição:</strong> {targetOrder.description}</p>
+                        <p><strong>Valor:</strong> {fmt(targetOrder.value)}</p>
+                        <p><strong>Data Pago:</strong> {targetOrder.paymentDate ? new Date(targetOrder.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</p>
                     </div>
                 ),
                 onConfirm: async () => {
                     try {
-                        await api.updateOrder(order.id, { isPaid: false, paymentDate: null });
-                        const updatedOrder = { ...order, isPaid: false, paymentDate: null };
-                        setOrders(orders.map(o => o.id === order.id ? updatedOrder : o));
+                        await api.updateOrder(targetOrder.id, { isPaid: false, paymentDate: null });
+                        setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, isPaid: false, paymentDate: null } : o));
                     } catch (err) {
                         console.error('Erro ao reverter pagamento no Supabase:', err);
-                        alert('❌ Erro ao reverter pagamento no banco de dados. Verifique sua conexão e tente novamente.');
+                        alert('❌ Erro ao reverter pagamento no banco de dados.');
                     }
                 }
             });
-        } else {
-            setConfirmingId(order.id);
-            const today = new Date();
-            const d = String(today.getDate()).padStart(2, '0');
-            const m = String(today.getMonth() + 1).padStart(2, '0');
-            const y = today.getFullYear();
-            setPaymentDateStr(`${d}/${m}/${y}`);
+            return;
+        }
+
+        const nextDate = new Date();
+        nextDate.setDate(nextDate.getDate() + 30);
+        const nextDueDateStr = nextDate.toISOString().split('T')[0];
+
+        setPaymentModal({
+            order: targetOrder,
+            parentGroup,
+            paidAmount: String(targetOrder.value || ''),
+            paymentDate: new Date().toISOString().split('T')[0],
+            paymentMethod: targetOrder.paymentMethod || 'Pix/Transferência',
+            remainingDueDate: nextDueDateStr
+        });
+    };
+
+    const startPaymentConfirmation = (order) => {
+        openPaymentModal(order, null);
+    };
+
+    const handleConfirmPaymentModal = async () => {
+        if (!paymentModal || !paymentModal.order) return;
+        const { order, paidAmount, paymentDate, paymentMethod, remainingDueDate } = paymentModal;
+
+        const currentPaid = parseFloat(paidAmount);
+        if (isNaN(currentPaid) || currentPaid <= 0) {
+            alert('Informe um valor de pagamento válido.');
+            return;
+        }
+
+        const originalVal = parseFloat(order.value) || 0;
+        const saldo = Math.round((originalVal - currentPaid) * 100) / 100;
+
+        try {
+            if (saldo <= 0) {
+                const updates = {
+                    value: currentPaid,
+                    isPaid: true,
+                    paymentDate: paymentDate,
+                    paymentMethod: paymentMethod
+                };
+                const ok = await api.updateOrder(order.id, updates);
+                if (!ok) throw new Error('Falha ao atualizar pedido');
+
+                setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...updates } : o));
+            } else {
+                const paidMargin = (order.contribMarginValue !== null && order.contribMarginValue !== undefined && originalVal > 0)
+                    ? (currentPaid / originalVal) * order.contribMarginValue
+                    : null;
+
+                const remainderMargin = (order.contribMarginValue !== null && order.contribMarginValue !== undefined && originalVal > 0)
+                    ? (saldo / originalVal) * order.contribMarginValue
+                    : null;
+
+                const existingGroupId = order.clientData?.groupId || `grp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+                const updateCurrent = {
+                    value: currentPaid,
+                    isPaid: true,
+                    paymentDate: paymentDate,
+                    paymentMethod: paymentMethod,
+                    contribMarginValue: paidMargin,
+                    clientData: {
+                        ...(order.clientData || {}),
+                        groupId: existingGroupId,
+                        baseDescription: order.clientData?.baseDescription || order.description
+                    }
+                };
+
+                const okCurrent = await api.updateOrder(order.id, updateCurrent);
+                if (!okCurrent) throw new Error('Falha ao atualizar entrada');
+
+                const newRemainderOrder = {
+                    clientName: order.clientName,
+                    description: `${order.clientData?.baseDescription || order.description} (Saldo Restante)`,
+                    orderDate: remainingDueDate,
+                    value: saldo,
+                    paymentDate: null,
+                    isPaid: false,
+                    paymentMethod: paymentMethod,
+                    nfNumber: order.nfNumber || '',
+                    boletoNumber: paymentMethod === 'Boleto' ? (order.boletoNumber || '') : '',
+                    year: new Date(remainingDueDate + 'T00:00:00').getUTCFullYear(),
+                    contribMarginValue: remainderMargin,
+                    contribMarginPerc: order.contribMarginPerc,
+                    clientData: {
+                        groupId: existingGroupId,
+                        isRemainder: true,
+                        baseDescription: order.clientData?.baseDescription || order.description
+                    }
+                };
+
+                const inserted = await api.addOrders([newRemainderOrder]);
+                if (!inserted || inserted.length === 0) throw new Error('Falha ao inserir saldo restante');
+
+                setOrders(prev => [
+                    inserted[0],
+                    ...prev.map(o => o.id === order.id ? { ...o, ...updateCurrent } : o)
+                ]);
+            }
+
+            setPaymentModal(null);
+        } catch (err) {
+            console.error('Erro ao formalizar pagamento:', err);
+            alert('Erro ao registrar pagamento no banco de dados. Verifique a conexão.');
         }
     };
 
@@ -460,28 +604,40 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         if (e.key === 'Escape') setConfirmingId(null);
     };
 
-    const handleDelete = async (id) => {
-        const order = orders.find(o => o.id === id);
-        if (!order) return;
+    const handleDelete = async (orderOrId) => {
+        const isGroup = typeof orderOrId === 'object' && orderOrId.isGroup;
+        const targetOrder = typeof orderOrId === 'object' ? orderOrId : orders.find(o => o.id === orderOrId);
+        if (!targetOrder) return;
+
+        const title = isGroup ? 'Excluir Pedido Completo (Todas as Parcelas)' : 'Excluir Entrada';
+        const msg = isGroup
+            ? `Tem certeza que deseja excluir este pedido completo e todas as suas ${targetOrder.installments.length} parcelas? Esta ação não pode ser desfeita.`
+            : `Tem certeza que deseja excluir esta entrada? Esta ação não pode ser desfeita.`;
 
         setConfirmModal({
             type: 'delete',
-            title: 'Excluir Entrada',
+            title: title,
             theme: 'red',
-            message: `Tem certeza que deseja excluir esta entrada? Esta ação não pode ser desfeita.`,
+            message: msg,
             details: (
                 <div className="space-y-1.5 text-xs text-gray-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p><strong>Cliente:</strong> {order.clientName}</p>
-                    <p><strong>Descrição:</strong> {order.description}</p>
-                    <p><strong>Valor:</strong> {fmt(order.value)}</p>
-                    <p><strong>Status:</strong> {order.isPaid ? 'Pago' : 'Pendente'}</p>
+                    <p><strong>Cliente:</strong> {targetOrder.clientName}</p>
+                    <p><strong>Descrição:</strong> {targetOrder.description}</p>
+                    <p><strong>Valor Total:</strong> {fmt(isGroup ? targetOrder.totalValue : targetOrder.value)}</p>
+                    {isGroup && <p><strong>Parcelas:</strong> {targetOrder.installments.length} parcelas</p>}
                 </div>
             ),
             onConfirm: async () => {
                 try {
-                    const success = await api.deleteOrder(id);
-                    if (!success) throw new Error("A API retornou false");
-                    setOrders(orders.filter(o => o.id !== id));
+                    if (isGroup) {
+                        await Promise.all(targetOrder.installments.map(i => api.deleteOrder(i.id)));
+                        const idsToDelete = new Set(targetOrder.installments.map(i => i.id));
+                        setOrders(prev => prev.filter(o => !idsToDelete.has(o.id)));
+                    } else {
+                        const success = await api.deleteOrder(targetOrder.id);
+                        if (!success) throw new Error("A API retornou false");
+                        setOrders(prev => prev.filter(o => o.id !== targetOrder.id));
+                    }
                 } catch (err) {
                     console.error('Erro ao excluir:', err);
                     alert('Erro ao excluir do servidor. Tente novamente.');
@@ -492,11 +648,13 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
 
     const startEditing = (order) => {
         setEditingId(order.id);
-        const orderDateStr = order.orderDate.split('T')[0]; // Ensure it's just YYYY-MM-DD
+        const orderDateStr = order.orderDate.split('T')[0];
         setEditForm({
+            isGroup: Boolean(order.isGroup),
+            installments: order.installments || null,
             clientName: order.clientName || '',
             description: order.description || '',
-            value: order.value || 0,
+            value: order.isGroup ? order.totalValue : (order.value || 0),
             orderDate: orderDateStr,
             paymentMethod: order.paymentMethod || 'Pix/Transferência',
             nfNumber: order.nfNumber || '',
@@ -513,16 +671,54 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
 
         const dateYear = new Date(editForm.orderDate + 'T00:00:00').getUTCFullYear();
-        const updatedData = {
-            ...editForm,
-            value: parseFloat(editForm.value),
-            year: dateYear
-        };
 
         try {
-            const success = await api.updateOrder(editingId, updatedData);
-            if (!success) throw new Error('Falha ao atualizar no banco de dados');
-            setOrders(orders.map(o => o.id === editingId ? { ...o, ...updatedData } : o));
+            if (editForm.isGroup && editForm.installments) {
+                const promises = editForm.installments.map((inst, idx) => {
+                    const desc = editForm.installments.length > 1
+                        ? `${editForm.description} (${idx + 1}/${editForm.installments.length})`
+                        : editForm.description;
+                    return api.updateOrder(inst.id, {
+                        clientName: editForm.clientName,
+                        description: desc,
+                        paymentMethod: editForm.paymentMethod,
+                        nfNumber: editForm.nfNumber,
+                        boletoNumber: editForm.boletoNumber,
+                        clientData: {
+                            ...(inst.clientData || {}),
+                            baseDescription: editForm.description
+                        }
+                    });
+                });
+                await Promise.all(promises);
+
+                const idsSet = new Set(editForm.installments.map(i => i.id));
+                setOrders(prev => prev.map(o => {
+                    if (idsSet.has(o.id)) {
+                        return {
+                            ...o,
+                            clientName: editForm.clientName,
+                            paymentMethod: editForm.paymentMethod,
+                            nfNumber: editForm.nfNumber,
+                            boletoNumber: editForm.boletoNumber
+                        };
+                    }
+                    return o;
+                }));
+            } else {
+                const updatedData = {
+                    ...editForm,
+                    value: parseFloat(editForm.value),
+                    year: dateYear
+                };
+                delete updatedData.isGroup;
+                delete updatedData.installments;
+
+                const success = await api.updateOrder(editingId, updatedData);
+                if (!success) throw new Error('Falha ao atualizar no banco de dados');
+                setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...updatedData } : o));
+            }
+
             setEditingId(null);
             setEditForm(null);
         } catch (err) {
@@ -531,52 +727,62 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         }
     };
 
-    const filteredOrders = orders.filter(order => {
-        const orderYear = order.year || new Date(order.orderDate + 'T00:00:00').getUTCFullYear();
-        const matchesYear = orderYear === selectedYear;
+    const allGroupedOrders = React.useMemo(() => {
+        return groupOrders(orders || []);
+    }, [orders]);
 
-        let matchesMonth = true;
-        if (selectedMonth !== 'all') {
-            const orderMonth = new Date(order.orderDate + 'T00:00:00').getUTCMonth();
-            matchesMonth = orderMonth === parseInt(selectedMonth);
-        }
+    const filteredOrders = React.useMemo(() => {
+        return allGroupedOrders.filter(order => {
+            const orderYear = order.year || new Date(order.orderDate + 'T00:00:00').getUTCFullYear();
+            const matchesYear = orderYear === selectedYear;
 
-        if (!matchesYear || !matchesMonth) return false;
+            let matchesMonth = true;
+            if (selectedMonth !== 'all') {
+                const targetM = parseInt(selectedMonth);
+                const baseM = new Date(order.orderDate + 'T00:00:00').getUTCMonth();
+                if (order.isGroup) {
+                    matchesMonth = baseM === targetM || order.installments.some(i => new Date(i.orderDate + 'T00:00:00').getUTCMonth() === targetM);
+                } else {
+                    matchesMonth = baseM === targetM;
+                }
+            }
 
-        if (!searchQuery.trim()) return true;
+            if (!matchesYear || !matchesMonth) return false;
 
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = order.clientName?.toLowerCase().includes(q);
-        const matchesDesc = order.description?.toLowerCase().includes(q);
-        const matchesVal = order.value?.toString().includes(q);
-        const matchesBoleto = order.boletoNumber?.toLowerCase().includes(q);
-        const matchesNF = order.nfNumber?.toLowerCase().includes(q);
-        const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
+            if (!searchQuery.trim()) return true;
 
-        // Busca por status de pagamento (pendente vs pago)
-        let matchesStatus = false;
-        if (q === 'pendente' || q === 'pendentes' || q === 'aguardando') {
-            matchesStatus = !order.isPaid;
-        } else if (q === 'pago' || q === 'pagos' || q === 'concluido' || q === 'concluído') {
-            matchesStatus = order.isPaid;
-        }
+            const q = searchQuery.toLowerCase().trim();
+            const matchesName = order.clientName?.toLowerCase().includes(q);
+            const matchesDesc = order.description?.toLowerCase().includes(q);
+            const matchesVal = (order.totalValue ?? order.value)?.toString().includes(q);
+            const matchesBoleto = order.boletoNumber?.toLowerCase().includes(q);
+            const matchesNF = order.nfNumber?.toLowerCase().includes(q);
+            const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
 
-        return (
-            matchesName || 
-            matchesDesc || 
-            matchesVal || 
-            matchesBoleto || 
-            matchesNF || 
-            matchesPayment || 
-            matchesStatus
-        );
-    });
+            let matchesStatus = false;
+            if (q === 'pendente' || q === 'pendentes' || q === 'aguardando') {
+                matchesStatus = !order.isPaid;
+            } else if (q === 'pago' || q === 'pagos' || q === 'concluido' || q === 'concluído') {
+                matchesStatus = order.isPaid;
+            }
+
+            return (
+                matchesName || 
+                matchesDesc || 
+                matchesVal || 
+                matchesBoleto || 
+                matchesNF || 
+                matchesPayment || 
+                matchesStatus
+            );
+        });
+    }, [allGroupedOrders, selectedYear, selectedMonth, searchQuery]);
 
     const filteredSummary = {
         count: filteredOrders.length,
-        total: filteredOrders.reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0),
-        paid: filteredOrders.filter(o => o.isPaid).reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0),
-        pending: filteredOrders.filter(o => !o.isPaid).reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0)
+        total: filteredOrders.reduce((sum, o) => sum + (parseFloat(o.totalValue ?? o.value) || 0), 0),
+        paid: filteredOrders.filter(o => o.isPaid).reduce((sum, o) => sum + (parseFloat(o.paidValue ?? (o.isPaid ? o.value : 0)) || 0), 0),
+        pending: filteredOrders.filter(o => !o.isPaid).reduce((sum, o) => sum + (parseFloat(o.pendingValue ?? (!o.isPaid ? o.value : 0)) || 0), 0)
     };
 
     return (
@@ -903,21 +1109,97 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             </button>
                         </div>
 
-                        {/* Datas de parcelas */}
+                        {/* Configuração detalhada das parcelas (Valores editáveis + Vencimento) */}
                         {formData.installments > 1 && (
-                            <div className="col-span-1 md:col-span-12 bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
-                                <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-wider">Vencimento Estimado das Parcelas</h4>
-                                <p className="text-[9px] text-gray-400 mb-2">Informe as datas previstas. A data de pagamento real será registrada ao confirmar cada parcela como "Pago".</p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <div className="col-span-1 md:col-span-12 bg-indigo-50/40 p-3.5 rounded-xl border border-indigo-100 mt-2 space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100/80 pb-2">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                                            <Layers size={14} className="text-indigo-600" />
+                                            Valores e Vencimentos das {formData.installments} Parcelas
+                                        </h4>
+                                        <p className="text-[10px] text-indigo-700/80">
+                                            Altere o valor de qualquer parcela: o sistema recalcula automaticamente o saldo restante nas parcelas seguintes.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetInstallmentValues}
+                                        className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 bg-white border border-indigo-200 rounded-lg shadow-2xs hover:bg-indigo-50 self-start sm:self-auto transition-colors"
+                                    >
+                                        Dividir igualmente
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
                                     {formData.installmentDates.map((date, index) => (
-                                        <div key={index}>
-                                            <label className="block text-[9px] text-gray-500 mb-0.5">{index + 1}ª Parcela</label>
-                                            <input type="date" required value={date}
-                                                onChange={(e) => handleInstallmentDateChange(index, e.target.value)}
-                                                className="w-full p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 text-[11px]" />
+                                        <div key={index} className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-2xs space-y-1.5">
+                                            <span className="text-[10px] font-bold text-indigo-900 flex items-center justify-between">
+                                                <span>{index + 1}ª Parcela</span>
+                                                <span className="text-[9px] text-gray-400 font-normal">#{index + 1}</span>
+                                            </span>
+                                            <div>
+                                                <label className="block text-[9px] font-semibold text-gray-600 mb-0.5">Valor (R$)</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    required
+                                                    value={formData.installmentValues?.[index] ?? ''}
+                                                    onChange={(e) => handleInstallmentValueChange(index, e.target.value)}
+                                                    placeholder="0,00"
+                                                    className="w-full p-1 text-xs font-bold text-indigo-900 border border-gray-200 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[9px] font-semibold text-gray-600 mb-0.5">Vencimento</label>
+                                                <input
+                                                    type="date"
+                                                    required
+                                                    value={date}
+                                                    onChange={(e) => handleInstallmentDateChange(index, e.target.value)}
+                                                    className="w-full p-1 text-[11px] border border-gray-200 rounded focus:border-indigo-500 text-gray-700 bg-gray-50/50"
+                                                />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* Barra de Reconciliação dos Valores das Parcelas */}
+                                {(() => {
+                                    const totalVal = parseFloat(formData.value) || 0;
+                                    const sumVals = (formData.installmentValues || []).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                                    const diff = Math.round((totalVal - sumVals) * 100) / 100;
+                                    const isBalanced = Math.abs(diff) < 0.01;
+
+                                    return (
+                                        <div className={clsx(
+                                            "flex flex-wrap items-center justify-between text-[11px] p-2 rounded-lg border",
+                                            isBalanced
+                                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                                : "bg-amber-50 text-amber-900 border-amber-200"
+                                        )}>
+                                            <div className="flex items-center gap-2">
+                                                {isBalanced ? (
+                                                    <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                                                ) : (
+                                                    <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+                                                )}
+                                                <span>
+                                                    Total do Pedido: <strong>{fmt(totalVal)}</strong> | Soma das Parcelas: <strong>{fmt(sumVals)}</strong>
+                                                </span>
+                                            </div>
+                                            <div>
+                                                {isBalanced ? (
+                                                    <span className="font-bold text-emerald-700">✓ Conferem perfeitamente</span>
+                                                ) : diff > 0 ? (
+                                                    <span className="font-bold text-amber-700">⚠️ Falta alocar: {fmt(diff)}</span>
+                                                ) : (
+                                                    <span className="font-bold text-red-600">⚠️ Excedeu em: {fmt(Math.abs(diff))}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </form>
@@ -1061,14 +1343,14 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     acc[key].push(order);
                     return acc;
                 }, {})).map(([month, monthOrders]) => {
-                    const totalValue = monthOrders.reduce((sum, order) => sum + order.value, 0);
-                    const totalPaid = monthOrders.filter(o => o.isPaid).reduce((sum, order) => sum + order.value, 0);
+                    const totalValue = monthOrders.reduce((sum, order) => sum + (order.totalValue ?? order.value), 0);
+                    const totalPaid = monthOrders.reduce((sum, order) => sum + (order.paidValue ?? (order.isPaid ? order.value : 0)), 0);
                     const totalPending = totalValue - totalPaid;
 
                     // MC Calculations
                     const ordersWithMc = monthOrders.filter(o => o.contribMarginValue !== null && o.contribMarginValue !== undefined);
                     const totalMcValue = ordersWithMc.reduce((sum, o) => sum + o.contribMarginValue, 0);
-                    const totalMcBaseValue = ordersWithMc.reduce((sum, o) => sum + o.value, 0);
+                    const totalMcBaseValue = ordersWithMc.reduce((sum, o) => sum + (order.totalValue ?? o.value), 0);
                     const avgMcPerc = totalMcBaseValue > 0 ? (totalMcValue / totalMcBaseValue) * 100 : 0;
 
                     const currentMonthYear = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
@@ -1113,11 +1395,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                             <div className="divide-y divide-gray-100 overflow-y-auto max-h-[500px]">
                                 {[...monthOrders].sort((a, b) => {
                                     if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
-                                    const dateA = a.isPaid ? new Date(a.paymentDate || a.orderDate) : new Date(a.orderDate);
-                                    const dateB = b.isPaid ? new Date(b.paymentDate || b.orderDate) : new Date(b.orderDate);
+                                    const dateA = new Date(a.orderDate);
+                                    const dateB = new Date(b.orderDate);
                                     return dateA - dateB;
                                 }).map((order) => (
-                                    <div key={order.id} className={clsx("py-1 px-2 flex hover:bg-gray-50 transition-colors gap-1", editingId === order.id ? "flex-col items-stretch" : "items-center justify-between")}>
+                                    <div key={order.id} className={clsx(
+                                        "py-1.5 px-2 flex hover:bg-gray-50 transition-colors gap-1 items-center justify-between",
+                                        editingId === order.id && "flex-col items-stretch",
+                                        order.isPartiallyPaid && "bg-amber-50/25"
+                                    )}>
                                         {editingId === order.id ? (
                                             <div className="flex flex-col gap-1.5 p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
                                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5">
@@ -1173,7 +1459,12 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                 <div className="flex items-center gap-2 flex-1 min-w-0 pr-2 border-r border-gray-100">
                                                     <div className="w-32 flex-shrink-0">
                                                         <p className="font-semibold text-gray-800 truncate text-xs" title={order.clientName}>{order.clientName}</p>
-                                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                                        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                                            {order.isGroup && (
+                                                                <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded border border-indigo-200">
+                                                                    {order.installments.length}x
+                                                                </span>
+                                                            )}
                                                             {order.paymentMethod && (
                                                                 <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter">{order.paymentMethod}</span>
                                                             )}
@@ -1185,23 +1476,51 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-gray-600 truncate text-[11px]" title={order.description}>{order.description}</p>
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                                        <p className="text-gray-600 truncate text-[11px] max-w-[220px]" title={order.description}>
+                                                            {order.description}
+                                                        </p>
+                                                        {order.isGroup && (
+                                                            <div className="flex items-center gap-1 flex-wrap shrink-0">
+                                                                {order.installments.map((inst, idx) => (
+                                                                    <button
+                                                                        key={inst.id || idx}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (!readOnly) openPaymentModal(inst, order);
+                                                                        }}
+                                                                        title={`${idx + 1}ª Parcela: ${fmt(inst.value)} - ${inst.isPaid ? 'PAGO em ' + (inst.paymentDate ? new Date(inst.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR') : '') : 'Venc. ' + new Date(inst.orderDate + 'T00:00:00').toLocaleDateString('pt-BR') + ' (Clique para pagar)'}`}
+                                                                        className={clsx(
+                                                                            "text-[9px] px-1.5 py-0.5 rounded font-bold border transition-all flex items-center gap-1 shadow-2xs",
+                                                                            inst.isPaid
+                                                                                ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                                                                                : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 cursor-pointer"
+                                                                        )}
+                                                                    >
+                                                                        <span>{idx + 1}ª: {fmt(inst.value)}</span>
+                                                                        {inst.isPaid ? <Check size={10} className="text-emerald-600" /> : <Clock size={10} className="text-amber-600" />}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                    {/* Datas: pedido + pagamento (só se pago) */}
+                                                    {/* Datas */}
                                                     <div className="text-[10px] text-gray-500 w-28 text-right flex flex-col">
                                                         <span className="truncate">Ped: {new Date(order.orderDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                        {order.isPaid && order.paymentDate ? (
+                                                        {order.isPaid ? (
                                                             <span className="font-medium text-green-600 truncate">
-                                                                Pg: {new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                                Pg: {order.isGroup ? 'Quitado' : (order.paymentDate ? new Date(order.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Sim')}
+                                                            </span>
+                                                        ) : order.isPartiallyPaid ? (
+                                                            <span className="text-amber-600 font-bold truncate">
+                                                                {order.installments.filter(i => i.isPaid).length}/{order.installments.length} Pagas
                                                             </span>
                                                         ) : (
-                                                            <div className="flex flex-col">
-                                                                <span className="text-red-400 font-medium truncate">Aguardando</span>
-                                                            </div>
+                                                            <span className="text-red-400 font-medium truncate">Aguardando</span>
                                                         )}
                                                     </div>
 
@@ -1221,59 +1540,57 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                         )}
                                                     </div>
 
-                                                    <div className="w-20 font-bold text-right text-gray-800 text-xs flex-shrink-0">
-                                                        {fmt(order.value)}
+                                                    {/* Valor */}
+                                                    <div className="w-20 font-bold text-right text-gray-800 text-xs flex-shrink-0 flex flex-col items-end">
+                                                        <span>{fmt(order.totalValue ?? order.value)}</span>
+                                                        {order.isPartiallyPaid && (
+                                                            <span className="text-[9px] text-amber-600 font-semibold leading-none">
+                                                                Saldo {fmt(order.pendingValue)}
+                                                            </span>
+                                                        )}
                                                     </div>
 
-                                                    {confirmingId === order.id ? (
-                                                        <div className="flex items-center gap-1 bg-white p-1 rounded border border-indigo-200 shadow-sm">
-                                                            <input
-                                                                type="text"
-                                                                autoFocus
-                                                                onFocus={e => e.target.select()}
-                                                                value={paymentDateStr}
-                                                                onChange={handlePaymentDateChange}
-                                                                onBlur={handlePaymentDateBlur}
-                                                                onKeyDown={(e) => handleDateKeyDown(e, order.id)}
-                                                                className="w-[72px] text-center text-[10px] p-1 border border-gray-200 rounded outline-none focus:border-indigo-400 font-bold text-indigo-700"
-                                                                placeholder="DD/MM/AAAA"
-                                                            />
-                                                            <button onMouseDown={() => finalizePayment(order.id)} className="p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-colors" title="Confirmar">
-                                                                <Check size={14} />
+                                                    {/* Botão de Status */}
+                                                    <button
+                                                        onClick={() => {
+                                                            if (readOnly) return;
+                                                            if (order.isGroup) {
+                                                                const firstUnpaid = order.installments.find(i => !i.isPaid);
+                                                                if (firstUnpaid) {
+                                                                    openPaymentModal(firstUnpaid, order);
+                                                                } else {
+                                                                    openPaymentModal(order.installments[0], order);
+                                                                }
+                                                            } else {
+                                                                startPaymentConfirmation(order);
+                                                            }
+                                                        }}
+                                                        disabled={readOnly}
+                                                        className={clsx(
+                                                            "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center shadow-2xs",
+                                                            readOnly ? "cursor-default" : "cursor-pointer",
+                                                            order.isPaid
+                                                                ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                                                                : order.isPartiallyPaid
+                                                                    ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200 font-bold"
+                                                                    : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
+                                                        )}
+                                                    >
+                                                        {order.isPaid ? 'PAGO' : order.isPartiallyPaid ? `${order.installments.filter(i => i.isPaid).length}/${order.installments.length} PAGO` : 'PENDENTE'}
+                                                    </button>
+
+                                                    {/* Ações */}
+                                                    {!readOnly && (
+                                                        <div className="flex flex-col gap-1 ml-1 flex-shrink-0">
+                                                            <button onClick={() => startEditing(order)}
+                                                                className="text-gray-400 hover:text-indigo-600 transition-colors p-1 bg-gray-50 rounded" title="Editar">
+                                                                <Edit2 size={13} />
                                                             </button>
-                                                            <button onMouseDown={() => setConfirmingId(null)} className="p-1 bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Cancelar">
-                                                                <X size={14} />
+                                                            <button onClick={() => handleDelete(order)}
+                                                                className="text-gray-400 hover:text-red-500 transition-colors p-1 bg-gray-50 rounded" title="Excluir">
+                                                                <Trash2 size={13} />
                                                             </button>
                                                         </div>
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                onClick={() => !readOnly && startPaymentConfirmation(order)}
-                                                                disabled={readOnly}
-                                                                className={clsx(
-                                                                    "w-20 text-[10px] py-0.5 rounded-full font-medium border transition-colors text-center",
-                                                                    readOnly ? "cursor-default" : "cursor-pointer",
-                                                                    order.isPaid
-                                                                        ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                                                                        : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
-                                                                )}
-                                                            >
-                                                                {order.isPaid ? 'PAGO' : 'PENDENTE'}
-                                                            </button>
-
-                                                            {!readOnly && (
-                                                                <div className="flex flex-col gap-1 ml-1">
-                                                                    <button onClick={() => startEditing(order)}
-                                                                        className="text-gray-400 hover:text-indigo-600 transition-colors p-1 bg-gray-50 rounded" title="Editar">
-                                                                        <Edit2 size={13} />
-                                                                    </button>
-                                                                    <button onClick={() => handleDelete(order.id)}
-                                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1 bg-gray-50 rounded" title="Excluir">
-                                                                        <Trash2 size={13} />
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </>
                                                     )}
                                                 </div>
                                             </>
