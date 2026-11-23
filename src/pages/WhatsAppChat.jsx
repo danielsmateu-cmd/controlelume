@@ -129,8 +129,12 @@ function WhatsAppChatInner() {
   const [transferTab, setTransferTab] = useState('setor'); // 'setor' or 'usuario'
   const [transferMarkReturn, setTransferMarkReturn] = useState(true);
 
-
   const messagesEndRef = useRef(null);
+  const activeChatIdRef = useRef(activeChat?.id);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChat?.id;
+  }, [activeChat?.id]);
 
   useEffect(() => {
     const fetchReplies = async () => {
@@ -202,7 +206,19 @@ function WhatsAppChatInner() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'whatsapp_chats' },
         (payload) => {
-          fetchChats();
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const updated = payload.new;
+            setChats(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+            setActiveChat(prev => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+          } else if (payload.eventType === 'INSERT' && payload.new) {
+            const newChat = payload.new;
+            setChats(prev => {
+              if (prev.some(c => c.id === newChat.id)) return prev;
+              return [newChat, ...prev];
+            });
+          } else {
+            fetchChats();
+          }
         }
       )
       .subscribe();
@@ -226,57 +242,87 @@ function WhatsAppChatInner() {
 
   // 3. Carregar e Inscrever em Mensagens do Chat Ativo
   useEffect(() => {
-    if (!activeChat) {
+    if (!activeChat?.id) {
       setMessages([]);
       setReactions({});
+      setLoadingMessages(false);
       return;
     }
 
-    const cleanPhone = activeChat.phone_number || (activeChat.remote_jid ? activeChat.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '') : '');
+    const currentChatId = activeChat.id;
+    const currentRemoteJid = activeChat.remote_jid;
+    const cleanPhone = activeChat.phone_number || (currentRemoteJid ? currentRemoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '') : '');
+    let isCancelled = false;
+
+    // Limpar mensagens e reações imediatamente ao trocar de conversa para nunca exibir mensagens antigas
+    setMessages([]);
+    setReactions({});
+    setLoadingMessages(true);
 
     const syncReactions = async () => {
       if (!cleanPhone) return;
       const rxMap = await whatsappService.getReactions(cleanPhone);
-      if (rxMap && Object.keys(rxMap).length > 0) {
-        setReactions(prev => ({ ...prev, ...rxMap }));
+      if (!isCancelled && activeChatIdRef.current === currentChatId && rxMap && Object.keys(rxMap).length > 0) {
+        setReactions(rxMap);
       }
     };
 
     const loadMessages = async () => {
-      setLoadingMessages(true);
-      const data = await whatsappService.getMessages(activeChat);
-      setMessages(data);
-      setLoadingMessages(false);
-      scrollToBottom();
-      whatsappService.markAsRead(activeChat.id);
+      try {
+        const data = await whatsappService.getMessages(activeChat);
+        if (isCancelled || activeChatIdRef.current !== currentChatId) return;
 
-      // Sincroniza reações logo após carregar as mensagens
-      syncReactions();
+        setMessages(data || []);
+        setLoadingMessages(false);
+        setTimeout(scrollToBottom, 50);
+
+        // Apenas marca como lido no Supabase se houver contador pendente (> 0)
+        // Isso evita avalanche de updates e recarregamento da lista em cada clique!
+        if (activeChat.unread_count > 0) {
+          whatsappService.markAsRead(currentChatId);
+          setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, unread_count: 0 } : c));
+          setActiveChat(prev => (prev?.id === currentChatId ? { ...prev, unread_count: 0 } : prev));
+        }
+
+        // Sincroniza reações logo após carregar as mensagens
+        syncReactions();
+      } catch (err) {
+        if (!isCancelled && activeChatIdRef.current === currentChatId) {
+          setLoadingMessages(false);
+        }
+      }
     };
 
     loadMessages();
 
-    // Inscrever em novas mensagens deste chat
+    // Inscrever em novas mensagens deste chat com canal único para evitar conflito de unsubscribe
+    const channelName = `chat_msg_${currentChatId}_${Date.now()}`;
     const messagesChannel = supabase
-      .channel(`chat_messages:${activeChat.id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'whatsapp_messages', 
-          filter: `remote_jid=eq.${activeChat.remote_jid}` 
+          filter: `remote_jid=eq.${currentRemoteJid}` 
         },
         (payload) => {
+          if (isCancelled || activeChatIdRef.current !== currentChatId) return;
           const newMsg = payload.new;
           // Se for mensagem vazia sem mídia, é sinal de reação!
           if ((!newMsg.text || newMsg.text.trim() === '') && !newMsg.media_url) {
             syncReactions();
-            return; // Não adiciona o balão vazio na conversa
+            return;
           }
 
-          setMessages((prev) => [...prev, newMsg]);
-          scrollToBottom();
+          setMessages((prev) => {
+            if (prev.some(m => m.id === newMsg.id || (m.message_id && m.message_id === newMsg.message_id))) {
+              return prev;
+            }
+            return [...prev, newMsg];
+          });
+          setTimeout(scrollToBottom, 50);
         }
       )
       .on(
@@ -285,15 +331,17 @@ function WhatsAppChatInner() {
           event: 'UPDATE',
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `remote_jid=eq.${activeChat.remote_jid}`
+          filter: `remote_jid=eq.${currentRemoteJid}`
         },
         (payload) => {
+          if (isCancelled || activeChatIdRef.current !== currentChatId) return;
           setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
         }
       )
       .subscribe();
 
     return () => {
+      isCancelled = true;
       supabase.removeChannel(messagesChannel);
     };
   }, [activeChat?.id, activeChat?.remote_jid]);
@@ -334,6 +382,8 @@ function WhatsAppChatInner() {
     e.preventDefault();
     if ((!inputMessage.trim() && !selectedFile) || !activeChat) return;
 
+    const targetChat = activeChat;
+    const targetChatId = activeChat.id;
     const textToSend = inputMessage.trim();
     const fileToSend = selectedFile;
     
@@ -371,16 +421,21 @@ function WhatsAppChatInner() {
         mediaType = fileToSend.type.startsWith('image') ? 'image' : 'document';
       }
 
-      await whatsappService.sendMessage(activeChat, textToSend, signMessage ? (currentUser?.name || 'Atendente') : null, mediaBase64, mediaName, mediaType);
+      await whatsappService.sendMessage(targetChat, textToSend, signMessage ? (currentUser?.name || 'Atendente') : null, mediaBase64, mediaName, mediaType);
       
-      if (activeChat.status === 'aguardando_retorno') {
-        setActiveChat(prev => ({ ...prev, status: 'em_atendimento' }));
-        setChats(prev => prev.map(c => c.id === activeChat.id ? { ...c, status: 'em_atendimento' } : c));
+      if (targetChat.status === 'aguardando_retorno') {
+        setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, status: 'em_atendimento' } : prev));
+        setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, status: 'em_atendimento' } : c));
       }
 
-      const refreshed = await whatsappService.getMessages(activeChat);
-      setMessages(refreshed);
-      scrollToBottom();
+      // Só atualiza histórico se o usuário ainda estiver na mesma conversa
+      if (activeChatIdRef.current === targetChatId) {
+        const refreshed = await whatsappService.getMessages(targetChat);
+        if (activeChatIdRef.current === targetChatId) {
+          setMessages(refreshed);
+          scrollToBottom();
+        }
+      }
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
     } finally {
@@ -495,32 +550,35 @@ function WhatsAppChatInner() {
 
   const handleAssign = async () => {
     if (!activeChat) return;
+    const targetChatId = activeChat.id;
     const userName = currentUser?.name || currentUser?.login || 'Atendente';
-    const success = await whatsappService.assignChat(activeChat.id, userName);
+    const success = await whatsappService.assignChat(targetChatId, userName);
     if (success) {
-      setActiveChat({ ...activeChat, assigned_to: userName, status: 'em_atendimento' });
-      fetchChats();
+      setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, assigned_to: userName, status: 'em_atendimento' } : prev));
+      setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, assigned_to: userName, status: 'em_atendimento' } : c));
     }
   };
 
   // Alterar Status Direto
   const handleSetStatus = async (newStatus) => {
     if (!activeChat) return;
-    const success = await whatsappService.updateStatus(activeChat.id, newStatus);
+    const targetChatId = activeChat.id;
+    const success = await whatsappService.updateStatus(targetChatId, newStatus);
     if (success) {
-      setActiveChat({ ...activeChat, status: newStatus });
-      fetchChats();
+      setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, status: newStatus } : prev));
+      setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, status: newStatus } : c));
     }
   };
 
   // Finalizar Atendimento
   const handleClose = async () => {
     if (!activeChat) return;
+    const targetChatId = activeChat.id;
     if (window.confirm(`Deseja encerrar o atendimento de ${activeChat.push_name || formatPhoneNumber(activeChat.phone_number)}?`)) {
-      const success = await whatsappService.closeChat(activeChat.id);
+      const success = await whatsappService.closeChat(targetChatId);
       if (success) {
-        setActiveChat({ ...activeChat, status: 'finalizado' });
-        fetchChats();
+        setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, status: 'finalizado' } : prev));
+        setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, status: 'finalizado' } : c));
       }
     }
   };
@@ -528,23 +586,25 @@ function WhatsAppChatInner() {
   // Transferir Setor
   const handleTransfer = async (newSetor) => {
     if (!activeChat) return;
-    const success = await whatsappService.transferChat(activeChat.id, newSetor);
+    const targetChatId = activeChat.id;
+    const success = await whatsappService.transferChat(targetChatId, newSetor);
     if (success) {
-      setActiveChat({ ...activeChat, setor: newSetor, status: 'aguardando_atendente', assigned_to: null });
+      setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, setor: newSetor, status: 'aguardando_atendente', assigned_to: null } : prev));
+      setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, setor: newSetor, status: 'aguardando_atendente', assigned_to: null } : c));
       setTransferModalOpen(false);
-      fetchChats();
     }
   };
 
   // Transferir para Atendente específico
   const handleTransferToUser = async (userName) => {
     if (!activeChat) return;
+    const targetChatId = activeChat.id;
     const targetStatus = transferMarkReturn ? 'aguardando_retorno' : 'em_atendimento';
-    const success = await whatsappService.transferToUser(activeChat.id, userName, targetStatus);
+    const success = await whatsappService.transferToUser(targetChatId, userName, targetStatus);
     if (success) {
-      setActiveChat({ ...activeChat, assigned_to: userName, status: targetStatus });
+      setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, assigned_to: userName, status: targetStatus } : prev));
+      setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, assigned_to: userName, status: targetStatus } : c));
       setTransferModalOpen(false);
-      fetchChats();
     }
   };
 
@@ -832,7 +892,11 @@ function WhatsAppChatInner() {
               return (
                 <div
                   key={chat.id}
-                  onClick={() => setActiveChat(chat)}
+                  onClick={() => {
+                    if (activeChat?.id !== chat.id) {
+                      setActiveChat(chat);
+                    }
+                  }}
                   className={clsx(
                     'p-3.5 cursor-pointer transition-all flex items-start gap-3 relative border-l-4 group',
                     isSelected

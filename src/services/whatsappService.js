@@ -23,13 +23,18 @@ export const whatsappService = {
 
   // Buscar mensagens de um chat específico (por chat_id OU remote_jid)
   async getMessages(chat) {
-    if (!chat) return [];
+    if (!chat || (!chat.id && !chat.remote_jid)) return [];
     try {
-      const { data, error } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .or(`chat_id.eq.${chat.id},remote_jid.eq.${chat.remote_jid}`)
-        .order('created_at', { ascending: true });
+      let query = supabase.from('whatsapp_messages').select('*');
+      if (chat.id && chat.remote_jid) {
+        query = query.or(`chat_id.eq.${chat.id},remote_jid.eq.${chat.remote_jid}`);
+      } else if (chat.id) {
+        query = query.eq('chat_id', chat.id);
+      } else {
+        query = query.eq('remote_jid', chat.remote_jid);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
 
       if (error) throw error;
       return data || [];
