@@ -286,18 +286,28 @@ export const shopeeApi = {
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
 
-        // A Shopee exige que o intervalo (time_to - time_from) seja de no máximo 15 dias.
-        // Dividimos o mês em janelas de até 14 dias para cobrir o mês inteiro com segurança.
+        // A Shopee exige que o intervalo (time_to - time_from) seja de no máximo 15 dias e time_to não esteja no futuro.
+        // Dividimos o mês em janelas de até 13 dias para cobrir o mês inteiro com segurança.
         const monthStart = new Date(year, month - 1, 1, 0, 0, 0);
         const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
-        const maxSpanSeconds = 14 * 24 * 60 * 60; // 14 dias em segundos
+        const maxSpanSeconds = 13 * 24 * 60 * 60; // 13 dias em segundos
+
+        // Não podemos consultar o futuro na API da Shopee (margem de 2 minutos para relógio do servidor)
+        const nowSec = Math.floor(Date.now() / 1000) - 120;
+        const monthStartSec = Math.floor(monthStart.getTime() / 1000);
+        const monthEndSec = Math.floor(monthEnd.getTime() / 1000);
+        const finalEnd = Math.min(monthEndSec, nowSec);
+
+        if (monthStartSec >= finalEnd) {
+            return {};
+        }
 
         const intervals = [];
-        let curStart = Math.floor(monthStart.getTime() / 1000);
-        const finalEnd = Math.floor(monthEnd.getTime() / 1000);
+        let curStart = monthStartSec;
 
         while (curStart < finalEnd) {
             const curEnd = Math.min(curStart + maxSpanSeconds, finalEnd);
+            if (curEnd <= curStart) break;
             intervals.push({ from: curStart, to: curEnd });
             curStart = curEnd + 1;
         }

@@ -687,7 +687,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
         const orderDateStr = order.orderDate.split('T')[0];
         setEditForm({
             isGroup: Boolean(order.isGroup),
-            installments: order.installments || null,
+            installments: order.installments ? order.installments.map(i => ({
+                id: i.id,
+                orderDate: i.orderDate ? i.orderDate.split('T')[0] : '',
+                value: i.value,
+                isPaid: i.isPaid,
+                paymentDate: i.paymentDate,
+                description: i.description,
+                clientData: i.clientData
+            })) : null,
             clientName: order.clientName || '',
             description: order.description || '',
             value: order.isGroup ? order.totalValue : (order.value || 0),
@@ -714,9 +722,14 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                     const desc = editForm.installments.length > 1
                         ? `${editForm.description} (${idx + 1}/${editForm.installments.length})`
                         : editForm.description;
+                    const instDate = inst.orderDate || editForm.orderDate;
+                    const instYear = new Date(instDate + 'T00:00:00').getUTCFullYear();
+
                     return api.updateOrder(inst.id, {
                         clientName: editForm.clientName,
                         description: desc,
+                        orderDate: instDate,
+                        year: instYear,
                         paymentMethod: editForm.paymentMethod,
                         nfNumber: editForm.nfNumber,
                         boletoNumber: editForm.boletoNumber,
@@ -728,12 +741,15 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                 });
                 await Promise.all(promises);
 
-                const idsSet = new Set(editForm.installments.map(i => i.id));
+                const updatedInstsMap = new Map(editForm.installments.map(i => [i.id, i.orderDate]));
                 setOrders(prev => prev.map(o => {
-                    if (idsSet.has(o.id)) {
+                    if (updatedInstsMap.has(o.id)) {
+                        const newInstDate = updatedInstsMap.get(o.id) || o.orderDate;
                         return {
                             ...o,
                             clientName: editForm.clientName,
+                            orderDate: newInstDate,
+                            year: new Date(newInstDate + 'T00:00:00').getUTCFullYear(),
                             paymentMethod: editForm.paymentMethod,
                             nfNumber: editForm.nfNumber,
                             boletoNumber: editForm.boletoNumber
@@ -1489,6 +1505,41 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                         </button>
                                                     </div>
                                                 </div>
+
+                                                {/* Datas individuais das parcelas no modo edição */}
+                                                {editForm.isGroup && editForm.installments && editForm.installments.length > 1 && (
+                                                    <div className="bg-white/90 p-2.5 rounded-lg border border-indigo-200 shadow-2xs space-y-1.5 mt-1">
+                                                        <div className="flex items-center justify-between border-b border-indigo-100 pb-1">
+                                                            <span className="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+                                                                <Calendar size={13} className="text-indigo-600" />
+                                                                Vencimento das {editForm.installments.length} Parcelas
+                                                            </span>
+                                                            <span className="text-[9px] text-gray-400 font-medium">Altere a data prevista de cada parcela</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 pt-0.5">
+                                                            {editForm.installments.map((inst, idx) => (
+                                                                <div key={inst.id || idx} className="bg-indigo-50/50 p-1.5 rounded border border-indigo-100/80">
+                                                                    <div className="flex items-center justify-between text-[10px] font-bold text-indigo-900 mb-0.5">
+                                                                        <span>{idx + 1}ª Parcela</span>
+                                                                        <span className="text-gray-500 font-semibold">{fmt(inst.value)}</span>
+                                                                    </div>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={inst.orderDate}
+                                                                        onChange={(e) => {
+                                                                            const newDate = e.target.value;
+                                                                            const newInsts = [...editForm.installments];
+                                                                            newInsts[idx] = { ...newInsts[idx], orderDate: newDate };
+                                                                            const newBaseDate = idx === 0 ? newDate : editForm.orderDate;
+                                                                            setEditForm({ ...editForm, orderDate: newBaseDate, installments: newInsts });
+                                                                        }}
+                                                                        className="w-full p-1 border border-gray-300 rounded text-[11px] bg-white font-medium text-gray-800 focus:ring-1 focus:ring-indigo-500"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <>
@@ -1528,14 +1579,22 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
                                                                         }}
                                                                         title={`${idx + 1}ª Parcela: ${fmt(inst.value)} - ${inst.isPaid ? 'PAGO em ' + (inst.paymentDate ? new Date(inst.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR') : '') : 'Venc. ' + new Date(inst.orderDate + 'T00:00:00').toLocaleDateString('pt-BR') + ' (Clique para pagar)'}`}
                                                                         className={clsx(
-                                                                            "text-[9px] px-1.5 py-0.5 rounded font-bold border transition-all flex items-center gap-1 shadow-2xs",
+                                                                            "px-1.5 py-0.5 rounded font-bold border transition-all flex flex-col items-center justify-center shadow-2xs leading-tight text-center",
                                                                             inst.isPaid
                                                                                 ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
                                                                                 : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 cursor-pointer"
                                                                         )}
                                                                     >
-                                                                        <span>{idx + 1}ª: {fmt(inst.value)}</span>
-                                                                        {inst.isPaid ? <Check size={10} className="text-emerald-600" /> : <Clock size={10} className="text-amber-600" />}
+                                                                        <div className="flex items-center gap-1 text-[9px]">
+                                                                            <span>{idx + 1}ª: {fmt(inst.value)}</span>
+                                                                            {inst.isPaid ? <Check size={10} className="text-emerald-600" /> : <Clock size={10} className="text-amber-600" />}
+                                                                        </div>
+                                                                        <span className="text-[8.5px] opacity-75 font-semibold">
+                                                                            {inst.isPaid && inst.paymentDate
+                                                                                ? `Pg: ${new Date(inst.paymentDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                                                                                : (inst.orderDate ? new Date(inst.orderDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—')
+                                                                            }
+                                                                        </span>
                                                                     </button>
                                                                 ))}
                                                             </div>
