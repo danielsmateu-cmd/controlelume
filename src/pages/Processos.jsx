@@ -209,15 +209,29 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
         return 'finalizar_arte';
     };
 
-    const handleMoveStage = async (budget, targetStageId, isRollback = false, confirmedDeliveryDate = null) => {
+    const getLocalTodayISO = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const handleMoveStage = async (budget, targetStageId, isRollback = false, confirmedDate = null) => {
         if (readOnly || !budget || !targetStageId) return;
 
-        // Ao sair de Finalizar Projeto para Em Fila de Produção, exige/confirma Data de Entrega
-        if (!isRollback && targetStageId === 'fila_producao' && !confirmedDeliveryDate) {
+        // Ao sair de Finalizar Projeto para Em Fila de Produção, exige/confirma Data de Entrega prevista
+        if (!isRollback && targetStageId === 'fila_producao' && !confirmedDate) {
             const existingDate = budget.deliveryDate
                 ? (budget.deliveryDate.includes('T') ? budget.deliveryDate.split('T')[0] : budget.deliveryDate)
                 : '';
-            setDeliveryModal({ budget, date: existingDate });
+            setDeliveryModal({ budget, date: existingDate, targetStage: 'fila_producao' });
+            return;
+        }
+
+        // Ao marcar como Entregue / Retirado, pede/confirma a Data Efetiva de Entrega (padrão: hoje)
+        if (!isRollback && targetStageId === 'entregues_retirados' && !confirmedDate) {
+            setDeliveryModal({ budget, date: getLocalTodayISO(), targetStage: 'entregues_retirados' });
             return;
         }
 
@@ -240,9 +254,14 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                     : []
             };
 
+            const isMovingToProd = !isRollback && targetStageId === 'fila_producao';
+            const isMovingToDelivered = !isRollback && targetStageId === 'entregues_retirados';
+
             const actionLabel = isRollback
                 ? `Retornou para ${targetStageObj.title}`
-                : `${currentStageObj?.completedLabel || 'Etapa concluída'} → ${targetStageObj.title}${confirmedDeliveryDate ? ` (Entrega: ${formatDateShort(confirmedDeliveryDate)})` : ''}`;
+                : isMovingToDelivered
+                    ? `Entregue / Retirado em ${formatDateShort(confirmedDate)}`
+                    : `${currentStageObj?.completedLabel || 'Etapa concluída'} → ${targetStageObj.title}${isMovingToProd && confirmedDate ? ` (Entrega: ${formatDateShort(confirmedDate)})` : ''}`;
 
             const newStepLog = {
                 stage: targetStageId,
@@ -261,8 +280,8 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                 nextStagesMeta.arteFinalizada = { user: currentUserName, at: nowIso };
             } else if (!isRollback && currentStageObj?.id === 'finalizar_corte' && targetStageId === 'fila_producao') {
                 nextStagesMeta.corteFinalizado = { user: currentUserName, at: nowIso };
-            } else if (!isRollback && targetStageId === 'entregues_retirados') {
-                nextStagesMeta.entregueRetirado = { user: currentUserName, at: nowIso };
+            } else if (isMovingToDelivered) {
+                nextStagesMeta.entregueRetirado = { user: currentUserName, at: nowIso, date: confirmedDate };
             }
 
             const nextProcesso = {
@@ -272,16 +291,17 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                 history: [...(existingProcesso.history || []), newStepLog]
             };
 
-            const finalDeliveryDate = confirmedDeliveryDate || budget.deliveryDate || null;
+            const finalDeliveryDate = (isMovingToProd && confirmedDate) ? confirmedDate : (budget.deliveryDate || null);
 
             const updatedClientData = {
                 ...(budget.clientData || {}),
-                ...(confirmedDeliveryDate ? { deliveryDate: confirmedDeliveryDate } : {}),
+                ...(isMovingToProd && confirmedDate ? { deliveryDate: confirmedDate } : {}),
+                ...(isMovingToDelivered && confirmedDate ? { deliveredDate: confirmedDate } : {}),
                 processo: nextProcesso
             };
 
             await api.updateBudget(budget.id, {
-                ...(confirmedDeliveryDate ? { deliveryDate: confirmedDeliveryDate } : {}),
+                ...(isMovingToProd && confirmedDate ? { deliveryDate: confirmedDate } : {}),
                 clientData: updatedClientData
             });
 
@@ -504,7 +524,20 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                                     {budget.clientData?.name || 'Cliente sem nome'}
                                                                 </h4>
                                                             </div>
-                                                            {delivery && (
+                                                            {stage.id === 'entregues_retirados' ? (
+                                                                (() => {
+                                                                    const delivDateStr =
+                                                                        processo.stages?.entregueRetirado?.date ||
+                                                                        budget.clientData?.deliveredDate ||
+                                                                        (processo.stages?.entregueRetirado?.at ? processo.stages.entregueRetirado.at.split('T')[0] : null);
+                                                                    return delivDateStr ? (
+                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 flex items-center gap-1 bg-emerald-100 text-emerald-700 border-emerald-200">
+                                                                            <PackageCheck className="w-3 h-3" />
+                                                                            Entregue {formatDateShort(delivDateStr)}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })()
+                                                            ) : delivery && (
                                                                 <span className={clsx("text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 flex items-center gap-1", delivery.cls)}>
                                                                     {delivery.type === 'overdue' && <AlertTriangle className="w-3 h-3" />}
                                                                     {delivery.label}
@@ -950,84 +983,97 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                 );
             })()}
 
-            {/* Modal de Confirmação de Data de Entrega ao enviar para Fila de Produção */}
-            {deliveryModal && (
-                <div
-                    className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-                    onClick={() => setDeliveryModal(null)}
-                >
+            {/* Modal de Confirmação de Data (Fila de Produção ou Entregue/Retirado) */}
+            {deliveryModal && (() => {
+                const isDeliveredMode = deliveryModal.targetStage === 'entregues_retirados';
+                return (
                     <div
-                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+                        onClick={() => setDeliveryModal(null)}
                     >
-                        <div className="px-5 py-4 bg-sky-600 text-white flex items-center justify-between">
-                            <div>
-                                <p className="text-[11px] text-white/80 font-semibold uppercase tracking-wide">
-                                    Enviar para Fila de Produção
-                                </p>
-                                <h3 className="text-base font-bold mt-0.5">
-                                    #{deliveryModal.budget.id} — {deliveryModal.budget.clientData?.name || 'Cliente'}
-                                </h3>
-                            </div>
-                            <button
-                                onClick={() => setDeliveryModal(null)}
-                                className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <form
-                            onSubmit={async (e) => {
-                                e.preventDefault();
-                                if (!deliveryModal.date) {
-                                    alert('Informe a data de entrega antes de enviar para a Fila de Produção.');
-                                    return;
-                                }
-                                const { budget, date } = deliveryModal;
-                                setDeliveryModal(null);
-                                await handleMoveStage(budget, 'fila_producao', false, date);
-                            }}
-                            className="p-5 space-y-4"
+                        <div
+                            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">
-                                    Data de Entrega na Produção *
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    autoFocus
-                                    value={deliveryModal.date}
-                                    onChange={(e) => setDeliveryModal({ ...deliveryModal, date: e.target.value })}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-sky-500 outline-none"
-                                />
-                                <p className="text-[11px] text-gray-400 mt-1.5">
-                                    Essa data será exibida na aba Produção (e poderá ser alterada posteriormente apenas aqui em Processos).
-                                </p>
+                            <div className={clsx(
+                                "px-5 py-4 text-white flex items-center justify-between",
+                                isDeliveredMode ? "bg-slate-700" : "bg-sky-600"
+                            )}>
+                                <div>
+                                    <p className="text-[11px] text-white/80 font-semibold uppercase tracking-wide">
+                                        {isDeliveredMode ? 'Confirmar Entrega / Retirada' : 'Enviar para Fila de Produção'}
+                                    </p>
+                                    <h3 className="text-base font-bold mt-0.5">
+                                        #{deliveryModal.budget.id} — {deliveryModal.budget.clientData?.name || 'Cliente'}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setDeliveryModal(null)}
+                                    className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setDeliveryModal(null)}
-                                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={updatingId === deliveryModal.budget.id}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all active:scale-95"
-                                >
-                                    <Factory className="w-4 h-4" />
-                                    Confirmar e Enviar para Produção
-                                </button>
-                            </div>
-                        </form>
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!deliveryModal.date) {
+                                        alert(isDeliveredMode
+                                            ? 'Informe a data em que o pedido foi entregue/retirado.'
+                                            : 'Informe a data de entrega antes de enviar para a Fila de Produção.');
+                                        return;
+                                    }
+                                    const { budget, date, targetStage } = deliveryModal;
+                                    setDeliveryModal(null);
+                                    await handleMoveStage(budget, targetStage, false, date);
+                                }}
+                                className="p-5 space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">
+                                        {isDeliveredMode ? 'Data da Entrega / Retirada *' : 'Data de Entrega na Produção *'}
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        autoFocus
+                                        value={deliveryModal.date}
+                                        onChange={(e) => setDeliveryModal({ ...deliveryModal, date: e.target.value })}
+                                        className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-sky-500 outline-none"
+                                    />
+                                    <p className="text-[11px] text-gray-400 mt-1.5">
+                                        {isDeliveredMode
+                                            ? 'Por padrão vem preenchida com a data de hoje — altere caso tenha sido entregue/retirado em outro dia.'
+                                            : 'Essa data será exibida na aba Produção (e poderá ser alterada posteriormente apenas aqui em Processos).'}
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDeliveryModal(null)}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={updatingId === deliveryModal.budget.id}
+                                        className={clsx(
+                                            "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm transition-all active:scale-95",
+                                            isDeliveredMode ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-600 hover:bg-amber-700"
+                                        )}
+                                    >
+                                        {isDeliveredMode ? <PackageCheck className="w-4 h-4" /> : <Factory className="w-4 h-4" />}
+                                        {isDeliveredMode ? 'Confirmar Entrega / Retirada' : 'Confirmar e Enviar para Produção'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 };
