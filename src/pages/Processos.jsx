@@ -14,6 +14,7 @@ import {
     RefreshCw,
     X,
     Package,
+    PackageCheck,
     AlertTriangle,
     History,
     Pencil
@@ -72,8 +73,8 @@ const STAGES = [
     {
         id: 'finalizados_producao',
         title: 'Finalizados na Produção',
-        subtitle: 'Pedidos concluídos na aba Produção',
-        actionLabel: 'Ver na Produção',
+        subtitle: 'Pronto — aguardando entrega ou retirada',
+        actionLabel: 'Entregue / Retirado',
         completedLabel: 'Finalizado na Produção',
         icon: CheckCircle2,
         headerBg: 'bg-emerald-600',
@@ -81,8 +82,23 @@ const STAGES = [
         border: 'border-emerald-200',
         badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
         button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-        nextStage: null,
+        nextStage: 'entregues_retirados',
         prevStage: null
+    },
+    {
+        id: 'entregues_retirados',
+        title: 'Entregues / Retirados',
+        subtitle: 'Pedidos já entregues ao cliente',
+        actionLabel: null,
+        completedLabel: 'Entregue / Retirado',
+        icon: PackageCheck,
+        headerBg: 'bg-slate-700',
+        lightBg: 'bg-slate-50/80',
+        border: 'border-slate-200',
+        badge: 'bg-slate-200 text-slate-700 border-slate-300',
+        button: 'bg-slate-700 hover:bg-slate-800 text-white',
+        nextStage: null,
+        prevStage: 'finalizados_producao'
     }
 ];
 
@@ -129,6 +145,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showAllFinished, setShowAllFinished] = useState(false);
+    const [showAllDelivered, setShowAllDelivered] = useState(false);
     const [selectedBudget, setSelectedBudget] = useState(null);
     const [updatingId, setUpdatingId] = useState(null);
     const [deliveryModal, setDeliveryModal] = useState(null); // { budget, date }
@@ -185,8 +202,9 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
     }, [budgets, searchQuery]);
 
     const getOrderStage = (budget) => {
-        if (isOrderFinishedInProduction(budget)) return 'finalizados_producao';
         const st = budget.clientData?.processo?.stage;
+        if (st === 'entregues_retirados') return 'entregues_retirados';
+        if (isOrderFinishedInProduction(budget)) return 'finalizados_producao';
         if (st && STAGES.some(s => s.id === st)) return st;
         return 'finalizar_arte';
     };
@@ -243,6 +261,8 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                 nextStagesMeta.arteFinalizada = { user: currentUserName, at: nowIso };
             } else if (!isRollback && currentStageObj?.id === 'finalizar_corte' && targetStageId === 'fila_producao') {
                 nextStagesMeta.corteFinalizado = { user: currentUserName, at: nowIso };
+            } else if (!isRollback && targetStageId === 'entregues_retirados') {
+                nextStagesMeta.entregueRetirado = { user: currentUserName, at: nowIso };
             }
 
             const nextProcesso = {
@@ -338,7 +358,8 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
             finalizar_arte: [],
             finalizar_corte: [],
             fila_producao: [],
-            finalizados_producao: []
+            finalizados_producao: [],
+            entregues_retirados: []
         };
         processOrders.forEach(order => {
             const st = getOrderStage(order);
@@ -348,6 +369,12 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
         map.finalizados_producao.sort((a, b) => {
             const tA = new Date(a.clientData?.finishedAt || a.clientData?.processo?.stages?.producaoFinalizada?.at || a.clientData?.updatedAt || a.date || 0).getTime();
             const tB = new Date(b.clientData?.finishedAt || b.clientData?.processo?.stages?.producaoFinalizada?.at || b.clientData?.updatedAt || b.date || 0).getTime();
+            return tB - tA;
+        });
+        // Ordena entregues/retirados do mais recente para o mais antigo
+        map.entregues_retirados.sort((a, b) => {
+            const tA = new Date(a.clientData?.processo?.stages?.entregueRetirado?.at || a.clientData?.finishedAt || a.clientData?.updatedAt || a.date || 0).getTime();
+            const tB = new Date(b.clientData?.processo?.stages?.entregueRetirado?.at || b.clientData?.finishedAt || b.clientData?.updatedAt || b.date || 0).getTime();
             return tB - tA;
         });
         return map;
@@ -396,14 +423,17 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                     Carregando pedidos em processo...
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 items-start">
                     {STAGES.map((stage) => {
                         const StageIcon = stage.icon;
                         const allItems = groupedByStage[stage.id] || [];
                         const isFinishedCol = stage.id === 'finalizados_producao';
+                        const isDeliveredCol = stage.id === 'entregues_retirados';
                         const items = (isFinishedCol && !showAllFinished && !searchQuery.trim())
                             ? allItems.slice(0, 15)
-                            : allItems;
+                            : (isDeliveredCol && !showAllDelivered && !searchQuery.trim())
+                                ? allItems.slice(0, 15)
+                                : allItems;
 
                         return (
                             <div
@@ -541,6 +571,18 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                                     </span>
                                                                 </div>
                                                             )}
+
+                                                            {stage.id === 'entregues_retirados' && processo.stages?.entregueRetirado && (
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <span className="flex items-center gap-1 text-slate-700 font-bold">
+                                                                        <PackageCheck className="w-3 h-3 shrink-0" />
+                                                                        Entregue: {processo.stages.entregueRetirado.user}
+                                                                    </span>
+                                                                    <span className="text-gray-400 shrink-0">
+                                                                        {formatDateTime(processo.stages.entregueRetirado.at)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Progresso na Produção (se já estiver na fila) */}
@@ -628,6 +670,27 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                             )}
                                                         </div>
                                                     )}
+                                                    {stage.id === 'entregues_retirados' && !readOnly && stage.prevStage && (
+                                                        <div className="px-3.5 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                                                            <button
+                                                                type="button"
+                                                                disabled={isBusy}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMoveStage(budget, stage.prevStage, true);
+                                                                }}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-2 py-1 hover:bg-white rounded-lg transition-colors"
+                                                                title="Voltar para Finalizados na Produção"
+                                                            >
+                                                                <ArrowLeft className="w-3.5 h-3.5" />
+                                                                <span>Voltar</span>
+                                                            </button>
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                                                <PackageCheck className="w-3.5 h-3.5 text-slate-600" />
+                                                                Entregue
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })
@@ -642,6 +705,18 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                             {showAllFinished
                                                 ? 'Mostrar apenas os 15 mais recentes'
                                                 : `Mostrar todos os ${allItems.length} finalizados`}
+                                        </button>
+                                    )}
+
+                                    {isDeliveredCol && !searchQuery.trim() && allItems.length > 15 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllDelivered(v => !v)}
+                                            className="w-full py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors"
+                                        >
+                                            {showAllDelivered
+                                                ? 'Mostrar apenas os 15 mais recentes'
+                                                : `Mostrar todos os ${allItems.length} entregues`}
                                         </button>
                                     )}
                                 </div>
