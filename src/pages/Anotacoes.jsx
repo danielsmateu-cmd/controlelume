@@ -661,7 +661,9 @@ const Producao = ({ readOnly }) => {
         return concluidosCount === totalItens;
     };
 
-    const budgetsPendentes = budgetsAprovados.filter(b => !isBudgetConcluido(b));
+    const budgetsPendentes = budgetsAprovados.filter(
+        b => !isBudgetConcluido(b) && b.clientData?.processo?.stage === 'fila_producao'
+    );
     const budgetsFinalizados = budgetsAprovados.filter(b => isBudgetConcluido(b));
 
     // Ordena os pedidos pendentes com base na prioridade definida exclusivamente por Daniel
@@ -739,8 +741,8 @@ const Producao = ({ readOnly }) => {
                 </div>
                 <div className="flex gap-3">
                     <div className="text-center px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
-                        <div className="text-xl font-black text-indigo-600">{budgetsAprovados.length}</div>
-                        <div className="text-[10px] text-indigo-400 font-bold uppercase">Total em produção</div>
+                        <div className="text-xl font-black text-indigo-600">{budgetsPendentes.length}</div>
+                        <div className="text-[10px] text-indigo-400 font-bold uppercase">Em produção</div>
                     </div>
                     <div className="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
                         <div className="text-xl font-black text-green-600">{totalConcluidosCount}</div>

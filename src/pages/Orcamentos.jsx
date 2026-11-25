@@ -1054,7 +1054,7 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         ));
         setDeliveryModal(null);
         if ((newStatus === 'Aprovado' || newStatus === 'Faturado') && setActiveTab) {
-            setActiveTab('contas');
+            setActiveTab('processos');
         }
     };
 
