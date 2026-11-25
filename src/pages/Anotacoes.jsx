@@ -216,71 +216,21 @@ const ProducaoCard = ({
                         </div>
                         
                         <div className="mt-2 flex flex-wrap gap-2 items-center">
-                            {/* Bloco de Data de Entrega */}
-                            {isEditingDate ? (
-                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                    <input
-                                        type="date"
-                                        value={tempDate}
-                                        onChange={e => setTempDate(e.target.value)}
-                                        className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            onUpdateDeliveryDate(budget.id, tempDate);
-                                            setIsEditingDate(false);
-                                        }}
-                                        className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
-                                    >
-                                        Salvar
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setIsEditingDate(false);
-                                            setTempDate(deliveryDate || '');
-                                        }}
-                                        className="p-1 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors text-xs font-bold px-2.5 py-1"
-                                    >
-                                        Cancelar
-                                    </button>
-                                </div>
-                            ) : (
+                            {/* Bloco de Data de Entrega (somente leitura na Produção — alteração feita na aba Processos) */}
+                            {deliveryDate && (
                                 <div className="flex items-center gap-1">
-                                    {deliveryDate ? (
-                                        <div className={clsx(
+                                    <div
+                                        className={clsx(
                                             'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold',
                                             deliveryAlertColors[deliveryAlert]
-                                        )}>
-                                            <Calendar size={11} />
-                                            Entrega: {new Date(deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                            {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
-                                            {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsEditingDate(true);
-                                            }}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-bold transition-all"
-                                        >
-                                            <Calendar size={11} />
-                                            + Adicionar Entrega
-                                        </button>
-                                    )}
-                                    
-                                    {deliveryDate && !readOnly && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsEditingDate(true);
-                                            }}
-                                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                                            title="Editar data de entrega"
-                                        >
-                                            <Pencil size={12} />
-                                        </button>
-                                    )}
+                                        )}
+                                        title="Para alterar a data de entrega, utilize a aba Processos"
+                                    >
+                                        <Calendar size={11} />
+                                        Entrega: {new Date(deliveryDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                        {deliveryAlert === 'overdue' && <span className="ml-1">⚠ Atrasado</span>}
+                                        {deliveryAlert === 'urgent'  && <span className="ml-1">🔴 Urgente</span>}
+                                    </div>
                                 </div>
                             )}
 
