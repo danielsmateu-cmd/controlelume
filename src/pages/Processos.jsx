@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     GitBranch,
     Palette,
-    Scissors,
+    PenTool,
     Factory,
     ArrowRight,
     ArrowLeft,
@@ -26,8 +26,8 @@ const STAGES = [
     {
         id: 'finalizar_arte',
         title: 'Finalizar Arte',
-        subtitle: 'Aguardando criação / fechamento de arquivo',
-        actionLabel: 'Arte Finalizada → Corte',
+        subtitle: 'Aguardando criação / fechamento da arte',
+        actionLabel: 'Arte Finalizada → Projeto',
         completedLabel: 'Arte Finalizada',
         icon: Palette,
         headerBg: 'bg-purple-600',
@@ -40,11 +40,11 @@ const STAGES = [
     },
     {
         id: 'finalizar_corte',
-        title: 'Finalizar Corte',
-        subtitle: 'Arquivo pronto — aguardando corte laser / router',
-        actionLabel: 'Corte Finalizado → Fila Produção',
-        completedLabel: 'Corte Finalizado',
-        icon: Scissors,
+        title: 'Finalizar Projeto',
+        subtitle: 'Arte pronta — aguardando fechamento do projeto',
+        actionLabel: 'Projeto Finalizado → Fila Produção',
+        completedLabel: 'Projeto Finalizado',
+        icon: PenTool,
         headerBg: 'bg-sky-600',
         lightBg: 'bg-sky-50/70',
         border: 'border-sky-200',
@@ -56,7 +56,7 @@ const STAGES = [
     {
         id: 'fila_producao',
         title: 'Em Fila de Produção',
-        subtitle: 'Corte concluído — liberado para montagem/acabamento',
+        subtitle: 'Projeto concluído — liberado para produção',
         actionLabel: 'Abrir na Produção',
         completedLabel: 'Em Fila de Produção',
         icon: Factory,
@@ -436,8 +436,8 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                             {corteMeta && (
                                                                 <div className="flex items-center justify-between gap-2">
                                                                     <span className="flex items-center gap-1 text-sky-700 font-semibold">
-                                                                        <Scissors className="w-3 h-3 shrink-0" />
-                                                                        Corte: {corteMeta.user}
+                                                                        <PenTool className="w-3 h-3 shrink-0" />
+                                                                        Projeto: {corteMeta.user}
                                                                     </span>
                                                                     <span className="text-gray-400 shrink-0">{formatDateTime(corteMeta.at)}</span>
                                                                 </div>
@@ -508,7 +508,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                                         handleMoveStage(budget, stage.prevStage, true);
                                                                     }}
                                                                     className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-lg transition-colors"
-                                                                    title="Voltar para Finalizar Corte"
+                                                                    title="Voltar para Finalizar Projeto"
                                                                 >
                                                                     <ArrowLeft className="w-3.5 h-3.5" />
                                                                 </button>
