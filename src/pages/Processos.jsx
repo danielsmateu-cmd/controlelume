@@ -60,13 +60,28 @@ const STAGES = [
         actionLabel: 'Abrir na Produção',
         completedLabel: 'Em Fila de Produção',
         icon: Factory,
+        headerBg: 'bg-amber-600',
+        lightBg: 'bg-amber-50/70',
+        border: 'border-amber-200',
+        badge: 'bg-amber-100 text-amber-700 border-amber-200',
+        button: 'bg-amber-600 hover:bg-amber-700 text-white',
+        nextStage: null,
+        prevStage: 'finalizar_corte'
+    },
+    {
+        id: 'finalizados_producao',
+        title: 'Finalizados na Produção',
+        subtitle: 'Pedidos concluídos na aba Produção',
+        actionLabel: 'Ver na Produção',
+        completedLabel: 'Finalizado na Produção',
+        icon: CheckCircle2,
         headerBg: 'bg-emerald-600',
         lightBg: 'bg-emerald-50/70',
         border: 'border-emerald-200',
         badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
         button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
         nextStage: null,
-        prevStage: 'finalizar_corte'
+        prevStage: null
     }
 ];
 
@@ -112,7 +127,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
     const [budgets, setBudgets] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [showCompleted, setShowCompleted] = useState(false);
+    const [showAllFinished, setShowAllFinished] = useState(false);
     const [selectedBudget, setSelectedBudget] = useState(null);
     const [updatingId, setUpdatingId] = useState(null);
 
@@ -149,7 +164,6 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
 
         return budgets
             .filter(b => b.status === 'Aprovado' || b.status === 'Faturado')
-            .filter(b => showCompleted ? true : !isOrderFinishedInProduction(b))
             .filter(b => {
                 if (!q) return true;
                 const nameMatch = (b.clientData?.name || '').toLowerCase().includes(q);
@@ -164,9 +178,10 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                 if (dA !== dB) return dA - dB;
                 return new Date(b.date) - new Date(a.date);
             });
-    }, [budgets, searchQuery, showCompleted]);
+    }, [budgets, searchQuery]);
 
     const getOrderStage = (budget) => {
+        if (isOrderFinishedInProduction(budget)) return 'finalizados_producao';
         const st = budget.clientData?.processo?.stage;
         if (st && STAGES.some(s => s.id === st)) return st;
         return 'finalizar_arte';
@@ -250,11 +265,18 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
         const map = {
             finalizar_arte: [],
             finalizar_corte: [],
-            fila_producao: []
+            fila_producao: [],
+            finalizados_producao: []
         };
         processOrders.forEach(order => {
             const st = getOrderStage(order);
-            map[st].push(order);
+            if (map[st]) map[st].push(order);
+        });
+        // Ordena finalizados do mais recente para o mais antigo
+        map.finalizados_producao.sort((a, b) => {
+            const tA = new Date(a.clientData?.finishedAt || a.clientData?.processo?.stages?.producaoFinalizada?.at || a.clientData?.updatedAt || a.date || 0).getTime();
+            const tB = new Date(b.clientData?.finishedAt || b.clientData?.processo?.stages?.producaoFinalizada?.at || b.clientData?.updatedAt || b.date || 0).getTime();
+            return tB - tA;
         });
         return map;
     }, [processOrders]);
@@ -286,17 +308,6 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                         />
                     </div>
 
-                    {/* Toggle concluídos */}
-                    <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-100 select-none">
-                        <input
-                            type="checkbox"
-                            checked={showCompleted}
-                            onChange={(e) => setShowCompleted(e.target.checked)}
-                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                        />
-                        Mostrar já concluídos na Produção
-                    </label>
-
                     <button
                         onClick={() => loadBudgets()}
                         className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg border border-gray-200 transition-colors"
@@ -313,10 +324,14 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                     Carregando pedidos em processo...
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
                     {STAGES.map((stage) => {
                         const StageIcon = stage.icon;
-                        const items = groupedByStage[stage.id] || [];
+                        const allItems = groupedByStage[stage.id] || [];
+                        const isFinishedCol = stage.id === 'finalizados_producao';
+                        const items = (isFinishedCol && !showAllFinished && !searchQuery.trim())
+                            ? allItems.slice(0, 15)
+                            : allItems;
 
                         return (
                             <div
@@ -339,7 +354,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                         </div>
                                     </div>
                                     <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-extrabold">
-                                        {items.length}
+                                        {allItems.length}
                                     </span>
                                 </div>
 
@@ -366,10 +381,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                 <div
                                                     key={budget.id}
                                                     onClick={() => setSelectedBudget(budget)}
-                                                    className={clsx(
-                                                        "bg-white rounded-xl border border-gray-200/90 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer overflow-hidden",
-                                                        finishedProd && "opacity-75"
-                                                    )}
+                                                    className="bg-white rounded-xl border border-gray-200/90 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer overflow-hidden"
                                                 >
                                                     <div className="p-3.5 space-y-2.5">
                                                         {/* Topo do Card: Cliente + Prazo */}
@@ -442,6 +454,18 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                                     <span className="text-gray-400 shrink-0">{formatDateTime(corteMeta.at)}</span>
                                                                 </div>
                                                             )}
+
+                                                            {finishedProd && (
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <span className="flex items-center gap-1 text-emerald-700 font-bold">
+                                                                        <Factory className="w-3 h-3 shrink-0" />
+                                                                        Produção: {processo.stages?.producaoFinalizada?.user || budget.clientData?.finishedBy || 'Concluído'}
+                                                                    </span>
+                                                                    <span className="text-gray-400 shrink-0">
+                                                                        {formatDateTime(processo.stages?.producaoFinalizada?.at || budget.clientData?.finishedAt)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Progresso na Produção (se já estiver na fila) */}
@@ -498,7 +522,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                     )}
 
                                                     {stage.id === 'fila_producao' && (
-                                                        <div className="px-3.5 py-2 bg-emerald-50/50 border-t border-emerald-100 flex items-center justify-between gap-2">
+                                                        <div className="px-3.5 py-2 bg-amber-50/50 border-t border-amber-100 flex items-center justify-between gap-2">
                                                             {!readOnly && stage.prevStage ? (
                                                                 <button
                                                                     type="button"
@@ -521,7 +545,7 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                                         e.stopPropagation();
                                                                         setActiveTab('contas');
                                                                     }}
-                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs"
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-xs"
                                                                 >
                                                                     <Factory className="w-3.5 h-3.5" />
                                                                     <span>Ver na Produção</span>
@@ -532,6 +556,18 @@ const Processos = ({ readOnly = false, setActiveTab }) => {
                                                 </div>
                                             );
                                         })
+                                    )}
+
+                                    {isFinishedCol && !searchQuery.trim() && allItems.length > 15 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllFinished(v => !v)}
+                                            className="w-full py-2 text-xs font-bold text-emerald-700 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition-colors"
+                                        >
+                                            {showAllFinished
+                                                ? 'Mostrar apenas os 15 mais recentes'
+                                                : `Mostrar todos os ${allItems.length} finalizados`}
+                                        </button>
                                     )}
                                 </div>
                             </div>

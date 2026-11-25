@@ -545,9 +545,33 @@ const Producao = ({ readOnly }) => {
             idx === itemIndex ? { ...item, concluido: isConcluido } : item
         );
 
+        const nowIso = new Date().toISOString();
+        const existingProcesso = budget.clientData?.processo || { stage: 'fila_producao', history: [] };
+        const finishedLabel = finishedBy || currentUser?.name || currentUser?.login || 'Produção';
+        const nextProcesso = {
+            ...existingProcesso,
+            stage: 'fila_producao',
+            stages: {
+                ...(existingProcesso.stages || {}),
+                producaoFinalizada: { user: finishedLabel, at: nowIso }
+            },
+            history: [
+                ...(existingProcesso.history || []),
+                {
+                    stage: 'finalizados_producao',
+                    fromStage: 'fila_producao',
+                    label: 'Finalizado na Produção',
+                    user: finishedLabel,
+                    at: nowIso
+                }
+            ]
+        };
+
         const updatedClientData = {
             ...(budget.clientData || {}),
-            finishedBy: finishedBy || ''
+            finishedBy: finishedBy || '',
+            finishedAt: nowIso,
+            processo: nextProcesso
         };
 
         // Atualização local imediata
