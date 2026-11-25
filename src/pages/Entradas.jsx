@@ -804,9 +804,32 @@ const Entradas = ({ orders, setOrders, readOnly = false }) => {
             if (!searchQuery.trim()) return true;
 
             const q = searchQuery.toLowerCase().trim();
+            const qCleanNum = q.replace(/r\$/g, '').replace(/\s+/g, '');
+            const qDotNum = qCleanNum.includes(',') && qCleanNum.includes('.')
+                ? qCleanNum.replace(/\./g, '').replace(',', '.')
+                : qCleanNum.replace(',', '.');
+
+            const matchesNumber = (num) => {
+                if (!qCleanNum || num === null || num === undefined || isNaN(Number(num))) return false;
+                const n = Number(num);
+                const raw = n.toString();
+                const fixedDot = n.toFixed(2);
+                const fixedComma = fixedDot.replace('.', ',');
+                const brFmt = n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return (
+                    raw.includes(q) ||
+                    fixedDot.includes(qDotNum) ||
+                    fixedComma.includes(qCleanNum) ||
+                    brFmt.includes(qCleanNum)
+                );
+            };
+
             const matchesName = order.clientName?.toLowerCase().includes(q);
             const matchesDesc = order.description?.toLowerCase().includes(q);
-            const matchesVal = (order.totalValue ?? order.value)?.toString().includes(q);
+            const matchesVal =
+                matchesNumber(order.totalValue ?? order.value) ||
+                (order.isGroup && order.installments?.some(inst => matchesNumber(inst.value))) ||
+                (order.isPartiallyPaid && matchesNumber(order.pendingValue));
             const matchesBoleto = order.boletoNumber?.toLowerCase().includes(q);
             const matchesNF = order.nfNumber?.toLowerCase().includes(q);
             const matchesPayment = order.paymentMethod?.toLowerCase().includes(q);
