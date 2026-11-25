@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2, Users, Database, ChevronRight, ShoppingBag, Lightbulb, Tag, MessageSquare, Calendar, Barcode } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, DollarSign, Wallet, Download, Upload, Calculator, LogOut, FileSpreadsheet, Factory, ClipboardList, Trash2, Users, Database, ChevronRight, ShoppingBag, Lightbulb, Tag, MessageSquare, Calendar, Barcode, GitBranch } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,6 +41,7 @@ const Sidebar = ({ activeTab, setActiveTab, onExportBackup, onImportBackup, onEx
         { id: 'vendas', label: 'Entradas', icon: ShoppingCart },
         { id: 'saida', label: 'Saídas', icon: Wallet },
         { id: 'orcamentos', label: 'Orçamentos', icon: Calculator },
+        { id: 'processos', label: 'Processos', icon: GitBranch },
         { id: 'contas', label: 'Produção', icon: Factory },
         { id: 'compras', label: 'Compras', icon: ShoppingBag },
         { id: 'estudo_produtos', label: 'Estudo de Produtos', icon: Lightbulb },

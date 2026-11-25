@@ -37,7 +37,13 @@ export function AuthProvider({ children }) {
                             const missingNewVis = !vis.includes('precificacao');
                             const missingNewEdi = !edi.includes('precificacao');
 
-                            if (needsVis || needsEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi) {
+                            // Migração: processos (para quem tem acesso a orçamentos ou produção)
+                            const hasOrcOrProdVis = vis.includes('orcamentos') || vis.includes('contas');
+                            const hasOrcOrProdEdi = edi.includes('orcamentos') || edi.includes('contas');
+                            const needsProcVis = hasOrcOrProdVis && !vis.includes('processos');
+                            const needsProcEdi = hasOrcOrProdEdi && !edi.includes('processos');
+
+                            if (needsVis || needsEdi || hasOldVis || hasOldEdi || missingNewVis || missingNewEdi || needsProcVis || needsProcEdi) {
                                 migrated = true;
                                 if (needsVis) vis = [...vis, 'estudo_produtos'];
                                 if (needsEdi) edi = [...edi, 'estudo_produtos'];
@@ -46,6 +52,8 @@ export function AuthProvider({ children }) {
                                 edi = edi.filter(t => t !== 'simulacao');
                                 if (missingNewVis) vis = [...vis, 'precificacao'];
                                 if (missingNewEdi) edi = [...edi, 'precificacao'];
+                                if (needsProcVis) vis = [...vis, 'processos'];
+                                if (needsProcEdi) edi = [...edi, 'processos'];
                                 return {
                                     ...u,
                                     customPermissions: {

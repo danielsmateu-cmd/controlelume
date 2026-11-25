@@ -18,6 +18,7 @@ import WhatsAppChat from './pages/WhatsAppChat';
 import Agenda from './pages/Agenda';
 import Funcionarios from './pages/Funcionarios';
 import Etiquetas from './pages/Etiquetas';
+import Processos from './pages/Processos';
 import { api } from './services/api';
 import { supabase } from './lib/supabase';
 import { Store, ShoppingCart, Wallet, Tag, Calculator, Barcode } from 'lucide-react';
@@ -373,6 +374,8 @@ function AppContent() {
                 return <Anotacoes readOnly={!canEdit('contas')} />;
             case 'orcamentos':
                 return <Orcamentos materials={materials} setMaterials={setMaterials} readOnly={!canEdit('orcamentos')} setActiveTab={handleSetActiveTab} />;
+            case 'processos':
+                return <Processos readOnly={!canEdit('processos')} setActiveTab={handleSetActiveTab} />;
             case 'compras':
                 return <Compras materials={materials} readOnly={!canEdit('compras')} />;
             case 'estudo_produtos':

@@ -21,6 +21,7 @@ const MODULES = [
         ]
     },
     { id: 'orcamentos', label: 'Orçamentos' },
+    { id: 'processos', label: 'Processos' },
     { id: 'contas', label: 'Produção / Contas' },
     { id: 'compras', label: 'Compras' },
     { id: 'estudo_produtos', label: 'Estudo de Produtos' },

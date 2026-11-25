@@ -68,23 +68,23 @@ export const USERS = [
 // Permissões por role
 export const ROLE_PERMISSIONS = {
     admin: {
-        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
-        editableTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
+        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'processos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
+        editableTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'processos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
         canExportImport: true
     },
     editor: {
-        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
-        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'contas', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
+        visibleTabs: ['resumo', 'whatsapp', 'agenda', 'saida', 'vendas', 'orcamentos', 'processos', 'contas', 'ecommerce', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
+        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'processos', 'contas', 'tarefas', 'funcionarios', 'precificacao', 'compras', 'estudo_produtos', 'etiquetas'],
         canExportImport: false
     },
     budget_only: {
-        visibleTabs: ['whatsapp', 'agenda', 'orcamentos', 'contas', 'compras', 'etiquetas'],
-        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'contas', 'compras', 'etiquetas'],
+        visibleTabs: ['whatsapp', 'agenda', 'orcamentos', 'processos', 'contas', 'compras', 'etiquetas'],
+        editableTabs: ['whatsapp', 'agenda', 'orcamentos', 'processos', 'contas', 'compras', 'etiquetas'],
         canExportImport: false
     },
     producao_only: {
-        visibleTabs: ['whatsapp', 'agenda', 'contas', 'compras', 'etiquetas'],
-        editableTabs: ['whatsapp', 'agenda', 'contas', 'compras', 'etiquetas'],
+        visibleTabs: ['whatsapp', 'agenda', 'processos', 'contas', 'compras', 'etiquetas'],
+        editableTabs: ['whatsapp', 'agenda', 'processos', 'contas', 'compras', 'etiquetas'],
         canExportImport: false
     },
     simulacao_only: {

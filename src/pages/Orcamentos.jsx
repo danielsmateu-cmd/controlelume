@@ -902,7 +902,10 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                 createdAt: originalCreatedAt,
                 ...(isEditingExisting ? {
                     updatedBy: currentUserName,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
+                    ...(originalBudget?.clientData?.approvedBy ? { approvedBy: originalBudget.clientData.approvedBy } : {}),
+                    ...(originalBudget?.clientData?.approvedAt ? { approvedAt: originalBudget.clientData.approvedAt } : {}),
+                    ...(originalBudget?.clientData?.processo ? { processo: originalBudget.clientData.processo } : {})
                 } : {})
             };
 
@@ -1006,11 +1009,33 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         const { id, newStatus } = deliveryModal;
         
         const budget = savedBudgets.find(b => b.id === id);
+        const nowIso = new Date().toISOString();
+        const isApproving = newStatus === 'Aprovado' || newStatus === 'Faturado';
+        const existingProcesso = budget?.clientData?.processo;
+        const nextProcesso = isApproving
+            ? (existingProcesso || {
+                stage: 'finalizar_arte',
+                history: [
+                    {
+                        stage: 'aprovado',
+                        label: `Orçamento ${newStatus}`,
+                        user: currentUserName,
+                        at: nowIso
+                    }
+                ]
+            })
+            : existingProcesso;
+
         const updatedClientData = budget ? {
             ...(budget.clientData || {}),
             deliveryDate,
             updatedBy: currentUserName,
-            updatedAt: new Date().toISOString()
+            updatedAt: nowIso,
+            ...(isApproving ? {
+                approvedBy: budget.clientData?.approvedBy || currentUserName,
+                approvedAt: budget.clientData?.approvedAt || nowIso,
+                processo: nextProcesso
+            } : {})
         } : null;
 
         await api.updateBudget(id, { 
@@ -2026,6 +2051,19 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                                                     )}>
                                                         {budget.status}
                                                     </div>
+                                                    {(budget.status === 'Aprovado' || budget.status === 'Faturado') && budget.clientData?.approvedBy && (
+                                                        <div
+                                                            className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 mt-1 inline-block leading-tight"
+                                                            title={`Aprovado por ${budget.clientData.approvedBy}${budget.clientData.approvedAt ? ' em ' + new Date(budget.clientData.approvedAt).toLocaleString('pt-BR') : ''}`}
+                                                        >
+                                                            <div className="font-bold truncate max-w-[110px]">{budget.clientData.approvedBy}</div>
+                                                            {budget.clientData.approvedAt && (
+                                                                <div className="text-[8.5px] opacity-80">
+                                                                    {new Date(budget.clientData.approvedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(budget.clientData.approvedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-3 py-4 text-center">
                                                     <div className="flex justify-center gap-2">
