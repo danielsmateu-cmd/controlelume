@@ -120,6 +120,8 @@ function WhatsAppChatInner() {
   const [subFilter, setSubFilter] = useState('em_atendimento'); // 'em_atendimento', 'aguardando_retorno', 'finalizado'
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -271,6 +273,7 @@ function WhatsAppChatInner() {
     // Limpar mensagens e reações imediatamente ao trocar de conversa para nunca exibir mensagens antigas
     setMessages([]);
     setReactions({});
+    setHasMoreMessages(false);
     setLoadingMessages(true);
 
     const syncReactions = async () => {
@@ -283,10 +286,14 @@ function WhatsAppChatInner() {
 
     const loadMessages = async () => {
       try {
-        const data = await whatsappService.getMessages(activeChat);
+        const PAGE_SIZE = 40;
+        const data = await whatsappService.getMessages(activeChat, PAGE_SIZE);
         if (isCancelled || activeChatIdRef.current !== currentChatId) return;
 
-        setMessages(data || []);
+        if (data !== null) {
+          setMessages(data);
+          setHasMoreMessages(data.length >= PAGE_SIZE);
+        }
         setLoadingMessages(false);
         setTimeout(scrollToBottom, 50);
 
@@ -333,6 +340,15 @@ function WhatsAppChatInner() {
           setMessages((prev) => {
             if (prev.some(m => m.id === newMsg.id || (m.message_id && m.message_id === newMsg.message_id))) {
               return prev;
+            }
+            // Se já existe uma mensagem otimista (temp-) equivalente enviada por nós, substitui em vez de duplicar
+            if (newMsg.from_me) {
+              const tempIdx = prev.findIndex(m => String(m.id).startsWith('temp-') && m.text === newMsg.text);
+              if (tempIdx !== -1) {
+                const updatedList = [...prev];
+                updatedList[tempIdx] = newMsg;
+                return updatedList;
+              }
             }
             return [...prev, newMsg];
           });
@@ -435,25 +451,80 @@ function WhatsAppChatInner() {
         mediaType = fileToSend.type.startsWith('image') ? 'image' : 'document';
       }
 
-      await whatsappService.sendMessage(targetChat, textToSend, signMessage ? (currentUser?.name || 'Atendente') : null, mediaBase64, mediaName, mediaType);
-      
+      const savedMsg = await whatsappService.sendMessage(
+        targetChat,
+        textToSend,
+        signMessage ? (currentUser?.name || 'Atendente') : null,
+        mediaBase64,
+        mediaName,
+        mediaType
+      );
+
+      const nowIso = new Date().toISOString();
+      const previewText = signMessage ? `*${currentUser?.name || 'Atendente'}:*\n${textToSend}` : textToSend;
+
+      setChats(prev => {
+        const next = prev.map(c =>
+          c.id === targetChatId
+            ? {
+                ...c,
+                last_message: previewText || (fileToSend ? '📎 Mídia' : c.last_message),
+                updated_at: nowIso,
+                ...(c.status === 'aguardando_retorno' ? { status: 'em_atendimento' } : {})
+              }
+            : c
+        );
+        return [...next].sort((a, b) =>
+          new Date(b.updated_at || b.created_at || 0).getTime() -
+          new Date(a.updated_at || a.created_at || 0).getTime()
+        );
+      });
+
       if (targetChat.status === 'aguardando_retorno') {
         setActiveChat(prev => (prev?.id === targetChatId ? { ...prev, status: 'em_atendimento' } : prev));
-        setChats(prev => prev.map(c => c.id === targetChatId ? { ...c, status: 'em_atendimento' } : c));
       }
 
-      // Só atualiza histórico se o usuário ainda estiver na mesma conversa
-      if (activeChatIdRef.current === targetChatId) {
-        const refreshed = await whatsappService.getMessages(targetChat);
-        if (activeChatIdRef.current === targetChatId) {
-          setMessages(refreshed);
-          scrollToBottom();
-        }
+      // Substitui a mensagem otimista pela mensagem real retornada pelo Supabase (sem baixar todo o histórico de novo!)
+      if (savedMsg && activeChatIdRef.current === targetChatId) {
+        setMessages(prev => {
+          const alreadyExists = prev.some(m => m.id === savedMsg.id);
+          if (alreadyExists) {
+            return prev.filter(m => m.id !== optimisticMsg.id);
+          }
+          const hasTemp = prev.some(m => m.id === optimisticMsg.id);
+          return hasTemp
+            ? prev.map(m => (m.id === optimisticMsg.id ? savedMsg : m))
+            : [...prev, savedMsg];
+        });
+        setTimeout(scrollToBottom, 50);
       }
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleLoadOlderMessages = async () => {
+    if (!activeChat || loadingOlderMessages || messages.length === 0) return;
+    const oldest = messages[0];
+    if (!oldest?.created_at) return;
+    setLoadingOlderMessages(true);
+    try {
+      const PAGE_SIZE = 40;
+      const older = await whatsappService.getMessages(activeChat, PAGE_SIZE, oldest.created_at);
+      if (older && older.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniqueOlder = older.filter(m => !existingIds.has(m.id));
+          return [...uniqueOlder, ...prev];
+        });
+        setHasMoreMessages(older.length >= PAGE_SIZE);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } finally {
+      setLoadingOlderMessages(false);
     }
   };
 
@@ -1167,9 +1238,22 @@ function WhatsAppChatInner() {
                 Nenhuma mensagem registrada nesta conversa ainda.
               </div>
             ) : (
-              messages
-                .filter(msg => (msg.text && msg.text.trim() !== '') || msg.media_url)
-                .map((msg) => {
+              <>
+                {hasMoreMessages && (
+                  <div className="flex justify-center pb-2">
+                    <button
+                      type="button"
+                      onClick={handleLoadOlderMessages}
+                      disabled={loadingOlderMessages}
+                      className="px-3 py-1 text-[11px] font-semibold text-gray-600 bg-white/90 hover:bg-white border border-gray-200 rounded-full shadow-xs transition-colors disabled:opacity-50"
+                    >
+                      {loadingOlderMessages ? 'Carregando anteriores...' : 'Carregar mensagens anteriores'}
+                    </button>
+                  </div>
+                )}
+                {messages
+                  .filter(msg => (msg.text && msg.text.trim() !== '') || msg.media_url)
+                  .map((msg) => {
                   const isMe = msg.from_me;
                   const msgType = msg.message_type || 'text';
                   const hasText = msg.text && msg.text.trim() !== '';
@@ -1430,7 +1514,8 @@ function WhatsAppChatInner() {
                     </div>
                   </div>
                 );
-              })
+              })}
+              </>
             )}
             <div ref={messagesEndRef} />
           </div>

@@ -21,38 +21,40 @@ export const whatsappService = {
     }
   },
 
-  // Buscar mensagens de um chat específico (por chat_id OU remote_jid)
-  async getMessages(chat) {
+  // Buscar mensagens de um chat específico (paginado pelas mais recentes para carregamento rápido)
+  async getMessages(chat, limit = 40, beforeCreatedAt = null) {
     if (!chat || (!chat.id && !chat.remote_jid)) return [];
     try {
-      let query = supabase.from('whatsapp_messages').select('*');
-      if (chat.id && chat.remote_jid) {
-        query = query.or(`chat_id.eq.${chat.id},remote_jid.eq.${chat.remote_jid}`);
-      } else if (chat.id) {
-        query = query.eq('chat_id', chat.id);
-      } else {
-        query = query.eq('remote_jid', chat.remote_jid);
-      }
+      const runQuery = async (column, value) => {
+        let query = supabase
+          .from('whatsapp_messages')
+          .select('*')
+          .eq(column, value)
+          .order('created_at', { ascending: false })
+          .limit(limit);
 
-      const { data, error } = await query.order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
-    } catch (err) {
-      console.error('Error fetching whatsapp_messages (tentando fallback):', err);
-      try {
-        if (chat.remote_jid) {
-          const { data: fallbackData } = await supabase
-            .from('whatsapp_messages')
-            .select('*')
-            .eq('remote_jid', chat.remote_jid)
-            .order('created_at', { ascending: true });
-          if (fallbackData?.length) return fallbackData;
+        if (beforeCreatedAt) {
+          query = query.lt('created_at', beforeCreatedAt);
         }
-      } catch (fbErr) {
-        console.error('Fallback query error:', fbErr);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      };
+
+      let data = [];
+      if (chat.id) {
+        data = await runQuery('chat_id', chat.id);
       }
-      return [];
+      if (data.length === 0 && chat.remote_jid && !beforeCreatedAt) {
+        data = await runQuery('remote_jid', chat.remote_jid);
+      }
+
+      // Inverter para ordem cronológica (mais antigas -> mais recentes)
+      return data.reverse();
+    } catch (err) {
+      console.error('Error fetching whatsapp_messages:', err);
+      return null; // null indica erro (não sobrescrever mensagens já carregadas com [])
     }
   },
 
@@ -123,29 +125,39 @@ export const whatsappService = {
 
       if (mediaBase64) {
         let storedMediaUrl = mediaBase64;
-        if (mediaBase64.startsWith('data:')) {
+        if (!mediaBase64.startsWith('http')) {
           try {
+            let mime = mediaType === 'document' ? 'application/octet-stream' : 'image/jpeg';
+            let rawBase64 = mediaBase64;
             const match = mediaBase64.match(/^data:([^;]+);base64,(.+)$/);
             if (match) {
-              const mime = match[1];
-              const ext = mime.split('/')[1]?.split('+')[0] || (mediaType === 'document' ? 'bin' : 'jpg');
-              const fileName = `whatsapp/sent_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-              const byteCharacters = atob(match[2]);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: mime });
-              const { error: upErr } = await supabase.storage
+              mime = match[1];
+              rawBase64 = match[2];
+            } else if (mediaName) {
+              const lower = mediaName.toLowerCase();
+              if (lower.endsWith('.png')) mime = 'image/png';
+              else if (lower.endsWith('.webp')) mime = 'image/webp';
+              else if (lower.endsWith('.pdf')) mime = 'application/pdf';
+            }
+            const ext = (mediaName && mediaName.includes('.'))
+              ? mediaName.split('.').pop().toLowerCase()
+              : (mime.split('/')[1]?.split('+')[0] || (mediaType === 'document' ? 'bin' : 'jpg'));
+            const fileName = `whatsapp/sent_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+            const byteCharacters = atob(rawBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mime });
+            const { error: upErr } = await supabase.storage
+              .from('orcamentos')
+              .upload(fileName, blob, { contentType: mime, upsert: true });
+            if (!upErr) {
+              const { data: pubData } = supabase.storage
                 .from('orcamentos')
-                .upload(fileName, blob, { contentType: mime, upsert: true });
-              if (!upErr) {
-                const { data: pubData } = supabase.storage
-                  .from('orcamentos')
-                  .getPublicUrl(fileName);
-                storedMediaUrl = pubData.publicUrl;
-              }
+                .getPublicUrl(fileName);
+              storedMediaUrl = pubData.publicUrl;
             }
           } catch (uploadErr) {
             console.warn('Erro ao salvar mídia no storage:', uploadErr);
