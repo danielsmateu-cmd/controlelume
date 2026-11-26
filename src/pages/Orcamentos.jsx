@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import { supabase } from '../lib/supabase';
 import ClientesOrcamento from '../components/ClientesOrcamento';
 import ProdutosOrcamento from '../components/ProdutosOrcamento';
+import SendBudgetWhatsAppModal from '../components/SendBudgetWhatsAppModal';
 import { useAuth } from '../context/AuthContext';
 
 const TrendingUp = ({ size }) => (
@@ -185,6 +186,7 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [includeNf, setIncludeNf] = useState(true);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [waSendModal, setWaSendModal] = useState(null); // { budget, clientData, items, total }
     const [manualPrice, setManualPrice] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState(null);
@@ -375,7 +377,54 @@ const Orcamentos = ({ materials, setMaterials, readOnly, setActiveTab }) => {
         }
     };
 
-    const handleSendWhatsApp = async (budget) => {
+    const handleSendWhatsApp = (budget) => {
+        if (isGeneratingPdf) return;
+
+        const cData = budget ? budget.clientData : clientData;
+        const items = budget ? budget.items : budgetItems;
+        const total = budget ? budget.total : projectTotal;
+
+        if (!items || items.length === 0) {
+            alert("O orçamento não possui itens.");
+            return;
+        }
+
+        setWaSendModal({
+            budget: budget || null,
+            clientData: cData || {},
+            items: items || [],
+            total: total || 0
+        });
+    };
+
+    const generatePdfForModal = async () => {
+        if (!waSendModal) return null;
+        const { budget } = waSendModal;
+        const originalClientData = { ...clientData };
+        const originalBudgetItems = [...budgetItems];
+        const originalAttachedImages = [...attachedImages];
+
+        setIsGeneratingPdf(true);
+        try {
+            if (budget) {
+                setClientData(budget.clientData || {});
+                setBudgetItems(budget.items || []);
+                setAttachedImages(budget.attachedImages || []);
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+            const pdfUrl = await generateAndUploadPDF(budget || { id: loadedBudgetId || 'atual' });
+            return pdfUrl;
+        } finally {
+            if (budget) {
+                setClientData(originalClientData);
+                setBudgetItems(originalBudgetItems);
+                setAttachedImages(originalAttachedImages);
+            }
+            setIsGeneratingPdf(false);
+        }
+    };
+
+    const _unusedLegacySendWhatsApp = async (budget) => {
         if (isGeneratingPdf) return;
 
         const cData = budget ? budget.clientData : clientData;
@@ -3709,6 +3758,16 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     </>
                 )}
             </div >
+
+            <SendBudgetWhatsAppModal
+                isOpen={Boolean(waSendModal)}
+                onClose={() => setWaSendModal(null)}
+                budgetPayload={waSendModal}
+                clientesCadastrados={clientesCadastrados}
+                currentUserName={currentUserName}
+                onGeneratePdf={generatePdfForModal}
+                onGoToWhatsApp={setActiveTab ? () => setActiveTab('whatsapp') : null}
+            />
         </>
     );
 };
