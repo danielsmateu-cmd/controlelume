@@ -208,13 +208,27 @@ function WhatsAppChatInner() {
         (payload) => {
           if (payload.eventType === 'UPDATE' && payload.new) {
             const updated = payload.new;
-            setChats(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+            setChats(prev => {
+              const exists = prev.some(c => c.id === updated.id);
+              const next = exists
+                ? prev.map(c => c.id === updated.id ? { ...c, ...updated } : c)
+                : [updated, ...prev];
+              return [...next].sort((a, b) =>
+                new Date(b.updated_at || b.created_at || 0).getTime() -
+                new Date(a.updated_at || a.created_at || 0).getTime()
+              );
+            });
             setActiveChat(prev => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
           } else if (payload.eventType === 'INSERT' && payload.new) {
             const newChat = payload.new;
             setChats(prev => {
-              if (prev.some(c => c.id === newChat.id)) return prev;
-              return [newChat, ...prev];
+              const next = prev.some(c => c.id === newChat.id)
+                ? prev.map(c => c.id === newChat.id ? { ...c, ...newChat } : c)
+                : [newChat, ...prev];
+              return [...next].sort((a, b) =>
+                new Date(b.updated_at || b.created_at || 0).getTime() -
+                new Date(a.updated_at || a.created_at || 0).getTime()
+              );
             });
           } else {
             fetchChats();
@@ -642,7 +656,10 @@ function WhatsAppChatInner() {
     }
 
     return true;
-  });
+  }).sort((a, b) =>
+    new Date(b.updated_at || b.created_at || 0).getTime() -
+    new Date(a.updated_at || a.created_at || 0).getTime()
+  );
 
   const unreadCounts = {
     aguardando: 0,
