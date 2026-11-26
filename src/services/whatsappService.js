@@ -169,13 +169,26 @@ export const whatsappService = {
         newMsgObj.text = formattedText;
       }
 
+      let savedMsg = null;
       const { data: newMsg, error: msgErr } = await supabase
         .from('whatsapp_messages')
         .insert([newMsgObj])
         .select()
         .single();
 
-      if (msgErr) console.error('Error inserting msg in Supabase:', msgErr);
+      if (msgErr) {
+        console.warn('Insert msg falhou (verificando se webhook já gravou):', msgErr.message);
+        if (sentMessageId) {
+          const { data: existing } = await supabase
+            .from('whatsapp_messages')
+            .select('*')
+            .eq('message_id', sentMessageId)
+            .maybeSingle();
+          savedMsg = existing || null;
+        }
+      } else {
+        savedMsg = newMsg;
+      }
 
       // 3. Atualizar resumo na conversa
       const chatUpdate = {
@@ -191,7 +204,7 @@ export const whatsappService = {
         .update(chatUpdate)
         .eq('id', chat.id);
 
-      return newMsg;
+      return savedMsg;
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;
