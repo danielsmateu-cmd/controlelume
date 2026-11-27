@@ -33,7 +33,7 @@ const buildDefaultBudgetMessage = (cData, items, total) => {
     const clientName = cData?.name || 'Cliente';
     const installationVal = parseFloat(cData?.installationValue) || 0;
     const itemsSummary = (items || [])
-        .map(item => `• *${item.quantity}x ${item.name}* (R$ ${(item.unitPrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
+        .map(item => `• *${item.quantity}x ${(item.name || '').trim()}* (R$ ${(item.unitPrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/un)`)
         .join('\n');
 
     const subtotalPix = (items || []).reduce((sum, item) => sum + (Math.round((item.unitPrice || 0) * 0.9 * 100) / 100 * item.quantity), 0);
@@ -57,7 +57,12 @@ ${installationVal > 0 ? `🛠️ *Instalação:* R$ ${installationVal.toLocaleSt
 💳 *Cartão de Crédito (Sem Juros):* 6x de R$ ${cardInstallment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData?.hasBoleto ? `\n📄 *Boleto Bancário (Faturado):* R$ ${(total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cData.boletoDdl ? ` (${cData.boletoDdl} DDL)` : ''}` : ''}
 
 ⏱️ *Prazo de Produção:* 10 dias úteis (a partir da aprovação do sinal).
-📍 *Retirada:* Rua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba/SP.`;
+
+📍 *Retirada:*
+${installationVal > 0
+        ? `Os pedidos devem ser retirados no endereço:\nRua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP\nCEP: 13.347-458`
+        : `Entrega e instalação não inclusas, os pedidos devem ser retirados no endereço:\nRua Hermínio Albieiro, nº 64 - DIMPE II - Indaiatuba – SP\nCEP: 13.347-458\n*Não fazemos instalação.*`
+    }`;
 };
 
 const SendBudgetWhatsAppModal = ({
