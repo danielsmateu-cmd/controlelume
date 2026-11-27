@@ -937,12 +937,23 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
         try {
             const cleanedClientData = { ...clientData };
             delete cleanedClientData.finishedBy;
+            delete cleanedClientData.finishedAt;
             delete cleanedClientData.deliveryDate;
+            delete cleanedClientData.deliveredDate;
             delete cleanedClientData.productionObs;
+            delete cleanedClientData.processo;
+            delete cleanedClientData.approvedBy;
+            delete cleanedClientData.approvedAt;
+            delete cleanedClientData.updatedBy;
+            delete cleanedClientData.updatedAt;
 
             const originalBudget = isEditingExisting ? savedBudgets.find(b => b.id === loadedBudgetId) : null;
-            const originalCreatedBy = originalBudget?.clientData?.createdBy || originalBudget?.client_data?.createdBy || clientData.createdBy || currentUserName;
-            const originalCreatedAt = originalBudget?.clientData?.createdAt || originalBudget?.client_data?.createdAt || originalBudget?.date || clientData.createdAt || new Date().toISOString();
+            const originalCreatedBy = isEditingExisting
+                ? (originalBudget?.clientData?.createdBy || originalBudget?.client_data?.createdBy || clientData.createdBy || currentUserName)
+                : currentUserName;
+            const originalCreatedAt = isEditingExisting
+                ? (originalBudget?.clientData?.createdAt || originalBudget?.client_data?.createdAt || originalBudget?.date || clientData.createdAt || new Date().toISOString())
+                : new Date().toISOString();
 
             const finalClientData = { 
                 ...cleanedClientData,
@@ -954,7 +965,12 @@ _Por favor, faça o download do PDF completo e anexe-o nesta conversa._`;
                     updatedAt: new Date().toISOString(),
                     ...(originalBudget?.clientData?.approvedBy ? { approvedBy: originalBudget.clientData.approvedBy } : {}),
                     ...(originalBudget?.clientData?.approvedAt ? { approvedAt: originalBudget.clientData.approvedAt } : {}),
-                    ...(originalBudget?.clientData?.processo ? { processo: originalBudget.clientData.processo } : {})
+                    ...(originalBudget?.clientData?.processo ? { processo: originalBudget.clientData.processo } : {}),
+                    ...(originalBudget?.clientData?.finishedBy ? { finishedBy: originalBudget.clientData.finishedBy } : {}),
+                    ...(originalBudget?.clientData?.finishedAt ? { finishedAt: originalBudget.clientData.finishedAt } : {}),
+                    ...(originalBudget?.clientData?.deliveredDate ? { deliveredDate: originalBudget.clientData.deliveredDate } : {}),
+                    ...(originalBudget?.clientData?.deliveryDate ? { deliveryDate: originalBudget.clientData.deliveryDate } : {}),
+                    ...(originalBudget?.clientData?.productionObs ? { productionObs: originalBudget.clientData.productionObs } : {})
                 } : {})
             };
 
